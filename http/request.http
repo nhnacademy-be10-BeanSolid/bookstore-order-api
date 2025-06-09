@@ -1,0 +1,18 @@
+POST /orders HTTP/1.1
+Host: localhost:8080
+Content-Type: application/json
+Authorization: Basic YXBpdXNlcjphcGlwYXNzMTIz
+
+{
+  "orderType": "member",
+  "userId": 1,
+  "deliveryDate": "2025-06-10",
+  "items": [
+    {
+      "bookId": 42,
+      "quantity": 2,
+      "isGiftWrapped": true,
+      "wrappingId": 1
+    }
+  ]
+}
