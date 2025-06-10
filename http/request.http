@@ -1,32 +1,10 @@
 ### 1) 전체 주문 조회
-# Expected HTTP Status: 200 OK
 GET http://localhost:8080/orders
 Accept: application/json
 
+###
 
-
-### 2) 회원 주문 생성 예시
-# Expected HTTP Status: 200 OK
-POST http://localhost:8080/orders
-Content-Type: application/json
-
-{
-  "orderType": "member",
-  "userId": 123,
-  "deliveryDate": "2025-06-12",
-  "items": [
-    {
-      "bookId": 3,
-      "quantity": 1,
-      "giftWrapped": false
-    }
-  ]
-}
-
-
-
-### 3) 비회원 주문 생성 예시
-# Expected HTTP Status: 200 OK
+### 2) 주문 생성: 배송일자 미지정 → 기본 오늘
 POST http://localhost:8080/orders
 Content-Type: application/json
 
@@ -34,18 +12,42 @@ Content-Type: application/json
   "orderType": "guest",
   "guestName": "홍길동",
   "guestPhone": "010-1234-5678",
-  "deliveryDate": "2025-06-15",
   "items": [
     {
       "bookId": 1,
       "quantity": 2,
-      "giftWrapped": true
-    },
-    {
-      "bookId": 2,
-      "quantity": 1,
       "giftWrapped": false
     }
   ]
 }
 
+###
+
+### 3) 주문 생성: 배송일자 지정 (예: 2025-06-15)
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "orderType": "member",
+  "userId": 42,
+  "deliveryDate": "2025-06-15",
+  "items": [
+    {
+      "bookId": 2,
+      "quantity": 1,
+      "giftWrapped": true,
+      "wrappingId": 5
+    }
+  ]
+}
+
+###
+
+### 4) 오류 예시: member인데 userId 누락
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "orderType": "member",
+  "items": []
+}
