@@ -3,6 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.service;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
@@ -12,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,22 +27,26 @@ public class OrderService {
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
-        // 1) 엔티티 생성 (기본 정보 세팅)
+        // 1) 배송 날짜 결정 (희망일 또는 기본 오늘)
+        LocalDate effectiveDate = (req.getDeliveryDate() != null) ? req.getDeliveryDate() : LocalDate.now();
+        LocalDateTime deliveryAt = effectiveDate.atStartOfDay();
+
+        // 2) 엔티티 생성 (기본 정보 세팅)
         Order order = Order.builder()
                 .userId(req.getUserId())
                 .guestName(req.getGuestName())
                 .guestPhone(req.getGuestPhone())
-                .status(com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus.PENDING)
+                .status(OrderStatus.PENDING)
                 .requestedAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .deliveryAt(req.getDeliveryDate().atStartOfDay())
-                .totalPrice(0)     // 나중에 계산
+                .deliveryAt(deliveryAt)
+                .totalPrice(0)
                 .deliveryFee(0)
                 .finalPrice(0)
                 .build();
 
-        // 2) 아이템별 가격 계산 및 엔티티에 추가
+        // 3) 아이템별 가격 계산 및 엔티티에 추가
         int sum = 0;
         for (OrderItemDto dto : req.getItems()) {
             Wrapping wrap = null;
@@ -67,16 +73,16 @@ public class OrderService {
             order.addItem(item);
         }
 
-        // 3) 배송비 및 최종금액 세팅
+        // 4) 배송비 및 최종금액 세팅
         int deliveryFee = 3_000;
         order.setTotalPrice(sum);
         order.setDeliveryFee(deliveryFee);
         order.setFinalPrice(sum + deliveryFee);
 
-        // 4) 저장
+        // 5) 저장
         Order saved = orderRepository.save(order);
 
-        // 5) 응답 DTO 생성
+        // 6) 응답 DTO 생성
         String userInfo = saved.getUserId() != null
                 ? "회원 ID: " + saved.getUserId()
                 : "비회원: " + saved.getGuestName() + " (" + saved.getGuestPhone() + ")";

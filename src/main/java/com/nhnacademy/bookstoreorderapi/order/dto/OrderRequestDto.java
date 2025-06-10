@@ -15,11 +15,11 @@ public class OrderRequestDto {
     private String orderType; // member or guest
 
     private Long userId;
-
     private String guestName;
     private String guestPhone;
 
-    @NotNull
+    // @NotNull 제거 → null 허용 (기본 날짜 처리)
+    @FutureOrPresent(message = "배송일자는 오늘 또는 이후여야 합니다.")
     private LocalDate deliveryDate;
 
     @NotEmpty
@@ -35,6 +35,6 @@ public class OrderRequestDto {
     public boolean isGuestValid() {
         return !"guest".equalsIgnoreCase(orderType)
                 || (guestName != null && !guestName.isBlank()
-                && guestPhone != null && !guestPhone.isBlank());
+                 && guestPhone != null && !guestPhone.isBlank());
     }
 }
