@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.service;
+package com.nhnacademy.bookstoreorderapi.order.service;
 
 public interface WrappingService {
 

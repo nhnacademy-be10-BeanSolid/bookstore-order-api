@@ -1,8 +1,8 @@
-package com.nhnacademy.bookstoreorderapi.service.impl;
+package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.entity.Wrapping;
-import com.nhnacademy.bookstoreorderapi.repository.WrappingRepository;
-import com.nhnacademy.bookstoreorderapi.service.WrappingService;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import com.nhnacademy.bookstoreorderapi.order.service.WrappingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

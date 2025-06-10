@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.service.impl;
+package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.repository.WrappingRepository;
@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.assertj.core.api.Assertions.*;
 

@@ -8,7 +8,7 @@ import lombok.*;
 @Table(name = "wrapping")
 @Getter
 @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 public class Wrapping {
