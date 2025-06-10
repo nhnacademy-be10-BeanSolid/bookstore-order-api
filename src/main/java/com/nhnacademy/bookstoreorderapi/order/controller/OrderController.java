@@ -5,64 +5,32 @@ import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
+
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-@Controller
-@RequestMapping("/orders")
+import java.util.Map;
+
+@RestController
 @RequiredArgsConstructor
+@RequestMapping("/orders")
 public class OrderController {
     private final OrderService orderService;
 
-    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<?> createOrderJson(@Valid @RequestBody OrderRequestDto req) {
-        try {
-            validateOrderType(req);
-            OrderResponseDto resp = orderService.createOrder(req);
-            return ResponseEntity.ok(resp);
-        } catch (Exception ex) {
-            return ResponseEntity.badRequest().body(new ErrorMessage("주문 실패: " + ex.getMessage()));
-        }
-    }
-
-    @GetMapping(path = "/api", produces = MediaType.APPLICATION_JSON_VALUE)
-    @ResponseBody
+    @GetMapping
     public List<OrderResponseDto> listAllJson() {
         return orderService.listAll();
     }
 
-    @GetMapping(produces = MediaType.TEXT_HTML_VALUE)
-    public String listAllHtml(Model model) {
-        model.addAttribute("orders", orderService.listAll());
-        model.addAttribute("orderForm", new OrderRequestDto());
-        return "orders";
-    }
-
-    @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public String submitOrderHtml(
-            @Valid @ModelAttribute("orderForm") OrderRequestDto orderForm,
-            BindingResult bindingResult,
-            Model model
-    ) {
-        if (bindingResult.hasErrors()) {
-            model.addAttribute("orders", orderService.listAll());
-            model.addAttribute("errorMessage", "입력값이 유효하지 않습니다.");
-            return "orders";
-        }
-
+    @PostMapping
+    public ResponseEntity<?> createOrder(@Valid @RequestBody OrderRequestDto orderForm) {
         try {
             validateOrderType(orderForm);
-            orderService.createOrder(orderForm);
-            return "redirect:/orders";
-        } catch (Exception ex) {
-            model.addAttribute("orders", orderService.listAll());
-            model.addAttribute("errorMessage", ex.getMessage());
-            return "orders";
+            OrderResponseDto created = orderService.createOrder(orderForm);
+            return ResponseEntity.ok(created);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
@@ -79,6 +47,4 @@ public class OrderController {
             throw new IllegalArgumentException("orderType은 'member' 또는 'guest'여야 합니다.");
         }
     }
-
-    record ErrorMessage(String message) {}
 }

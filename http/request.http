@@ -1,18 +1,51 @@
-POST /orders HTTP/1.1
-Host: localhost:8080
+### 1) 전체 주문 조회
+# Expected HTTP Status: 200 OK
+GET http://localhost:8080/orders
+Accept: application/json
+
+
+
+### 2) 회원 주문 생성 예시
+# Expected HTTP Status: 200 OK
+POST http://localhost:8080/orders
 Content-Type: application/json
-Authorization: Basic YXBpdXNlcjphcGlwYXNzMTIz
 
 {
   "orderType": "member",
-  "userId": 1,
-  "deliveryDate": "2025-06-10",
+  "userId": 123,
+  "deliveryDate": "2025-06-12",
   "items": [
     {
-      "bookId": 42,
-      "quantity": 2,
-      "isGiftWrapped": true,
-      "wrappingId": 1
+      "bookId": 3,
+      "quantity": 1,
+      "giftWrapped": false
     }
   ]
 }
+
+
+
+### 3) 비회원 주문 생성 예시
+# Expected HTTP Status: 200 OK
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "orderType": "guest",
+  "guestName": "홍길동",
+  "guestPhone": "010-1234-5678",
+  "deliveryDate": "2025-06-15",
+  "items": [
+    {
+      "bookId": 1,
+      "quantity": 2,
+      "giftWrapped": true
+    },
+    {
+      "bookId": 2,
+      "quantity": 1,
+      "giftWrapped": false
+    }
+  ]
+}
+
