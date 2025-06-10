@@ -13,4 +13,3 @@ public class BookstoreOrderApiApplication {
         SpringApplication.run(BookstoreOrderApiApplication.class, args);
     }
 }
-
