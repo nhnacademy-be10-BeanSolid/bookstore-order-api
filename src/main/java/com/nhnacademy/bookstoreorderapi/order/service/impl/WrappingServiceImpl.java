@@ -4,11 +4,10 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.WrappingService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
 import java.util.Optional;
 
-@Service
+//@Service
+//@Profile("!local")
 @RequiredArgsConstructor
 public class WrappingServiceImpl implements WrappingService {
 

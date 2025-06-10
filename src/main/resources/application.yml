@@ -1,3 +1,5 @@
+# src/main/resources/application.yml
+
 server:
   port: 8080
 
@@ -6,15 +8,32 @@ spring:
     web-application-type: servlet
     allow-bean-definition-overriding: true
 
-  jpa:
-    open-in-view: false
-
   thymeleaf:
     prefix: classpath:/templates/
     suffix: .html
     enabled: true
 
+  jpa:
+    open-in-view: false
+
   autoconfigure:
     exclude:
-      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
       - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+
+cloud:
+  openfeign:
+    client:
+      config:
+        default:
+          connectTimeout: 5000
+          readTimeout:  5000
+
+catalog:
+  service:
+    url: http://localhost:8080
+
+delivery:
+  service:
+    url: http://localhost:8080
