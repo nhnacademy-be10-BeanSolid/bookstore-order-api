@@ -1,53 +1,53 @@
-### 1) 전체 주문 조회
-GET http://localhost:8080/orders
+### 0) 전체 주문 조회 (ID 확인용)
+GET http://localhost:10345/orders
 Accept: application/json
 
 ###
 
-### 2) 주문 생성: 배송일자 미지정 → 기본 오늘
-POST http://localhost:8080/orders
+### 1) 주문 생성
+POST http://localhost:10345/orders
 Content-Type: application/json
 
 {
   "orderType": "guest",
-  "guestName": "홍길동",
-  "guestPhone": "010-1234-5678",
+  "guestName": "테스트",
+  "guestPhone": "010-0000-0000",
   "items": [
-    {
-      "bookId": 1,
-      "quantity": 2,
-      "giftWrapped": false
-    }
+    { "bookId": 1, "quantity": 1, "giftWrapped": false }
   ]
+}
+
+> {%
+    // response.body가 문자열인지 객체인지 판별
+    let body = response.body;
+    if (typeof body === 'string') {
+        body = JSON.parse(body);
+    }
+    client.global.set("orderId", body.orderId);
+%}
+
+###
+
+### 2) 주문 취소: 정상 (생성된 PENDING 주문)
+POST http://localhost:10345/orders/{{orderId}}/cancel
+Content-Type: application/json
+
+{
+  "reason": "고객 요청"
 }
 
 ###
 
-### 3) 주문 생성: 배송일자 지정 (예: 2025-06-15)
-POST http://localhost:8080/orders
-Content-Type: application/json
-
-{
-  "orderType": "member",
-  "userId": 42,
-  "deliveryDate": "2025-06-15",
-  "items": [
-    {
-      "bookId": 2,
-      "quantity": 1,
-      "giftWrapped": true,
-      "wrappingId": 5
-    }
-  ]
-}
+### 3) 이미 취소된 주문 재요청
+POST http://localhost:10345/orders/{{orderId}}/cancel
 
 ###
 
-### 4) 오류 예시: member인데 userId 누락
-POST http://localhost:8080/orders
-Content-Type: application/json
+### 4) 배송 중(또는 완료) 상태 주문 취소 시도
+# SHIPPING 상태로 변경된 주문 ID를 직접 지정
+POST http://localhost:10345/orders/2/cancel
 
-{
-  "orderType": "member",
-  "items": []
-}
+###
+
+### 5) 존재하지 않는 주문 ID
+POST http://localhost:10345/orders/999/cancel
