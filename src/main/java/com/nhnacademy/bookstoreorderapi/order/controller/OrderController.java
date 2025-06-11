@@ -1,17 +1,13 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,18 +21,20 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createOrder(@Valid @RequestBody OrderRequestDto orderForm) {
+    public ResponseEntity<ResponseDto> createOrder(@Valid @RequestBody OrderRequestDto orderForm) {
         try {
             validateOrderType(orderForm);
             OrderResponseDto created = orderService.createOrder(orderForm);
             return ResponseEntity.ok(created);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            ErrorResponseDto error = new ErrorResponseDto(e.getMessage());
+            return ResponseEntity.badRequest()
+                                 .body(error);
         }
     }
 
     @PatchMapping(path = "/{orderId}/status")
-    public ResponseEntity<?> changeOrderStatus(
+    public ResponseEntity<Void> changeOrderStatus(
             @PathVariable Long orderId,
             @RequestBody StatusChangeDto dto) {
 
