@@ -11,6 +11,8 @@ import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+improt com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
