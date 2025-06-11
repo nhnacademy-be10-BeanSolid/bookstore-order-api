@@ -34,9 +34,45 @@ class OrderServiceTest {
     @Mock
     private OrderRepository orderRepository;
 
+    
+    @Mock
+    private WrappingRepository wrappingRepository;
+
     @InjectMocks
     private OrderService orderService;
 
+    private OrderRequestDto baseGuestRequest;
+    private OrderRequestDto baseMemberRequest;
+
+    @BeforeEach
+    void setUp() {
+        baseGuestRequest = OrderRequestDto.builder()
+                .orderType("guest")
+                .guestName("테스트")
+                .guestPhone("010-0000-0000")
+                .deliveryDate(null)
+                .items(Collections.singletonList(
+                        OrderItemDto.builder()
+                                .bookId(1L)
+                                .quantity(2)
+                                .giftWrapped(false)
+                                .build()
+                ))
+                .build();
+
+        baseMemberRequest = OrderRequestDto.builder()
+                .orderType("member")
+                .userId(100L)
+                .deliveryDate(null)
+                .items(Collections.singletonList(
+                        OrderItemDto.builder()
+                                .bookId(2L)
+                                .quantity(1)
+                                .giftWrapped(false)
+                                .build()
+                ))
+                .build();
+    }
 
     @ParameterizedTest(name = "주문#{0} 상태를 {1}에서 {2}로 변경하면 성공한다")
     @CsvSource({
@@ -94,48 +130,6 @@ class OrderServiceTest {
         verify(orderRepository, times(1)).findById(orderId);
     }
 }
-
-    @Mock
-    private OrderRepository orderRepository;
-
-    @Mock
-    private WrappingRepository wrappingRepository;
-
-    @InjectMocks
-    private OrderService orderService;
-
-    private OrderRequestDto baseGuestRequest;
-    private OrderRequestDto baseMemberRequest;
-
-    @BeforeEach
-    void setUp() {
-        baseGuestRequest = OrderRequestDto.builder()
-                .orderType("guest")
-                .guestName("테스트")
-                .guestPhone("010-0000-0000")
-                .deliveryDate(null)
-                .items(Collections.singletonList(
-                        OrderItemDto.builder()
-                                .bookId(1L)
-                                .quantity(2)
-                                .giftWrapped(false)
-                                .build()
-                ))
-                .build();
-
-        baseMemberRequest = OrderRequestDto.builder()
-                .orderType("member")
-                .userId(100L)
-                .deliveryDate(null)
-                .items(Collections.singletonList(
-                        OrderItemDto.builder()
-                                .bookId(2L)
-                                .quantity(1)
-                                .giftWrapped(false)
-                                .build()
-                ))
-                .build();
-    }
 
     @Test
     void createOrder_WhenDeliveryDateNull_SetsTodayAsDeliveryAt() {
