@@ -129,7 +129,6 @@ class OrderServiceTest {
                 .hasMessageContaining("상태 전이 불가");
         verify(orderRepository, times(1)).findById(orderId);
     }
-}
 
     @Test
     void createOrder_WhenDeliveryDateNull_SetsTodayAsDeliveryAt() {
