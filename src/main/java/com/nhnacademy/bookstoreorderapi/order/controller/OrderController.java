@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeDto;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,15 @@ public class OrderController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    @PatchMapping(path = "/{orderId}/status")
+    public ResponseEntity<?> changeOrderStatus(
+            @PathVariable Long orderId,
+            @RequestBody StatusChangeDto dto) {
+
+        orderService.changeStatus(orderId, dto.getNewStatus());
+        return ResponseEntity.ok().build();
     }
 
     private void validateOrderType(OrderRequestDto req) {

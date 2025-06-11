@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
@@ -9,13 +10,14 @@ import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -100,22 +102,35 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponseDto> listAll() {
-        return orderRepository.findAll().stream()
-                .map(o -> {
-                    String userInfo = o.getUserId() != null
-                            ? "회원 ID: " + o.getUserId()
-                            : "비회원: " + o.getGuestName() + " (" + o.getGuestPhone() + ")";
-                    String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                            userInfo, o.getTotalPrice(), o.getDeliveryFee(), o.getFinalPrice());
+      
+          return orderRepository.findAll().stream()
+          .map(o -> {
+              String userInfo = o.getUserId() != null
+                      ? "회원 ID: " + o.getUserId()
+                      : "비회원: " + o.getGuestName() + " (" + o.getGuestPhone() + ")";
+              String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
+                      userInfo, o.getTotalPrice(), o.getDeliveryFee(), o.getFinalPrice());
 
-                    return OrderResponseDto.builder()
-                            .orderId(o.getId())
-                            .totalPrice(o.getTotalPrice())
-                            .deliveryFee(o.getDeliveryFee())
-                            .finalPrice(o.getFinalPrice())
-                            .message(message)
-                            .build();
-                })
-                .collect(Collectors.toList());
-     }
+              return OrderResponseDto.builder()
+                      .orderId(o.getId())
+                      .totalPrice(o.getTotalPrice())
+                      .deliveryFee(o.getDeliveryFee())
+                      .finalPrice(o.getFinalPrice())
+                      .message(message)
+                      .build();
+          })
+          .collect(Collectors.toList());
+    }
+
+    public void changeStatus(Long orderId, OrderStatus newStatus) {
+
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없음"));
+
+        OrderStatus oldStatus = order.getStatus();
+        if (!oldStatus.canTransitionTo(newStatus)) {
+            throw new IllegalStateException(String.format("상태 전이 불가: %s -> %s", oldStatus, newStatus));
+        }
+
+        order.setStatus(newStatus);
+    }
 }

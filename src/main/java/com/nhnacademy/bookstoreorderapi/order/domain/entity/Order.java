@@ -10,7 +10,7 @@ import java.util.List;
 @Entity
 @Table(name = "orders")
 @Getter @Setter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class Order {
