@@ -1,10 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
@@ -23,7 +21,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
+    private final CanceledOrderRepository canceledOrderRepository;
     private final OrderRepository orderRepository;
     private final WrappingRepository wrappingRepository;
 
@@ -121,6 +119,28 @@ public class OrderService {
           })
           .collect(Collectors.toList());
     }
+    @Transactional
+    public void cancelOrder(Long orderId, String reason) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new IllegalStateException("배송 전 주문만 취소 가능합니다.");
+        }
+
+        // 상태 변경
+        order.setStatus(OrderStatus.CANCELED);
+
+        // 취소 기록 저장
+        CanceledOrder record = CanceledOrder.builder()
+                .orderId(orderId)
+                .canceledAt(LocalDateTime.now())
+                .reason(reason)
+                .build();
+        canceledOrderRepository.save(record);
+
+        // **이 부분만 추가**: 변경된 주문 상태를 저장해야 테스트가 통과합니다.
+        orderRepository.save(order);
+    }
 
     public void changeStatus(Long orderId, OrderStatus newStatus) {
 
@@ -133,4 +153,6 @@ public class OrderService {
 
         order.setStatus(newStatus);
     }
+
+
 }
