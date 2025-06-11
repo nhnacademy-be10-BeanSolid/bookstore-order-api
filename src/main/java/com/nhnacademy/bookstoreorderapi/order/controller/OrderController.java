@@ -1,5 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.dto.CancelOrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeDto;
@@ -55,6 +57,19 @@ public class OrderController {
             }
         } else {
             throw new IllegalArgumentException("orderType은 'member' 또는 'guest'여야 합니다.");
+        }
+    }
+    @PostMapping("/{orderId}/cancel")
+    public ResponseEntity<?> cancelOrder(
+            @PathVariable Long orderId,
+            @RequestBody(required = false) CancelOrderRequestDto dto
+    ) {
+        String reason = (dto != null ? dto.getReason() : null);
+        try {
+            orderService.cancelOrder(orderId, reason);
+            return ResponseEntity.ok().build();
+        } catch (IllegalStateException | ResourceNotFoundException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 }
