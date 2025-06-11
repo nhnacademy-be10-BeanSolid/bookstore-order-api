@@ -1,18 +1,53 @@
-POST /orders HTTP/1.1
-Host: localhost:8080
+### 1) 전체 주문 조회
+GET http://localhost:8080/orders
+Accept: application/json
+
+###
+
+### 2) 주문 생성: 배송일자 미지정 → 기본 오늘
+POST http://localhost:8080/orders
 Content-Type: application/json
-Authorization: Basic YXBpdXNlcjphcGlwYXNzMTIz
+
+{
+  "orderType": "guest",
+  "guestName": "홍길동",
+  "guestPhone": "010-1234-5678",
+  "items": [
+    {
+      "bookId": 1,
+      "quantity": 2,
+      "giftWrapped": false
+    }
+  ]
+}
+
+###
+
+### 3) 주문 생성: 배송일자 지정 (예: 2025-06-15)
+POST http://localhost:8080/orders
+Content-Type: application/json
 
 {
   "orderType": "member",
-  "userId": 1,
-  "deliveryDate": "2025-06-10",
+  "userId": 42,
+  "deliveryDate": "2025-06-15",
   "items": [
     {
-      "bookId": 42,
-      "quantity": 2,
-      "isGiftWrapped": true,
-      "wrappingId": 1
+      "bookId": 2,
+      "quantity": 1,
+      "giftWrapped": true,
+      "wrappingId": 5
     }
   ]
+}
+
+###
+
+### 4) 오류 예시: member인데 userId 누락
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "orderType": "member",
+  "items": []
 }
