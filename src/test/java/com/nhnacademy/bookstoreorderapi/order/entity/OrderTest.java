@@ -6,7 +6,6 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +16,6 @@ class OrderTest {
     @DisplayName("Builder should correctly assign all fields")
     void builder_assignsAllFields() {
         LocalDateTime now = LocalDateTime.now();
-        LocalDate desiredDate = LocalDate.of(2025, 6, 15);
 
         Order order = Order.builder()
                 .id(100L)
@@ -55,7 +53,6 @@ class OrderTest {
         Order order = Order.builder().id(1L).build();
         OrderItem item = new OrderItem();
         item.setId(10L);
-//        item.setProductId(5L);
         item.setQuantity(2);
         item.setUnitPrice(1500);
 
