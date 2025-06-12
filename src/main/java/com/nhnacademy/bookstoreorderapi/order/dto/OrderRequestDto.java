@@ -14,7 +14,7 @@ public class OrderRequestDto {
     @NotBlank
     private String orderType; // member or guest
 
-    private Long userId;
+    private String userId;
     private String guestName;
     private String guestPhone;
 

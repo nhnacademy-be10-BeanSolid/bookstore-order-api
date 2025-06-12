@@ -1,9 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,27 +14,25 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doThrow;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrderController.class)
 class OrderControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockBean
     private OrderService orderService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Test
     @DisplayName("GET /orders - 성공적으로 주문 목록 반환")
@@ -60,7 +58,7 @@ class OrderControllerTest {
     void createMemberOrderSuccess() throws Exception {
         OrderRequestDto req = OrderRequestDto.builder()
                 .orderType("member")
-                .userId(123L)
+                .userId("123L")
                 .deliveryDate(LocalDate.of(2025, 6, 12))
                 .items(List.of(new OrderItemDto(3L, 1, false, null)))
                 .build();
@@ -119,13 +117,110 @@ class OrderControllerTest {
                 .items(List.of(new OrderItemDto(1L, 1, false, null)))
                 .build();
 
-        // validateOrderType 에서 IllegalArgumentException 발생
         doThrow(new IllegalArgumentException("orderType은 'member' 또는 'guest'여야 합니다."))
                 .when(orderService).createOrder(any(OrderRequestDto.class));
 
         mockMvc.perform(post("/orders")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().json("{\"error\":\"orderType은 'member' 또는 'guest'여야 합니다.\"}"));
+    }
+
+    @Test
+    @DisplayName("PATCH /orders/{id}/status - 상태 변경 성공")
+    void changeStatusSuccess() throws Exception {
+        StatusChangeResponseDto resp = StatusChangeResponseDto.builder()
+                .orderId(1L)
+                .oldStatus(OrderStatus.PENDING)
+                .newStatus(OrderStatus.SHIPPING)
+                .changedAt(LocalDateTime.now())
+                .changedBy(42L)
+                .memo("발송 준비 완료")
+                .build();
+
+        given(orderService.changeStatus(eq(1L), eq(OrderStatus.SHIPPING), eq(42L), eq("발송 준비 완료")))
+                .willReturn(resp);
+
+        StatusChangeDto req = new StatusChangeDto(
+                OrderStatus.SHIPPING, 42L, "발송 준비 완료"
+        );
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(resp)));
+    }
+
+    @Test
+    @DisplayName("PATCH /orders/{id}/status - 잘못된 전이로 인한 400 응답")
+    void changeStatusFail() throws Exception {
+        StatusChangeDto req = new StatusChangeDto(
+                OrderStatus.COMPLETED, 42L, "재설정 시도"
+        );
+
+        doThrow(new IllegalStateException("상태 전이 불가"))
+                .when(orderService).changeStatus(eq(1L), any(), any(), any());
+
+        mockMvc.perform(patch("/orders/1/status")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().json("{\"error\":\"상태 전이 불가\"}"));
+    }
+
+    @Test
+    @DisplayName("POST /orders/{id}/cancel - 주문 취소 성공")
+    void cancelOrderSuccess() throws Exception {
+        doNothing().when(orderService).cancelOrder(1L, "고객변심");
+
+        mockMvc.perform(post("/orders/1/cancel")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"reason\":\"고객변심\"}"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"message\":\"주문이 정상적으로 취소되었습니다.\"}"));
+    }
+
+    @Test
+    @DisplayName("POST /orders/{id}/cancel - 주문 취소 실패")
+    void cancelOrderFail() throws Exception {
+        doThrow(new ResourceNotFoundException("주문 없음"))
+                .when(orderService).cancelOrder(eq(1L), any());
+
+        mockMvc.perform(post("/orders/1/cancel"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().json("{\"error\":\"주문 없음\"}"));
+    }
+
+    @Test
+    @DisplayName("GET /orders/{id}/status-log - 상태 로그 조회 성공")
+    void getStatusLogSuccess() throws Exception {
+        OrderStatusLogDto log = OrderStatusLogDto.builder()
+                .orderStateId(1L)
+                .orderId(1L)
+                .oldStatus(OrderStatus.PENDING)
+                .newStatus(OrderStatus.SHIPPING)
+                .changedAt(LocalDateTime.now())
+                .changedBy(42L)
+                .memo("발송")
+                .build();
+
+        given(orderService.getStatusLog(1L)).willReturn(List.of(log));
+
+        mockMvc.perform(get("/orders/1/status-log")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(List.of(log))));
+    }
+
+    @Test
+    @DisplayName("GET /orders/{id}/status-log - 주문 없음으로 인한 400 응답")
+    void getStatusLogNotFound() throws Exception {
+        doThrow(new ResourceNotFoundException("주문 없음"))
+                .when(orderService).getStatusLog(1L);
+
+        mockMvc.perform(get("/orders/1/status-log"))
                 .andExpect(status().isBadRequest());
     }
 }
