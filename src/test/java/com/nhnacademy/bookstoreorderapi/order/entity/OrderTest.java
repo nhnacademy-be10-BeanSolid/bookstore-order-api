@@ -19,7 +19,7 @@ class OrderTest {
 
         Order order = Order.builder()
                 .id(100L)
-                .userId(42L)
+                .userId("42L")
                 .guestName("John Doe")
                 .guestPhone("010-1234-5678")
                 .status(OrderStatus.PENDING)
@@ -33,7 +33,7 @@ class OrderTest {
                 .build();
 
         assertThat(order.getId()).isEqualTo(100L);
-        assertThat(order.getUserId()).isEqualTo(42L);
+        assertThat(order.getUserId()).isEqualTo("42L");
         assertThat(order.getGuestName()).isEqualTo("John Doe");
         assertThat(order.getGuestPhone()).isEqualTo("010-1234-5678");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);

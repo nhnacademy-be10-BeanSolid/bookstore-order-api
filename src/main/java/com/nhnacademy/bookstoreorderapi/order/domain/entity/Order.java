@@ -17,7 +17,7 @@ public class Order {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long userId;
+    private String userId;  //userId -> 타입 String 변경
 
     @Column(name="guest_name")
     private String guestName;
@@ -36,6 +36,7 @@ public class Order {
     private int totalPrice; // 총 상품 금액
     private int deliveryFee; // 배송비
     private int finalPrice; // 최종 결제 금액
+
 
     /**
      * @Builder로 생성할 때 초기화(default)가 무시되는 문제를 막기 위해
