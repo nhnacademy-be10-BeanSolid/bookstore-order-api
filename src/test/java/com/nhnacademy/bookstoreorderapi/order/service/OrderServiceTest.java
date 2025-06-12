@@ -1,12 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
-import com.nhnacademy.bookstoreorderapi.order.dto.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 
 import org.junit.jupiter.api.BeforeEach;
