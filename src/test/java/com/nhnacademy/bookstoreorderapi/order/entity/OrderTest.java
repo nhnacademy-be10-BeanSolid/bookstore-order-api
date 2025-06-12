@@ -23,7 +23,7 @@ class OrderTest {
                 .guestName("John Doe")
                 .guestPhone("010-1234-5678")
                 .status(OrderStatus.PENDING)
-                .orderedAt(now)
+                .orderdateAt(now)
                 .deliveryAt(now.plusDays(3))
                 .createdAt(now.minusDays(1))
                 .updatedAt(now)
@@ -37,7 +37,7 @@ class OrderTest {
         assertThat(order.getGuestName()).isEqualTo("John Doe");
         assertThat(order.getGuestPhone()).isEqualTo("010-1234-5678");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(order.getOrderedAt()).isSameAs(now);
+        assertThat(order.getOrderdateAt()).isSameAs(now);
         assertThat(order.getDeliveryAt()).isEqualTo(now.plusDays(3));
         assertThat(order.getCreatedAt()).isEqualTo(now.minusDays(1));
         assertThat(order.getUpdatedAt()).isSameAs(now);

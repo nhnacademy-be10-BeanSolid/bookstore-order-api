@@ -28,7 +28,7 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    private LocalDateTime orderedAt; //
+    private LocalDateTime orderdateAt; // 주문일
     private LocalDateTime deliveryAt; // 배송 요청일
     private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
     private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
