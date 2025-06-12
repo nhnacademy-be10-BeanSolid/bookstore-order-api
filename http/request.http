@@ -4,7 +4,7 @@ Accept: application/json
 
 ###
 
-### 1) 주문 생성
+### 1) 주문 생성 (guest 주문)
 POST http://localhost:10345/orders
 Content-Type: application/json
 
@@ -18,36 +18,37 @@ Content-Type: application/json
 }
 
 > {%
-    // response.body가 문자열인지 객체인지 판별
-    let body = response.body;
-    if (typeof body === 'string') {
-        body = JSON.parse(body);
-    }
-    client.global.set("orderId", body.orderId);
+    let b = response.body;
+    if (typeof b === 'string') b = JSON.parse(b);
+    client.global.set("orderId", b.orderId);
 %}
 
 ###
 
-### 2) 주문 취소: 정상 (생성된 PENDING 주문)
-POST http://localhost:10345/orders/{{orderId}}/cancel
+### 2) 주문 상태 변경: PENDING → SHIPPING
+PATCH http://localhost:10345/orders/{{orderId}}/status
 Content-Type: application/json
 
 {
-  "reason": "고객 요청"
+  "newStatus": "SHIPPING",
+  "changedBy": 999,
+  "memo": "발송 준비 완료"
 }
 
 ###
 
-### 3) 이미 취소된 주문 재요청
-POST http://localhost:10345/orders/{{orderId}}/cancel
+### 3) 주문 상태 변경: SHIPPING → COMPLETED
+PATCH http://localhost:10345/orders/{{orderId}}/status
+Content-Type: application/json
+
+{
+  "newStatus": "COMPLETED",
+  "changedBy": 999,
+  "memo": "배송 완료"
+}
 
 ###
 
-### 4) 배송 중(또는 완료) 상태 주문 취소 시도
-# SHIPPING 상태로 변경된 주문 ID를 직접 지정
-POST http://localhost:10345/orders/2/cancel
-
-###
-
-### 5) 존재하지 않는 주문 ID
-POST http://localhost:10345/orders/999/cancel
+### 4) 상태 로그 조회: order_status_log 확인
+GET http://localhost:10345/orders/{{orderId}}/status-log
+Accept: application/json
