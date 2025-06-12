@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatu
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 
 import org.junit.jupiter.api.BeforeEach;
