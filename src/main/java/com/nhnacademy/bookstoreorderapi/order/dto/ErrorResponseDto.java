@@ -8,5 +8,5 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ErrorResponseDto implements ResponseDto {
-    private String error;
+    private final String error;
 }
