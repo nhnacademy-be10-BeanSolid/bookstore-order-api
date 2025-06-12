@@ -28,14 +28,14 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    private LocalDateTime requestedAt;
-    private LocalDateTime deliveryAt;
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private LocalDateTime orderedAt; //
+    private LocalDateTime deliveryAt; // 배송 요청일
+    private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
+    private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
-    private int totalPrice;
-    private int deliveryFee;
-    private int finalPrice;
+    private int totalPrice; // 총 상품 금액
+    private int deliveryFee; // 배송비
+    private int finalPrice; // 최종 결제 금액
 
     /**
      * @Builder로 생성할 때 초기화(default)가 무시되는 문제를 막기 위해

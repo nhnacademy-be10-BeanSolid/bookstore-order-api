@@ -1,11 +1,11 @@
 ### 1) 전체 주문 조회
-GET http://localhost:8080/orders
+GET http://localhost:10350/orders
 Accept: application/json
 
 ###
 
 ### 2) 주문 생성: 배송일자 미지정 → 기본 오늘
-POST http://localhost:8080/orders
+POST http://localhost:10350/orders
 Content-Type: application/json
 
 {
@@ -24,7 +24,7 @@ Content-Type: application/json
 ###
 
 ### 3) 주문 생성: 배송일자 지정 (예: 2025-06-15)
-POST http://localhost:8080/orders
+POST http://localhost:10350/orders
 Content-Type: application/json
 
 {
@@ -44,10 +44,28 @@ Content-Type: application/json
 ###
 
 ### 4) 오류 예시: member인데 userId 누락
-POST http://localhost:8080/orders
+POST http://localhost:10350/orders
 Content-Type: application/json
 
 {
   "orderType": "member",
   "items": []
+}
+
+### 반품 처리를 요청하는 API
+POST http://localhost:10350/orders/1/returns
+Content-Type: application/json
+
+{
+  "reason": "상품 파손",
+  "requestedAt": "2025-06-11"
+}
+
+### 반품 처리가 불가능한 상태인데 요청 -> 예외를 발생시키고 불가능하다고 메시지를 남겨야하나?
+POST http://localhost:10350/orders/2/returns
+Content-Type: application/json
+
+{
+  "reason": "상품 파손",
+  "requestedAt": "2025-06-11"
 }
