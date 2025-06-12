@@ -9,6 +9,6 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class SuccessResponseDto implements ResponseDto {
+public class SuccessResponseDto {
     private String message;
 }

@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class StatusChangeResponseDto implements ResponseDto {
+public class StatusChangeResponseDto {
     private Long orderId;          // 변경된 주문 ID
     private OrderStatus oldStatus; // 이전 상태
     private OrderStatus newStatus; // 변경된 새 상태
