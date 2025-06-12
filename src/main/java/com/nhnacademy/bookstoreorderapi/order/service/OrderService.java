@@ -6,6 +6,8 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
@@ -41,7 +43,7 @@ public class OrderService {
                 .guestName(req.getGuestName())
                 .guestPhone(req.getGuestPhone())
                 .status(OrderStatus.PENDING)
-                .Orderdateat(LocalDateTime.now())
+                .orderdateAt(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .deliveryAt(deliveryAt)
@@ -174,6 +176,18 @@ public class OrderService {
                 .build();
     }
 
+    public int requestReturn(Long orderId) {
+
+        Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+        if (order.getStatus().equals(OrderStatus.RETURNED)) {
+            throw new InvalidOrderStatusChangeException("이미 반품된 상품입니다.");
+        }
+
+        order.setStatus(OrderStatus.RETURNED);
+        orderRepository.save(order);
+        return order.getTotalPrice() - 2_500;
+    }
+  
     @Transactional(readOnly = true)
     public List<OrderStatusLogDto> getStatusLog(Long orderId) {
         // 주문 존재 여부 확인(Optional)
@@ -195,5 +209,4 @@ public class OrderService {
                 )
                 .collect(Collectors.toList());
     }
-
 }

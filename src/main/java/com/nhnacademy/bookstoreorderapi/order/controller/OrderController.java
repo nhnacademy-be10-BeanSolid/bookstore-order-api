@@ -82,6 +82,19 @@ public class OrderController {
         }
     }
 
+    @PostMapping(path = "/{orderId}/returns")
+    public ResponseEntity<?> showReturnsAmount(@PathVariable Long orderId) {
+
+        try {
+            int returnsAmount = orderService.requestReturn(orderId);
+            return ResponseEntity.ok(returnsAmount);
+        } catch (Exception e) {
+            ErrorResponseDto error = new ErrorResponseDto(e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(error);
+        }
+    }
+
     private void validateOrderType(OrderRequestDto req) {
         if ("guest".equalsIgnoreCase(req.getOrderType())) {
             if (req.getGuestName() == null || req.getGuestPhone() == null) {

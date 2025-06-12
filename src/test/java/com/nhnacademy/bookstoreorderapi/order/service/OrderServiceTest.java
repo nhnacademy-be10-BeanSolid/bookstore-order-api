@@ -1,14 +1,19 @@
 package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
+
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,7 +34,9 @@ class OrderServiceTest {
     @Mock private CanceledOrderRepository canceledOrderRepository;
     @Mock private OrderStatusLogRepository statusLogRepository;
 
-    @InjectMocks private OrderService orderService;
+    @InjectMocks
+    private OrderService orderService;
+
 
     private OrderRequestDto baseGuestRequest;
     private OrderRequestDto baseMemberRequest;
@@ -156,6 +163,50 @@ class OrderServiceTest {
         verify(canceledOrderRepository).save(any(CanceledOrder.class));
         verify(orderRepository).save(order);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 주문 ID로 반품 요청 시 예외 발생")
+    void returnRequest_OrderNotFound() {
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.requestReturn(1L))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessageContaining("주문을 찾을 수 없습니다");
+        verify(orderRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("이미 반품 처리된 주문에 또다시 반품 요청 시 예외 발생")
+    void returnRequest_AlreadyReturned() {
+
+        Order order = new Order();
+        order.setId(1L);
+        order.setStatus(OrderStatus.RETURNED);
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        assertThatThrownBy(() -> orderService.requestReturn(1L))
+                .isInstanceOf(InvalidOrderStatusChangeException.class)
+                .hasMessageContaining("이미 반품된 상품입니다.");
+        verify(orderRepository, times(1)).findById(1L);
+    }
+
+    @Test
+    @DisplayName("POST /orders/{orderId}/returns - 200 OK")
+    void returnRequest_Success() {
+
+        Order order = new Order();
+        order.setId(1L);
+        order.setStatus(OrderStatus.COMPLETED);
+        order.setTotalPrice(10000);
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+
+        int returnPrice = orderService.requestReturn(1L);
+
+        assertThat(returnPrice).isEqualTo(7500);
     }
 
     @Test
