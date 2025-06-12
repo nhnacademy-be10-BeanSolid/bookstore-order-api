@@ -34,9 +34,6 @@ class OrderServiceTest {
     @Mock private CanceledOrderRepository canceledOrderRepository;
     @Mock private OrderStatusLogRepository statusLogRepository;
 
-    @Mock
-    private WrappingRepository wrappingRepository;
-
     @InjectMocks
     private OrderService orderService;
 
