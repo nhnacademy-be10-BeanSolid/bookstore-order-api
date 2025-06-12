@@ -212,7 +212,6 @@ class OrderServiceTest {
 
         assertThat(returnPrice).isEqualTo(7500);
     }
-}
 
     @Test
     void cancelOrder_whenNotPending_throws() {
