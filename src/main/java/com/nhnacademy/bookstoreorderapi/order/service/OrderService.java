@@ -41,7 +41,7 @@ public class OrderService {
                 .guestName(req.getGuestName())
                 .guestPhone(req.getGuestPhone())
                 .status(OrderStatus.PENDING)
-                .requestedAt(LocalDateTime.now())
+                .Orderdateat(LocalDateTime.now())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .deliveryAt(deliveryAt)
