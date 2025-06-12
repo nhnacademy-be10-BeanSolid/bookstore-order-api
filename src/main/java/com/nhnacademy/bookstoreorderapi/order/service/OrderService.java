@@ -1,11 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.CanceledOrder;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
@@ -15,14 +10,15 @@ import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -33,24 +29,8 @@ public class OrderService {
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
-        LocalDate effectiveDate = req.getDeliveryDate() != null
-                ? req.getDeliveryDate()
-                : LocalDate.now();
-        LocalDateTime deliveryAt = effectiveDate.atStartOfDay();
 
-        Order order = Order.builder()
-                .userId(req.getUserId())
-                .guestName(req.getGuestName())
-                .guestPhone(req.getGuestPhone())
-                .status(OrderStatus.PENDING)
-                .orderdateAt(LocalDateTime.now())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .deliveryAt(deliveryAt)
-                .totalPrice(0)
-                .deliveryFee(0)
-                .finalPrice(0)
-                .build();
+        Order order = Order.createFrom(req);
 
         int sum = 0;
         for (OrderItemDto dto : req.getItems()) {
@@ -66,14 +46,7 @@ public class OrderService {
 
             sum += unitPrice * dto.getQuantity() + wrapFee;
 
-            OrderItem item = OrderItem.builder()
-                    .bookId(dto.getBookId())
-                    .quantity(dto.getQuantity())
-                    .giftWrapped(dto.getGiftWrapped())
-                    .unitPrice(unitPrice)
-                    .wrapping(wrap)
-                    .build();
-
+            OrderItem item = OrderItem.createFrom(dto, wrap, unitPrice);
             order.addItem(item);
         }
 
@@ -84,38 +57,13 @@ public class OrderService {
 
         Order saved = orderRepository.save(order);
 
-        String userInfo = saved.getUserId() != null
-                ? "회원 ID: " + saved.getUserId()
-                : "비회원: " + saved.getGuestName() + " (" + saved.getGuestPhone() + ")";
-        String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                userInfo, saved.getTotalPrice(), saved.getDeliveryFee(), saved.getFinalPrice());
-
-        return OrderResponseDto.builder()
-                .orderId(saved.getId())
-                .totalPrice(saved.getTotalPrice())
-                .deliveryFee(saved.getDeliveryFee())
-                .finalPrice(saved.getFinalPrice())
-                .message(message)
-                .build();
+        return OrderResponseDto.createFrom(saved);
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponseDto> listAll() {
         return orderRepository.findAll().stream()
-                .map(o -> {
-                    String userInfo = o.getUserId() != null
-                            ? "회원 ID: " + o.getUserId()
-                            : "비회원: " + o.getGuestName() + " (" + o.getGuestPhone() + ")";
-                    String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                            userInfo, o.getTotalPrice(), o.getDeliveryFee(), o.getFinalPrice());
-                    return OrderResponseDto.builder()
-                            .orderId(o.getId())
-                            .totalPrice(o.getTotalPrice())
-                            .deliveryFee(o.getDeliveryFee())
-                            .finalPrice(o.getFinalPrice())
-                            .message(message)
-                            .build();
-                })
+                .map(OrderResponseDto::createFrom)
                 .collect(Collectors.toList());
     }
 
@@ -153,27 +101,13 @@ public class OrderService {
             );
         }
 
-        OrderStatusLog log = OrderStatusLog.builder()
-                .orderId(orderId)
-                .oldStatus(oldStatus)
-                .newStatus(newStatus)
-                .changedAt(LocalDateTime.now())
-                .changedBy(changedBy)
-                .memo(memo)
-                .build();
+        OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
         statusLogRepository.save(log);
 
         order.setStatus(newStatus);
         orderRepository.save(order);
 
-        return StatusChangeResponseDto.builder()
-                .orderId(orderId)
-                .oldStatus(oldStatus)
-                .newStatus(newStatus)
-                .changedAt(log.getChangedAt())
-                .changedBy(changedBy)
-                .memo(memo)
-                .build();
+        return StatusChangeResponseDto.createFrom(log);
     }
 
     public int requestReturn(Long orderId) {
@@ -197,16 +131,7 @@ public class OrderService {
 
         // 로그 조회 후 DTO 변환
         return statusLogRepository.findByOrderId(orderId).stream()
-                .map(log -> OrderStatusLogDto.builder()
-                        .orderStateId(log.getOrderStateId())
-                        .orderId(log.getOrderId())
-                        .oldStatus(log.getOldStatus())
-                        .newStatus(log.getNewStatus())
-                        .changedAt(log.getChangedAt())
-                        .changedBy(log.getChangedBy())
-                        .memo(log.getMemo())
-                        .build()
-                )
+                .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
 }

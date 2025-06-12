@@ -1,8 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,5 +51,27 @@ public class Order {
     public void addItem(OrderItem item) {
         item.setOrder(this);
         this.items.add(item);
+    }
+
+    public static Order createFrom(OrderRequestDto req) {
+
+        LocalDate effectiveDate = req.getDeliveryDate() != null
+                ? req.getDeliveryDate()
+                : LocalDate.now();
+        LocalDateTime deliveryAt = effectiveDate.atStartOfDay();
+
+        return Order.builder()
+                .userId(req.getUserId())
+                .guestName(req.getGuestName())
+                .guestPhone(req.getGuestPhone())
+                .status(OrderStatus.PENDING)
+                .orderdateAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .deliveryAt(deliveryAt)
+                .totalPrice(0)
+                .deliveryFee(0)
+                .finalPrice(0)
+                .build();
     }
 }
