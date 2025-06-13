@@ -130,6 +130,7 @@ class OrderControllerTest {
                 .finalPrice(29000)
                 .message("[비회원: 홍길동 (010-1234-5678)] 주문 생성됨 / 총액: 24000원 / 배송비: 5000원 / 결제금액: 29000원")
                 .orderStatus(OrderStatus.PENDING)
+                .build();
     }
 
     @Test
