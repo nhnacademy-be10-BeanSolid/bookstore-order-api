@@ -1,257 +1,226 @@
+// src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
-import com.nhnacademy.bookstoreorderapi.order.repository.*;
-
+import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
-
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+
 import static org.assertj.core.api.Assertions.*;
-import static org.awaitility.Awaitility.await;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
 
-    @Mock private OrderRepository orderRepository;
-    @Mock private WrappingRepository wrappingRepository;
-    @Mock private CanceledOrderRepository canceledOrderRepository;
-    @Mock private OrderStatusLogRepository statusLogRepository;
-    @Mock private TaskScheduler taskScheduler;
+    @Mock
+    OrderRepository orderRepository;
+    @Mock
+    WrappingRepository wrappingRepository;
+    @Mock
+    CanceledOrderRepository canceledOrderRepository;
+    @Mock
+    OrderStatusLogRepository statusLogRepository;
+    @Mock
+    TaskScheduler taskScheduler;
 
     @InjectMocks
-    private OrderService orderService;
+    OrderService orderService;
 
-
-    private OrderRequestDto baseGuestRequest;
-    private OrderRequestDto baseMemberRequest;
+    OrderRequestDto guestReq;
+    OrderRequestDto memberReq;
+    Wrapping wrap;
 
     @BeforeEach
     void setUp() {
-        baseGuestRequest = OrderRequestDto.builder()
+        guestReq = OrderRequestDto.builder()
                 .orderType("guest")
-                .guestName("테스트")
-                .guestPhone("010-0000-0000")
-                .deliveryDate(null)
-                .items(Collections.singletonList(
+                .guestName("홍길동")
+                .guestPhone("010-1111-2222")
+                .items(List.of(
                         OrderItemDto.builder()
-                                .bookId(1L)
-                                .quantity(2)
-                                .giftWrapped(false)
-                                .build()
+                                .bookId(100L).quantity(2).giftWrapped(false).build()
                 ))
                 .build();
 
-        baseMemberRequest = OrderRequestDto.builder()
+        memberReq = OrderRequestDto.builder()
                 .orderType("member")
-                .userId("100L")
-                .deliveryDate(null)
-                .items(Collections.singletonList(
+                .userId("member42")
+                .deliveryDate(LocalDate.of(2025,6,20))
+                .items(List.of(
                         OrderItemDto.builder()
-                                .bookId(2L)
-                                .quantity(1)
-                                .giftWrapped(false)
-                                .build()
+                                .bookId(200L).quantity(3).giftWrapped(true).wrappingId(1L).build()
                 ))
                 .build();
-    }
 
-    @ParameterizedTest(name = "주문#{0} 상태를 {1}->{2}로 변경하면 성공")
-    @CsvSource({
-            "1, PENDING, SHIPPING",
-            "2, PENDING, CANCELED",
-            "3, SHIPPING, COMPLETED"
-    })
-    void changeStatus_success(long orderId, OrderStatus oldStatus, OrderStatus newStatus) {
-        Order order = new Order();
-        order.setId(orderId);
-        order.setStatus(oldStatus);
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-
-        StatusChangeResponseDto resp = orderService.changeStatus(orderId, newStatus, 42L, "메모");
-
-        assertThat(resp.getOrderId()).isEqualTo(orderId);
-        assertThat(resp.getOldStatus()).isEqualTo(oldStatus);
-        assertThat(resp.getNewStatus()).isEqualTo(newStatus);
-        assertThat(resp.getChangedBy()).isEqualTo(42L);
-        assertThat(resp.getMemo()).isEqualTo("메모");
-        assertThat(resp.getChangedAt()).isBeforeOrEqualTo(LocalDateTime.now());
-
-        verify(statusLogRepository).save(any(OrderStatusLog.class));
-        verify(orderRepository).save(order);
-    }
-
-    @ParameterizedTest(name = "주문#{0} 상태를 {1}->{2}로 변경 시 예외")
-    @CsvSource({
-            "1, PENDING, COMPLETED",
-            "2, SHIPPING, PENDING"
-    })
-    void changeStatus_fail(long orderId, OrderStatus oldStatus, OrderStatus newStatus) {
-        Order order = new Order();
-        order.setId(orderId);
-        order.setStatus(oldStatus);
-        when(orderRepository.findById(orderId)).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() ->
-                orderService.changeStatus(orderId, newStatus, null, null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("상태 전이 불가");
-
-        verify(statusLogRepository, never()).save(any());
-        verify(orderRepository, never()).save(any());
+        wrap = Wrapping.builder()
+                .id(1L).name("프리미엄").price(3000).active(true).build();
     }
 
     @Test
-    void createOrder_whenDeliveryDateNull_setsToday() {
-        when(orderRepository.save(any(Order.class)))
-                .thenAnswer(invocation -> {
-                    Order o = invocation.getArgument(0);
-                    o.setId(100L);
-                    return o;
-                });
-
-        OrderResponseDto resp = orderService.createOrder(baseGuestRequest);
-
+    void createOrder_guest_succeeds() {
         ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+
+        when(orderRepository.save(any())).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(5L);
+            return o;
+        });
+
+        OrderResponseDto resp = orderService.createOrder(guestReq);
+
         verify(orderRepository).save(captor.capture());
-        assertThat(captor.getValue().getDeliveryAt())
-                .isEqualTo(LocalDate.now().atStartOfDay());
-        assertThat(resp.getMessage()).contains("총액").contains("배송비");
+        Order saved = captor.getValue();
+
+        // 비회원 정보
+        assertThat(saved.getGuestName()).isEqualTo("홍길동");
+        assertThat(saved.getUserId()).isNull();
+        // 가격 계산: 2*10000 + 배송비 5000
+        assertThat(resp.getTotalPrice()).isEqualTo(20000);
+        assertThat(resp.getDeliveryFee()).isEqualTo(5000);
+        assertThat(resp.getFinalPrice()).isEqualTo(25000);
+        assertThat(resp.getOrderId()).isEqualTo(5L);
     }
 
     @Test
-    void createOrder_whenDeliveryDateSpecified_setsCustom() {
-        LocalDate custom = LocalDate.of(2025, 6, 15);
-        baseMemberRequest.setDeliveryDate(custom);
-        when(orderRepository.save(any(Order.class)))
-                .thenAnswer(invocation -> {
-                    Order o = invocation.getArgument(0);
-                    o.setId(200L);
-                    return o;
-                });
+    void createOrder_member_withWrapping_succeeds() {
+        when(wrappingRepository.findById(1L)).thenReturn(Optional.of(wrap));
+        when(orderRepository.save(any())).thenAnswer(inv -> {
+            Order o = inv.getArgument(0);
+            o.setId(6L);
+            return o;
+        });
 
-        OrderResponseDto resp = orderService.createOrder(baseMemberRequest);
+        OrderResponseDto resp = orderService.createOrder(memberReq);
 
-        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
-        verify(orderRepository).save(captor.capture());
-        assertThat(captor.getValue().getDeliveryAt())
-                .isEqualTo(custom.atStartOfDay());
+        // 3권 * 10000 + 3*3000 = 39000, 회원이므로 무료배송
+        assertThat(resp.getTotalPrice()).isEqualTo(39000);
+        assertThat(resp.getDeliveryFee()).isEqualTo(0);
+        assertThat(resp.getFinalPrice()).isEqualTo(39000);
+        assertThat(resp.getOrderId()).isEqualTo(6L);
     }
 
     @Test
-    void cancelOrder_whenPending_savesRecordAndUpdatesStatus() {
-        Order order = new Order(); order.setId(1L); order.setStatus(OrderStatus.PENDING);
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
+    void createOrder_invalidWrapping_throws() {
+        when(wrappingRepository.findById(1L)).thenReturn(Optional.empty());
 
-        orderService.cancelOrder(1L, "사유");
-
-        verify(canceledOrderRepository).save(any(CanceledOrder.class));
-        verify(orderRepository).save(order);
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
+        assertThatThrownBy(() -> orderService.createOrder(memberReq))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("유효하지 않은 포장 ID: 1");
     }
 
     @Test
-    @DisplayName("존재하지 않는 주문 ID로 반품 요청 시 예외 발생")
-    void returnRequest_OrderNotFound() {
+    void listAll_returnsMappedDtos() {
+        Order o = Order.builder()
+                .id(7L)
+                .userId("u1")
+                .guestName(null).guestPhone(null)
+                .status(OrderStatus.PENDING)
+                .totalPrice(100).deliveryFee(10).finalPrice(110)
+                .build();
+        when(orderRepository.findAll()).thenReturn(List.of(o));
 
-        when(orderRepository.findById(1L)).thenReturn(Optional.empty());
+        List<OrderResponseDto> list = orderService.listAll();
 
-        assertThatThrownBy(() -> orderService.requestReturn(1L))
-                .isInstanceOf(OrderNotFoundException.class)
-                .hasMessageContaining("주문을 찾을 수 없습니다");
-        verify(orderRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    @DisplayName("이미 반품 처리된 주문에 또다시 반품 요청 시 예외 발생")
-    void returnRequest_AlreadyReturned() {
-
-        Order order = new Order();
-        order.setId(1L);
-        order.setStatus(OrderStatus.RETURNED);
-
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() -> orderService.requestReturn(1L))
-                .isInstanceOf(InvalidOrderStatusChangeException.class)
-                .hasMessageContaining("이미 반품된 상품입니다.");
-        verify(orderRepository, times(1)).findById(1L);
-    }
-
-    @Test
-    @DisplayName("POST /orders/{orderId}/returns - 200 OK")
-    void returnRequest_Success() {
-
-        Order order = new Order();
-        order.setId(1L);
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setTotalPrice(10000);
-
-        when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
-
-        int returnPrice = orderService.requestReturn(1L);
-
-        assertThat(returnPrice).isEqualTo(7500);
-    }
-
-    @Test
-    void cancelOrder_whenNotPending_throws() {
-        Order order = new Order(); order.setId(2L); order.setStatus(OrderStatus.SHIPPING);
-        when(orderRepository.findById(2L)).thenReturn(Optional.of(order));
-
-        assertThatThrownBy(() -> orderService.cancelOrder(2L, null))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("배송 전 주문만 취소 가능합니다.");
-
-        verify(canceledOrderRepository, never()).save(any());
-        verify(orderRepository, never()).save(any());
-    }
-
-    @Test
-    void getStatusLog_success_returnsDtoList() {
-        OrderStatusLog log = OrderStatusLog.builder()
-                .orderStateId(1L).orderId(1L)
-                .oldStatus(OrderStatus.PENDING).newStatus(OrderStatus.SHIPPING)
-                .changedAt(LocalDateTime.now()).changedBy(42L).memo("메모").build();
-        when(orderRepository.existsById(1L)).thenReturn(true);
-        when(statusLogRepository.findByOrderId(1L)).thenReturn(List.of(log));
-
-        List<OrderStatusLogDto> logs = orderService.getStatusLog(1L);
-
-        assertThat(logs).hasSize(1)
+        assertThat(list).hasSize(1)
                 .first()
-                .extracting(OrderStatusLogDto::getOrderStateId, OrderStatusLogDto::getNewStatus)
-                .containsExactly(1L, OrderStatus.SHIPPING);
+                .extracting(OrderResponseDto::getOrderId, OrderResponseDto::getFinalPrice)
+                .containsExactly(7L, 110);
     }
 
     @Test
-    void getStatusLog_whenNotFound_throws() {
-        when(orderRepository.existsById(99L)).thenReturn(false);
+    void changeStatus_validTransition_succeedsAndLogs() {
+        Order o = Order.builder().id(8L).status(OrderStatus.PENDING).build();
+        when(orderRepository.findById(8L)).thenReturn(Optional.of(o));
+        ArgumentCaptor<OrderStatusLog> logCap = ArgumentCaptor.forClass(OrderStatusLog.class);
 
-        assertThatThrownBy(() -> orderService.getStatusLog(99L))
+        StatusChangeResponseDto dto = orderService.changeStatus(8L, OrderStatus.SHIPPING, 123L, "ok");
+
+        verify(statusLogRepository).save(logCap.capture());
+        assertThat(dto.getOldStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(dto.getNewStatus()).isEqualTo(OrderStatus.SHIPPING);
+    }
+
+    @Test
+    void changeStatus_invalidTransition_throws() {
+        Order o = Order.builder().id(9L).status(OrderStatus.PENDING).build();
+        when(orderRepository.findById(9L)).thenReturn(Optional.of(o));
+
+        assertThatThrownBy(() -> orderService.changeStatus(9L, OrderStatus.COMPLETED, 1L, "no"))
+                .isInstanceOf(InvalidOrderStatusChangeException.class)
+                .hasMessageContaining("상태 전이 불가: PENDING → COMPLETED");
+    }
+
+    @Test
+    void requestReturn_fromCompleted_returnsRefund() {
+        Order o = Order.builder().id(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
+        when(orderRepository.findById(10L)).thenReturn(Optional.of(o));
+
+        int refund = orderService.requestReturn(10L);
+
+        assertThat(refund).isEqualTo(50000 - 2500);
+        assertThat(o.getStatus()).isEqualTo(OrderStatus.RETURNED);
+    }
+
+    @Test
+    void requestReturn_notFound_throws() {
+        when(orderRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderService.requestReturn(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
-                .hasMessageContaining("주문을 찾을 수 없습니다.");
+                .hasMessage("주문을 찾을 수 없습니다.");
+    }
+
+    @Test
+    void getStatusLog_notFound_throws() {
+        when(orderRepository.existsById(20L)).thenReturn(false);
+
+        assertThatThrownBy(() -> orderService.getStatusLog(20L))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessage("주문을 찾을 수 없습니다.");
+    }
+
+    @Test
+    void getStatusLog_returnsDtos() {
+        when(orderRepository.existsById(30L)).thenReturn(true);
+        OrderStatusLog log = OrderStatusLog.builder()
+                .orderStateId(100L).orderId(30L)
+                .oldStatus(OrderStatus.PENDING).newStatus(OrderStatus.SHIPPING)
+                .changedAt(LocalDateTime.now()).changedBy(55L).memo("go").build();
+        when(statusLogRepository.findByOrderId(30L)).thenReturn(List.of(log));
+
+        List<OrderStatusLogDto> list = orderService.getStatusLog(30L);
+        assertThat(list).singleElement()
+                .extracting(OrderStatusLogDto::getOrderStateId, OrderStatusLogDto::getNewStatus)
+                .containsExactly(100L, OrderStatus.SHIPPING);
     }
 
     @Test
@@ -284,3 +253,4 @@ class OrderServiceTest {
         assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }
 }
+

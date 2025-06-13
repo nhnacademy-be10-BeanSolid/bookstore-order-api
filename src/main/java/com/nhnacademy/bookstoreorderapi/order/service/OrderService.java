@@ -1,14 +1,12 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/order/service/OrderService.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
-import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.TaskScheduler;
@@ -42,10 +40,12 @@ public class OrderService {
 
         int sum = 0;
         for (OrderItemDto dto : req.getItems()) {
-            Wrapping wrap = dto.getWrappingId() != null
-                    ? wrappingRepository.findById(dto.getWrappingId())
-                    .orElseThrow(() -> new IllegalArgumentException("유효하지 않은 포장 ID: " + dto.getWrappingId()))
-                    : null;
+            Wrapping wrap = null;
+            if (dto.getWrappingId() != null) {
+                wrap = wrappingRepository.findById(dto.getWrappingId())
+                        .orElseThrow(() -> new BadRequestException(
+                                "유효하지 않은 포장 ID: " + dto.getWrappingId()));
+            }
 
             int unitPrice = 10_000;
             int wrapFee = Boolean.TRUE.equals(dto.getGiftWrapped()) && wrap != null
@@ -58,8 +58,9 @@ public class OrderService {
             order.addItem(item);
         }
 
+        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
         order.setTotalPrice(sum);
-        order.setFinalPrice(sum + Order.DELIVERY_FEE);
+        order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
 
@@ -78,7 +79,7 @@ public class OrderService {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new IllegalStateException("배송 전 주문만 취소 가능합니다.");
+            throw new InvalidOrderStatusChangeException("배송 전 주문만 취소 가능합니다.");
         }
         order.setStatus(OrderStatus.CANCELED);
 
@@ -102,9 +103,8 @@ public class OrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
         OrderStatus oldStatus = order.getStatus();
         if (!oldStatus.canTransitionTo(newStatus)) {
-            throw new IllegalStateException(
-                    String.format("상태 전이 불가: %s -> %s", oldStatus, newStatus)
-            );
+            throw new InvalidOrderStatusChangeException(
+                    String.format("상태 전이 불가: %s → %s", oldStatus, newStatus));
         }
 
         OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
@@ -149,26 +149,23 @@ public class OrderService {
         orderRepository.save(order);
     }
 
+    @Transactional
     public int requestReturn(Long orderId) {
-
-        Order order = orderRepository.findById(orderId).orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-        if (order.getStatus().equals(OrderStatus.RETURNED)) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+        if (order.getStatus() == OrderStatus.RETURNED) {
             throw new InvalidOrderStatusChangeException("이미 반품된 상품입니다.");
         }
-
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
         return order.getTotalPrice() - 2_500;
     }
-  
+
     @Transactional(readOnly = true)
     public List<OrderStatusLogDto> getStatusLog(Long orderId) {
-        // 주문 존재 여부 확인(Optional)
         if (!orderRepository.existsById(orderId)) {
             throw new ResourceNotFoundException("주문을 찾을 수 없습니다.");
         }
-
-        // 로그 조회 후 DTO 변환
         return statusLogRepository.findByOrderId(orderId).stream()
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
@@ -182,3 +179,4 @@ public class OrderService {
         return OrderResponseDto.createFrom(order);
     }
 }
+

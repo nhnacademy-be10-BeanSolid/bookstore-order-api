@@ -16,9 +16,14 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Order {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+  
+    public static final int DEFAULT_DELIVERY_FEE = 5_000;
+  
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "user_id")
     private String userId;  //userId -> 타입 String 변경
 
     @Column(name="guest_name")
@@ -30,15 +35,27 @@ public class Order {
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
+    @Column(name = "orderdate_at")
     private LocalDateTime orderdateAt; // 주문일
+
+    @Column(name = "delivery_at")
     private LocalDateTime deliveryAt; // 배송 요청일
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
+
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
+    @Column(name = "total_price")
     private int totalPrice; // 총 상품 금액
-    public static final int DELIVERY_FEE = 5_000; // 배송비
-    private int finalPrice; // 최종 결제 금액
+  
+     // 배송비
+    @Column(name = "delivery_fee")
+    private int deliveryFee; // 배송비
 
+    @Column(name = "final_price")
+    private int finalPrice; // 최종 결제 금액
 
     /**
      * @Builder로 생성할 때 초기화(default)가 무시되는 문제를 막기 위해
@@ -70,6 +87,7 @@ public class Order {
                 .updatedAt(LocalDateTime.now())
                 .deliveryAt(deliveryAt)
                 .totalPrice(0)
+                .deliveryFee(DEFAULT_DELIVERY_FEE)
                 .finalPrice(0)
                 .build();
     }
