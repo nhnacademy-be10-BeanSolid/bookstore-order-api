@@ -27,7 +27,7 @@ public class OrderResponseDto {
         return OrderResponseDto.builder()
                 .orderId(order.getId())
                 .totalPrice(order.getTotalPrice())
-                .deliveryFee(Order.DELIVERY_FEE)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
                 .finalPrice(order.getFinalPrice())
                 .message(message)
                 .orderStatus(order.getStatus())
