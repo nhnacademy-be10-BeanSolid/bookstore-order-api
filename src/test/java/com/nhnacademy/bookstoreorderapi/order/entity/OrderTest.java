@@ -41,7 +41,7 @@ class OrderTest {
         assertThat(order.getCreatedAt()).isEqualTo(now.minusDays(1));
         assertThat(order.getUpdatedAt()).isSameAs(now);
         assertThat(order.getTotalPrice()).isEqualTo(20000);
-        assertThat(Order.DELIVERY_FEE).isEqualTo(5000);
+        assertThat(Order.DEFAULT_DELIVERY_FEE).isEqualTo(5000);
         assertThat(order.getFinalPrice()).isEqualTo(23000);
         assertThat(order.getItems()).isEmpty();
     }
