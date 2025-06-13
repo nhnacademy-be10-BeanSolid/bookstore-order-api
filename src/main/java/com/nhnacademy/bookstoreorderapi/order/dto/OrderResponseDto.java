@@ -6,7 +6,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderResponseDto implements ResponseDto{
+public class OrderResponseDto {
     private Long orderId;
     private int totalPrice;
     private int deliveryFee;

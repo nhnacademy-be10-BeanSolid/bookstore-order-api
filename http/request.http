@@ -1,35 +1,41 @@
-
-### 1) 전체 주문 조회
+# 1) 전체 주문 조회
 GET http://localhost:10350/orders
 Accept: application/json
 
 ###
 
-
-### 2) 주문 생성: 배송일자 미지정 → 기본 오늘
+# 2) 비회원 주문 생성
 POST http://localhost:10350/orders
 Content-Type: application/json
 
 {
   "orderType": "guest",
-  "guestName": "테스트",
-  "guestPhone": "010-0000-0000",
+  "guestName": "테스트_비회원",
+  "guestPhone": "010-0000-0001",
   "items": [
     { "bookId": 1, "quantity": 1, "giftWrapped": false }
   ]
 }
 
-> {%
-    let b = response.body;
-    if (typeof b === 'string') b = JSON.parse(b);
-    client.global.set("orderId", b.orderId);
-%}
+###
+
+# 3) 회원 주문 생성
+POST http://localhost:10350/orders
+Content-Type: application/json
+
+{
+  "orderType": "member",
+  "userId": "42",
+  "deliveryDate": "2025-06-20",
+  "items": [
+    { "bookId": 2, "quantity": 3, "giftWrapped": true, "wrappingId": 1 }
+  ]
+}
 
 ###
 
-
-### 3) 주문 생성: 배송일자 지정 (예: 2025-06-15)
-POST http://localhost:10350/orders
+# 4) 상태 변경 (PENDING-대기 중 → SHIPPING-배송 중) for orderId=3
+PATCH http://localhost:10350/orders/3/status
 Content-Type: application/json
 
 {
@@ -40,8 +46,8 @@ Content-Type: application/json
 
 ###
 
-### 4) 주문 상태 변경: SHIPPING → COMPLETED
-PATCH http://localhost:10345/orders/{{orderId}}/status
+# 5) 상태 변경 (SHIPPING-배송 중 → COMPLETED-주문 완료) for orderId=3
+PATCH http://localhost:10350/orders/3/status
 Content-Type: application/json
 
 {
@@ -52,40 +58,21 @@ Content-Type: application/json
 
 ###
 
-### 5) 상태 로그 조회: order_status_log 확인
-GET http://localhost:10345/orders/{{orderId}}/status-log
+# 6) 주문 취소 (PENDING 상태인 주문 → orderId=2)
+POST http://localhost:10350/orders/4/cancel
+Content-Type: application/json
+
+{
+  "reason": "고객 변심"
+}
+
+###
+
+# 7) 반품 요청 (COMPLETED 상태인 주문 → orderId=3)
+POST http://localhost:10350/orders/3/returns
+
+###
+
+# 8) 상태 변경 이력 조회 for orderId=3
+GET http://localhost:10350/orders/4/status-log
 Accept: application/json
-
-###
-
-### 6) 오류 예시: member인데 userId 누락
-POST http://localhost:10350/orders
-Content-Type: application/json
-
-{
-  "orderType": "member",
-  "items": []
-}
-
-###
-
-### 7) 반품 처리를 요청하는 API
-POST http://localhost:10350/orders/1/returns
-Content-Type: application/json
-
-{
-  "reason": "상품 파손",
-  "requestedAt": "2025-06-11"
-}
-
-###
-
-### 8) 반품 처리가 불가능한 상태인데 요청 -> 예외를 발생시키고 불가능하다고 메시지를 남겨야하나?
-POST http://localhost:10350/orders/2/returns
-Content-Type: application/json
-
-{
-  "reason": "상품 파손",
-  "requestedAt": "2025-06-11"
-}
-
