@@ -22,7 +22,7 @@ public class OrderResponseDto {
                 ? "회원 ID: " + order.getUserId()
                 : "비회원: " + order.getGuestName() + " (" + order.getGuestPhone() + ")";
         String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                userInfo, order.getTotalPrice(), Order.DELIVERY_FEE, order.getFinalPrice());
+                userInfo, order.getTotalPrice(), Order.DEFAULT_DELIVERY_FEE, order.getFinalPrice());
 
         return OrderResponseDto.builder()
                 .orderId(order.getId())
