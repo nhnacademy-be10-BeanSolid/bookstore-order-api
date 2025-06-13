@@ -61,6 +61,7 @@ public class OrderService {
 
         int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
         order.setTotalPrice(sum);
+        order.setDeliveryFee(deliveryFee);
         order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
