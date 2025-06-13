@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
@@ -40,9 +41,9 @@ class OrderControllerTest {
         OrderResponseDto sample = OrderResponseDto.builder()
                 .orderId(1L)
                 .totalPrice(20000)
-                .deliveryFee(3000)
+                .deliveryFee(Order.DELIVERY_FEE)
                 .finalPrice(23000)
-                .message("[회원 ID: 123] 주문 생성됨 / 총액: 20000원 / 배송비: 3000원 / 결제금액: 23000원")
+                .message("[회원 ID: 123] 주문 생성됨 / 총액: 20000원 / 배송비: 5000원 / 결제금액: 23000원")
                 .build();
 
         given(orderService.listAll()).willReturn(List.of(sample));
@@ -59,16 +60,17 @@ class OrderControllerTest {
         OrderRequestDto req = OrderRequestDto.builder()
                 .orderType("member")
                 .userId("123L")
-                .deliveryDate(LocalDate.of(2025, 6, 12))
+                .deliveryDate(LocalDate.of(2025, 12, 12))
                 .items(List.of(new OrderItemDto(3L, 1, false, null)))
                 .build();
 
         OrderResponseDto resp = OrderResponseDto.builder()
                 .orderId(1L)
                 .totalPrice(10000)
-                .deliveryFee(3000)
-                .finalPrice(13000)
-                .message("[회원 ID: 123] 주문 생성됨 / 총액: 10000원 / 배송비: 3000원 / 결제금액: 13000원")
+                .deliveryFee(Order.DELIVERY_FEE)
+                .finalPrice(15000)
+                .message("[회원 ID: 123] 주문 생성됨 / 총액: 10000원 / 배송비: 5000원 / 결제금액: 15000원")
+                .orderStatus(OrderStatus.PENDING)
                 .build();
 
         given(orderService.createOrder(any(OrderRequestDto.class))).willReturn(resp);
@@ -87,16 +89,17 @@ class OrderControllerTest {
                 .orderType("guest")
                 .guestName("홍길동")
                 .guestPhone("010-1234-5678")
-                .deliveryDate(LocalDate.of(2025, 6, 15))
+                .deliveryDate(LocalDate.of(2025, 12, 15))
                 .items(List.of(new OrderItemDto(1L, 2, true, null)))
                 .build();
 
         OrderResponseDto resp = OrderResponseDto.builder()
                 .orderId(2L)
                 .totalPrice(24000)
-                .deliveryFee(3000)
-                .finalPrice(27000)
-                .message("[비회원: 홍길동 (010-1234-5678)] 주문 생성됨 / 총액: 24000원 / 배송비: 3000원 / 결제금액: 27000원")
+                .deliveryFee(Order.DELIVERY_FEE)
+                .finalPrice(29000)
+                .message("[비회원: 홍길동 (010-1234-5678)] 주문 생성됨 / 총액: 24000원 / 배송비: 5000원 / 결제금액: 29000원")
+                .orderStatus(OrderStatus.PENDING)
                 .build();
 
         given(orderService.createOrder(any(OrderRequestDto.class))).willReturn(resp);

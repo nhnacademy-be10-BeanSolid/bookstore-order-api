@@ -36,7 +36,7 @@ public class Order {
     private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
     private int totalPrice; // 총 상품 금액
-    private int deliveryFee; // 배송비
+    public static final int DELIVERY_FEE = 5_000; // 배송비
     private int finalPrice; // 최종 결제 금액
 
 
@@ -70,7 +70,6 @@ public class Order {
                 .updatedAt(LocalDateTime.now())
                 .deliveryAt(deliveryAt)
                 .totalPrice(0)
-                .deliveryFee(0)
                 .finalPrice(0)
                 .build();
     }

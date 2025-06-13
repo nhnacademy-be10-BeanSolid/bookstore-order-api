@@ -28,7 +28,6 @@ class OrderTest {
                 .createdAt(now.minusDays(1))
                 .updatedAt(now)
                 .totalPrice(20000)
-                .deliveryFee(3000)
                 .finalPrice(23000)
                 .build();
 
@@ -42,7 +41,7 @@ class OrderTest {
         assertThat(order.getCreatedAt()).isEqualTo(now.minusDays(1));
         assertThat(order.getUpdatedAt()).isSameAs(now);
         assertThat(order.getTotalPrice()).isEqualTo(20000);
-        assertThat(order.getDeliveryFee()).isEqualTo(3000);
+        assertThat(Order.DELIVERY_FEE).isEqualTo(5000);
         assertThat(order.getFinalPrice()).isEqualTo(23000);
         assertThat(order.getItems()).isEmpty();
     }

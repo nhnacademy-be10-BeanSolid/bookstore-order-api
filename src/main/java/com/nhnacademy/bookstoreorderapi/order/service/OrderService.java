@@ -50,10 +50,8 @@ public class OrderService {
             order.addItem(item);
         }
 
-        int deliveryFee = 3_000;
         order.setTotalPrice(sum);
-        order.setDeliveryFee(deliveryFee);
-        order.setFinalPrice(sum + deliveryFee);
+        order.setFinalPrice(sum + Order.DELIVERY_FEE);
 
         Order saved = orderRepository.save(order);
 
