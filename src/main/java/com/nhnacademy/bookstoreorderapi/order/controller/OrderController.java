@@ -37,7 +37,7 @@ public class OrderController {
     @PostMapping//수정 - 각 API가 자신의 구체적인 DTO만 책임지도록!
     public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderRequestDto req) {
         validateOrderType(req);
-        return orderService.createOrder(req);
+        return ResponseEntity.ok(orderService.createOrder(req));
     }
 
     @PatchMapping("/{orderId}/status")
