@@ -21,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
@@ -49,7 +50,7 @@ class OrderControllerTest {
         sampleGuestOrder = OrderResponseDto.builder()
                 .orderId(1L)
                 .totalPrice(10000)
-                .deliveryFee(Order.DELIVERY_FEE)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
                 .finalPrice(15000)
                 .message("[비회원: 테스트 (010-0000-0001)] 주문 생성됨 / 총액: 10000원 / 배송비: 5000원 / 결제금액: 15000원")
                 .orderStatus(OrderStatus.PENDING)
@@ -89,7 +90,7 @@ class OrderControllerTest {
         OrderResponseDto sample = OrderResponseDto.builder()
                 .orderId(1L)
                 .totalPrice(20000)
-                .deliveryFee(Order.DELIVERY_FEE)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
                 .finalPrice(23000)
                 .message("[회원 ID: 123] 주문 생성됨 / 총액: 20000원 / 배송비: 5000원 / 결제금액: 23000원")
                 .build();
@@ -127,7 +128,7 @@ class OrderControllerTest {
         OrderResponseDto resp = OrderResponseDto.builder()
                 .orderId(2L)
                 .totalPrice(24000)
-                .deliveryFee(Order.DELIVERY_FEE)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
                 .finalPrice(29000)
                 .message("[비회원: 홍길동 (010-1234-5678)] 주문 생성됨 / 총액: 24000원 / 배송비: 5000원 / 결제금액: 29000원")
                 .orderStatus(OrderStatus.PENDING)
