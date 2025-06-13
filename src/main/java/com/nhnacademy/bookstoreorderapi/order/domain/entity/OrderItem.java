@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
 import jakarta.persistence.*;
 import lombok.*;
 @Entity
@@ -31,4 +32,15 @@ public class OrderItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
+
+    public static OrderItem createFrom(OrderItemDto dto, Wrapping wrap, int unitPrice) {
+
+        return OrderItem.builder()
+                .bookId(dto.getBookId())
+                .quantity(dto.getQuantity())
+                .giftWrapped(dto.getGiftWrapped())
+                .unitPrice(unitPrice)
+                .wrapping(wrap)
+                .build();
+    }
 }

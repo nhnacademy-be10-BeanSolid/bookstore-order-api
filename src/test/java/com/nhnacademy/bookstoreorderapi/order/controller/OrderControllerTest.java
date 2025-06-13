@@ -1,9 +1,13 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -17,6 +21,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
@@ -28,10 +33,7 @@ class OrderControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @MockBean
-    private OrderService orderService;
-
+  
     @Autowired
     private ObjectMapper objectMapper;
 
@@ -40,14 +42,18 @@ class OrderControllerTest {
     private StatusChangeResponseDto sampleStatusChange;
     private OrderStatusLogDto sampleLog;
 
+    @MockBean
+    private OrderService orderService;
+
     @BeforeEach
     void setUp() {
         sampleGuestOrder = OrderResponseDto.builder()
                 .orderId(1L)
                 .totalPrice(10000)
-                .deliveryFee(5000)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
                 .finalPrice(15000)
                 .message("[비회원: 테스트 (010-0000-0001)] 주문 생성됨 / 총액: 10000원 / 배송비: 5000원 / 결제금액: 15000원")
+                .orderStatus(OrderStatus.PENDING)
                 .build();
 
         sampleMemberOrder = OrderResponseDto.builder()
@@ -57,7 +63,7 @@ class OrderControllerTest {
                 .finalPrice(30000)
                 .message("[회원 ID: 42] 주문 생성됨 / 총액: 30000원 / 배송비: 0원 / 결제금액: 30000원")
                 .build();
-
+  
         sampleStatusChange = StatusChangeResponseDto.builder()
                 .orderId(3L)
                 .oldStatus(OrderStatus.PENDING)
@@ -75,6 +81,57 @@ class OrderControllerTest {
                 .changedBy(999L)            // <-- Long literal
                 .memo("발송 준비 완료")
                 .changedAt(LocalDateTime.now())
+                .build();
+    }
+  
+    @Test
+    @DisplayName("GET /orders - 성공적으로 주문 목록 반환")
+    void listAllOrders() throws Exception {
+        OrderResponseDto sample = OrderResponseDto.builder()
+                .orderId(1L)
+                .totalPrice(20000)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
+                .finalPrice(23000)
+                .message("[회원 ID: 123] 주문 생성됨 / 총액: 20000원 / 배송비: 5000원 / 결제금액: 23000원")
+                .build();
+
+        given(orderService.listAll()).willReturn(List.of(sample));
+
+        mockMvc.perform(get("/orders")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json(objectMapper.writeValueAsString(List.of(sample))));
+    }
+
+    @Test
+    @DisplayName("POST /orders - 회원 주문 생성 성공")
+    void createMemberOrderSuccess() throws Exception {
+        OrderRequestDto req = OrderRequestDto.builder()
+                .orderType("member")
+                .userId("123L")
+                .deliveryDate(LocalDate.of(2025, 12, 12))
+                .items(List.of(new OrderItemDto(3L, 1, false, null)))
+                .build();
+    }
+
+    @Test
+    @DisplayName("POST /orders - 비회원 주문 생성 성공")
+    void createGuestOrderSuccess() throws Exception {
+        OrderRequestDto req = OrderRequestDto.builder()
+                .orderType("guest")
+                .guestName("홍길동")
+                .guestPhone("010-1234-5678")
+                .deliveryDate(LocalDate.of(2025, 12, 15))
+                .items(List.of(new OrderItemDto(1L, 2, true, null)))
+                .build();
+
+        OrderResponseDto resp = OrderResponseDto.builder()
+                .orderId(2L)
+                .totalPrice(24000)
+                .deliveryFee(Order.DEFAULT_DELIVERY_FEE)
+                .finalPrice(29000)
+                .message("[비회원: 홍길동 (010-1234-5678)] 주문 생성됨 / 총액: 24000원 / 배송비: 5000원 / 결제금액: 29000원")
+                .orderStatus(OrderStatus.PENDING)
                 .build();
     }
 

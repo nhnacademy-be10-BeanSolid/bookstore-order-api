@@ -6,16 +6,23 @@ import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderService {
@@ -23,27 +30,14 @@ public class OrderService {
     private final WrappingRepository wrappingRepository;
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
+    private final TaskScheduler taskScheduler;
+
+    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
-        LocalDate effectiveDate = req.getDeliveryDate() != null
-                ? req.getDeliveryDate()
-                : LocalDate.now();
-        LocalDateTime deliveryAt = effectiveDate.atStartOfDay();
 
-        Order order = Order.builder()
-                .userId(req.getUserId())
-                .guestName(req.getGuestName())
-                .guestPhone(req.getGuestPhone())
-                .status(OrderStatus.PENDING)
-                .orderdateAt(LocalDateTime.now())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .deliveryAt(deliveryAt)
-                .totalPrice(0)
-                .deliveryFee(0)
-                .finalPrice(0)
-                .build();
+        Order order = Order.createFrom(req);
 
         int sum = 0;
         for (OrderItemDto dto : req.getItems()) {
@@ -61,55 +55,24 @@ public class OrderService {
 
             sum += unitPrice * dto.getQuantity() + wrapFee;
 
-            OrderItem item = OrderItem.builder()
-                    .bookId(dto.getBookId())
-                    .quantity(dto.getQuantity())
-                    .giftWrapped(dto.getGiftWrapped())
-                    .unitPrice(unitPrice)
-                    .wrapping(wrap)
-                    .build();
+            OrderItem item = OrderItem.createFrom(dto, wrap, unitPrice);
             order.addItem(item);
         }
 
-        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : 5_000;
+        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
         order.setTotalPrice(sum);
         order.setDeliveryFee(deliveryFee);
         order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
 
-        String userInfo = saved.getUserId() != null
-                ? "회원 ID: " + saved.getUserId()
-                : "비회원: " + saved.getGuestName() + " (" + saved.getGuestPhone() + ")";
-        String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                userInfo, saved.getTotalPrice(), saved.getDeliveryFee(), saved.getFinalPrice());
-
-        return OrderResponseDto.builder()
-                .orderId(saved.getId())
-                .totalPrice(saved.getTotalPrice())
-                .deliveryFee(saved.getDeliveryFee())
-                .finalPrice(saved.getFinalPrice())
-                .message(message)
-                .build();
+        return OrderResponseDto.createFrom(saved);
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponseDto> listAll() {
         return orderRepository.findAll().stream()
-                .map(o -> {
-                    String userInfo = o.getUserId() != null
-                            ? "회원 ID: " + o.getUserId()
-                            : "비회원: " + o.getGuestName() + " (" + o.getGuestPhone() + ")";
-                    String message = String.format("[%s] 주문 생성됨 / 총액: %d원 / 배송비: %d원 / 결제금액: %d원",
-                            userInfo, o.getTotalPrice(), o.getDeliveryFee(), o.getFinalPrice());
-                    return OrderResponseDto.builder()
-                            .orderId(o.getId())
-                            .totalPrice(o.getTotalPrice())
-                            .deliveryFee(o.getDeliveryFee())
-                            .finalPrice(o.getFinalPrice())
-                            .message(message)
-                            .build();
-                })
+                .map(OrderResponseDto::createFrom)
                 .collect(Collectors.toList());
     }
 
@@ -146,27 +109,46 @@ public class OrderService {
                     String.format("상태 전이 불가: %s → %s", oldStatus, newStatus));
         }
 
-        OrderStatusLog log = OrderStatusLog.builder()
-                .orderId(orderId)
-                .oldStatus(oldStatus)
-                .newStatus(newStatus)
-                .changedAt(LocalDateTime.now())
-                .changedBy(changedBy)
-                .memo(memo)
-                .build();
+        OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
         statusLogRepository.save(log);
 
         order.setStatus(newStatus);
         orderRepository.save(order);
 
-        return StatusChangeResponseDto.builder()
-                .orderId(orderId)
-                .oldStatus(oldStatus)
-                .newStatus(newStatus)
-                .changedAt(log.getChangedAt())
-                .changedBy(changedBy)
-                .memo(memo)
-                .build();
+        if (newStatus == OrderStatus.SHIPPING) {
+            scheduleAutoDeliveryComplete(orderId);
+        }
+
+        return StatusChangeResponseDto.createFrom(log);
+    }
+
+    private void scheduleAutoDeliveryComplete(Long orderId) {
+
+        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+
+        taskScheduler.schedule(() -> {
+            try {
+                completeDelivery(orderId);
+            } catch (Exception e) {
+                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+            }
+        }, triggerTime);
+    }
+
+    @Transactional
+    public void completeDelivery(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            return;
+        }
+
+        statusLogRepository.save(OrderStatusLog.createFrom(orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료"));
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
     }
 
     @Transactional
@@ -187,15 +169,16 @@ public class OrderService {
             throw new ResourceNotFoundException("주문을 찾을 수 없습니다.");
         }
         return statusLogRepository.findByOrderId(orderId).stream()
-                .map(log -> OrderStatusLogDto.builder()
-                        .orderStateId(log.getOrderStateId())
-                        .orderId(log.getOrderId())
-                        .oldStatus(log.getOldStatus())
-                        .newStatus(log.getNewStatus())
-                        .changedAt(log.getChangedAt())
-                        .changedBy(log.getChangedBy())
-                        .memo(log.getMemo())
-                        .build())
+                .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
+
+    public OrderResponseDto getOrderById(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        return OrderResponseDto.createFrom(order);
+    }
 }
+

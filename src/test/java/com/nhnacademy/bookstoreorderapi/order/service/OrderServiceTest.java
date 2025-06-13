@@ -13,6 +13,7 @@ import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -20,18 +21,27 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
+
+import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
+
     @Mock
     OrderRepository orderRepository;
     @Mock
@@ -40,6 +50,8 @@ class OrderServiceTest {
     CanceledOrderRepository canceledOrderRepository;
     @Mock
     OrderStatusLogRepository statusLogRepository;
+    @Mock
+    TaskScheduler taskScheduler;
 
     @InjectMocks
     OrderService orderService;
@@ -211,4 +223,35 @@ class OrderServiceTest {
                 .extracting(OrderStatusLogDto::getOrderStateId, OrderStatusLogDto::getNewStatus)
                 .containsExactly(100L, OrderStatus.SHIPPING);
     }
+
+    @Test
+    @DisplayName("상태를 '대기->배송중'으로 변경 후 5초 뒤 '배송완료'로 자동 변경에 성공")
+    void autoDeliveryComplete_Success() {
+
+        TaskScheduler scheduler = new ConcurrentTaskScheduler();
+
+        Order testOrder = new Order();
+        testOrder.setId(1L);
+        testOrder.setStatus(OrderStatus.PENDING);
+
+        Long changedBy = 99L;
+        String memo = "배송 자동 완료 테스트";
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
+
+        doAnswer(invocationOnMock -> {
+            Runnable task = invocationOnMock.getArgument(0);
+            task.run();
+            return null;
+        }).when(taskScheduler).schedule(any(Runnable.class), any(Date.class));
+
+        doAnswer(invocationOnMock -> {
+            return null;
+        }).when(statusLogRepository).save(any(OrderStatusLog.class));
+
+        orderService.changeStatus(testOrder.getId(), OrderStatus.SHIPPING, changedBy, memo);
+
+        assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+    }
 }
+

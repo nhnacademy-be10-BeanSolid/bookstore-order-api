@@ -1,8 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +16,9 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Order {
+  
+    public static final int DEFAULT_DELIVERY_FEE = 5_000;
+  
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -44,13 +49,13 @@ public class Order {
 
     @Column(name = "total_price")
     private int totalPrice; // 총 상품 금액
-
+  
+     // 배송비
     @Column(name = "delivery_fee")
     private int deliveryFee; // 배송비
 
     @Column(name = "final_price")
     private int finalPrice; // 최종 결제 금액
-
 
     /**
      * @Builder로 생성할 때 초기화(default)가 무시되는 문제를 막기 위해
@@ -63,5 +68,27 @@ public class Order {
     public void addItem(OrderItem item) {
         item.setOrder(this);
         this.items.add(item);
+    }
+
+    public static Order createFrom(OrderRequestDto req) {
+
+        LocalDate effectiveDate = req.getDeliveryDate() != null
+                ? req.getDeliveryDate()
+                : LocalDate.now();
+        LocalDateTime deliveryAt = effectiveDate.atStartOfDay();
+
+        return Order.builder()
+                .userId(req.getUserId())
+                .guestName(req.getGuestName())
+                .guestPhone(req.getGuestPhone())
+                .status(OrderStatus.PENDING)
+                .orderdateAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .deliveryAt(deliveryAt)
+                .totalPrice(0)
+                .deliveryFee(DEFAULT_DELIVERY_FEE)
+                .finalPrice(0)
+                .build();
     }
 }
