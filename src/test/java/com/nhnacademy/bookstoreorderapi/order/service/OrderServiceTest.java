@@ -16,14 +16,19 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -33,6 +38,7 @@ class OrderServiceTest {
     @Mock private WrappingRepository wrappingRepository;
     @Mock private CanceledOrderRepository canceledOrderRepository;
     @Mock private OrderStatusLogRepository statusLogRepository;
+    @Mock private TaskScheduler taskScheduler;
 
     @InjectMocks
     private OrderService orderService;
@@ -246,5 +252,35 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.getStatusLog(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("주문을 찾을 수 없습니다.");
+    }
+
+    @Test
+    @DisplayName("상태를 '대기->배송중'으로 변경 후 5초 뒤 '배송완료'로 자동 변경에 성공")
+    void autoDeliveryComplete_Success() {
+
+        TaskScheduler scheduler = new ConcurrentTaskScheduler();
+
+        Order testOrder = new Order();
+        testOrder.setId(1L);
+        testOrder.setStatus(OrderStatus.PENDING);
+
+        Long changedBy = 99L;
+        String memo = "배송 자동 완료 테스트";
+
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(testOrder));
+
+        doAnswer(invocationOnMock -> {
+            Runnable task = invocationOnMock.getArgument(0);
+            task.run();
+            return null;
+        }).when(taskScheduler).schedule(any(Runnable.class), any(Date.class));
+
+        doAnswer(invocationOnMock -> {
+            return null;
+        }).when(statusLogRepository).save(any(OrderStatusLog.class));
+
+        orderService.changeStatus(testOrder.getId(), OrderStatus.SHIPPING, changedBy, memo);
+
+        assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }
 }

@@ -11,10 +11,15 @@ import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepositor
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,6 +31,9 @@ public class OrderService {
     private final WrappingRepository wrappingRepository;
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
+    private final TaskScheduler taskScheduler;
+
+    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
@@ -105,7 +113,40 @@ public class OrderService {
         order.setStatus(newStatus);
         orderRepository.save(order);
 
+        if (newStatus == OrderStatus.SHIPPING) {
+            scheduleAutoDeliveryComplete(orderId);
+        }
+
         return StatusChangeResponseDto.createFrom(log);
+    }
+
+    private void scheduleAutoDeliveryComplete(Long orderId) {
+
+        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+
+        taskScheduler.schedule(() -> {
+            try {
+                completeDelivery(orderId);
+            } catch (Exception e) {
+                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+            }
+        }, triggerTime);
+    }
+
+    @Transactional
+    public void completeDelivery(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            return;
+        }
+
+        statusLogRepository.save(OrderStatusLog.createFrom(orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료"));
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
     }
 
     public int requestReturn(Long orderId) {

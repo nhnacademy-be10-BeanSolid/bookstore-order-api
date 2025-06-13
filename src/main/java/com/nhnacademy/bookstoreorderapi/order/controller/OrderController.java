@@ -45,7 +45,7 @@ public class OrderController {
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<ResponseDto> changeOrderStatus(
             @PathVariable Long orderId,
-            @RequestBody @Valid StatusChangeResponseDto dto) {
+            @RequestBody @Valid StatusChangeDto dto) {
         try {
             StatusChangeResponseDto resp = orderService.changeStatus(
                     orderId,
