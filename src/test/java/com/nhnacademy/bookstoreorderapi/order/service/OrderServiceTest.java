@@ -13,6 +13,7 @@ import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
