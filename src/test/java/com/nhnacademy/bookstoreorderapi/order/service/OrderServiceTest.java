@@ -1,23 +1,33 @@
 // src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.repository.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
