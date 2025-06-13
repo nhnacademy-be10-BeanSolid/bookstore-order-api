@@ -132,4 +132,12 @@ public class OrderService {
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
+
+    public OrderResponseDto getOrderById(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        return OrderResponseDto.createFrom(order);
+    }
 }

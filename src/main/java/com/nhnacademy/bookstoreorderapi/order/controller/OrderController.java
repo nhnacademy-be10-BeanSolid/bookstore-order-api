@@ -23,6 +23,13 @@ public class OrderController {
         return orderService.listAll();
     }
 
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponseDto> getOrderById(@PathVariable Long orderId) {
+
+        OrderResponseDto responseDto = orderService.getOrderById(orderId);
+        return ResponseEntity.ok(responseDto);
+    }
+
     @PostMapping
     public ResponseEntity<ResponseDto> createOrder(@Valid @RequestBody OrderRequestDto orderForm) {
         try {
