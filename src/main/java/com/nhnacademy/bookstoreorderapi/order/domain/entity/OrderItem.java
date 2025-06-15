@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 @Entity
 @Table(name = "order_item")
 @Getter @Setter
@@ -11,24 +12,32 @@ import lombok.*;
 public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "order_item_id")
+    private Long orderItemId;
 
-    @Column(name="order_id", insertable=false, updatable=false)
+    @Column(name = "order_id", insertable = false, updatable = false)
     private Long orderId;
 
+    @Column(name = "book_id")
     private Long bookId;
 
+    @Column(name = "unit_price")
     private int unitPrice;
+
+    @Column(name = "quantity")
     private int quantity;
 
-    @Column(name="gift_wrapped")
-    private Boolean giftWrapped;
+    @Column(name = "is_gift_wrapped")
+    private Boolean isGiftWrapped;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "wrapping_id")
-    private Wrapping wrapping;
+    @Column(name = "wrapping_id", insertable = false, updatable = false)
+    private Long wrappingId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
     private Order order;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "wrapping_id")
+    private Wrapping wrapping;
 }

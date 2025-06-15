@@ -8,6 +8,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatu
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,8 +33,9 @@ class OrderServiceCancelTest {
     @Mock
     private CanceledOrderRepository canceledOrderRepository;
 
+    // OrderServiceImpl 클래스로 변경
     @InjectMocks
-    private OrderService orderService;
+    private OrderServiceImpl orderService;
 
     private Order pendingOrder;
     private Order shippingOrder;
@@ -41,12 +43,12 @@ class OrderServiceCancelTest {
     @BeforeEach
     void setUp() {
         pendingOrder = Order.builder()
-                .id(1L)
+                .orderId(1L)
                 .status(OrderStatus.PENDING)
                 .build();
 
         shippingOrder = Order.builder()
-                .id(2L)
+                .orderId(2L)
                 .status(OrderStatus.SHIPPING)
                 .build();
     }

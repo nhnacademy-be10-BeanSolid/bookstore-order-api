@@ -18,12 +18,12 @@ class OrderTest {
         LocalDateTime now = LocalDateTime.now();
 
         Order order = Order.builder()
-                .id(100L)
+                .orderId(100L)
                 .userId("42L")
                 .guestName("John Doe")
                 .guestPhone("010-1234-5678")
                 .status(OrderStatus.PENDING)
-                .orderdateAt(now)
+                .orderDateAt(now)
                 .deliveryAt(now.plusDays(3))
                 .createdAt(now.minusDays(1))
                 .updatedAt(now)
@@ -32,12 +32,12 @@ class OrderTest {
                 .finalPrice(23000)
                 .build();
 
-        assertThat(order.getId()).isEqualTo(100L);
+        assertThat(order.getOrderId()).isEqualTo(100L);
         assertThat(order.getUserId()).isEqualTo("42L");
         assertThat(order.getGuestName()).isEqualTo("John Doe");
         assertThat(order.getGuestPhone()).isEqualTo("010-1234-5678");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(order.getOrderdateAt()).isSameAs(now);
+        assertThat(order.getOrderDateAt()).isSameAs(now);
         assertThat(order.getDeliveryAt()).isEqualTo(now.plusDays(3));
         assertThat(order.getCreatedAt()).isEqualTo(now.minusDays(1));
         assertThat(order.getUpdatedAt()).isSameAs(now);
@@ -50,9 +50,9 @@ class OrderTest {
     @Test
     @DisplayName("addItem should set order reference and add to items list")
     void addItem_setsOrderAndAddsToList() {
-        Order order = Order.builder().id(1L).build();
+        Order order = Order.builder().orderId(1L).build();
         OrderItem item = new OrderItem();
-        item.setId(10L);
+        item.setOrderItemId(10L);
         item.setQuantity(2);
         item.setUnitPrice(1500);
 
