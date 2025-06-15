@@ -20,11 +20,6 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
-    @GetMapping
-    public List<OrderResponseDto> listAll() {
-        return orderService.listAll();
-    }
-
     @PostMapping//수정 - 각 API가 자신의 구체적인 DTO만 책임지도록!
     public OrderResponseDto createOrder(@Valid @RequestBody OrderRequestDto req) {
         validateOrderType(req);
