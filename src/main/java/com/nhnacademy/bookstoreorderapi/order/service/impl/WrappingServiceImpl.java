@@ -1,9 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.WrappingService;
 import lombok.RequiredArgsConstructor;
+
+import java.util.List;
 import java.util.Optional;
 
 //@Service
@@ -12,6 +15,11 @@ import java.util.Optional;
 public class WrappingServiceImpl implements WrappingService {
 
     private final WrappingRepository wrappingRepository;
+
+    @Override
+    public List<OrderResponseDto> listByUser(String userId) {
+        return List.of();
+    }
 
     @Override
     public int calculateFinalPrice(int totalPrice, Long wrappingId) {

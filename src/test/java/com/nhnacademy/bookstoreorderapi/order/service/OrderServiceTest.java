@@ -1,4 +1,3 @@
-// src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
@@ -125,25 +124,6 @@ class OrderServiceTest {
                 .hasMessageContaining("유효하지 않은 포장 ID: 1");
     }
 
-    @Test
-    void listAll_returnsMappedDtos() {
-        Order o = Order.builder()
-                .orderId(7L)
-                .userId("u1")
-                .status(OrderStatus.PENDING)
-                .totalPrice(100)
-                .deliveryFee(10)
-                .finalPrice(110)
-                .build();
-        when(orderRepository.findAll()).thenReturn(List.of(o));
-
-        List<OrderResponseDto> list = orderService.listAll();
-
-        assertThat(list).hasSize(1)
-                .first()
-                .extracting(OrderResponseDto::getOrderId, OrderResponseDto::getFinalPrice)
-                .containsExactly(7L, 110);
-    }
 
     @Test
     void changeStatus_validTransition_succeedsAndLogs() {

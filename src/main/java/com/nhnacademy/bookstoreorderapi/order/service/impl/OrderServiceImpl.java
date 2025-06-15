@@ -75,7 +75,6 @@ public class OrderServiceImpl implements OrderService {
         int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : 5_000;
         order.setTotalPrice(sum);
         order.setDeliveryFee(deliveryFee);
-        // ⬇️ 최종 결제 금액을 설정하는 부분을 추가했습니다.
         order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
@@ -95,10 +94,11 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    // ↓ 새로 추가한 회원별 주문 조회 메서드
     @Override
     @Transactional(readOnly = true)
-    public List<OrderResponseDto> listAll() {
-        return orderRepository.findAll().stream()
+    public List<OrderResponseDto> listByUser(String userId) {
+        return orderRepository.findAllByUserId(userId).stream()
                 .map(o -> {
                     String userInfo = o.getUserId() != null
                             ? "회원 ID: " + o.getUserId()
