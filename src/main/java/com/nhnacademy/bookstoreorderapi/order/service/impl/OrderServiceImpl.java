@@ -34,36 +34,40 @@ public class OrderServiceImpl implements OrderService {
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
+    /*───────────────────────────────────────────────────────
+     * 1. 주문 생성
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
 
         Order order = Order.createFrom(req);
 
-        int sum = 0;
+        /* ③ 주문-상품( OrderItem ) 처리 */
+        int total = 0;
         for (OrderItemDto dto : req.getItems()) {
-            Wrapping wrap = null;
+
+            Wrapping wrapping = null;
             if (dto.getWrappingId() != null) {
-                wrap = wrappingRepository.findById(dto.getWrappingId())
+                wrapping = wrappingRepository.findById(dto.getWrappingId())
                         .orElseThrow(() -> new BadRequestException(
-                                "유효하지 않은 포장 ID: " + dto.getWrappingId()));
+                                "잘못된 wrappingId : " + dto.getWrappingId()));
             }
 
-            int unitPrice = 10_000;
-            int wrapFee = Boolean.TRUE.equals(dto.getGiftWrapped()) && wrap != null
-                    ? wrap.getPrice() * dto.getQuantity()
+            int unitPrice = 10_000;                           // 예시용 기본 단가
+            int wrapFee   = Boolean.TRUE.equals(dto.getGiftWrapped()) && wrapping != null
+                    ? wrapping.getPrice() * dto.getQuantity()
                     : 0;
 
-            sum += unitPrice * dto.getQuantity() + wrapFee;
+            total += unitPrice * dto.getQuantity() + wrapFee;
 
-            OrderItem item = OrderItem.createFrom(dto, wrap, unitPrice);
+            OrderItem item = OrderItem.createFrom(dto, wrapping, unitPrice);
             order.addItem(item);
         }
 
-        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
-        order.setTotalPrice(sum);
+        int deliveryFee = (req.getUserId() != null && total >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
+        order.setTotalPrice(total);
         order.setDeliveryFee(deliveryFee);
-        order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
 
@@ -83,25 +87,35 @@ public class OrderServiceImpl implements OrderService {
                 .toList();
     }
 
+    /*───────────────────────────────────────────────────────
+     * 3. 주문 취소
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
     public void cancelOrder(Long orderId, String reason) {
+
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+
         if (order.getStatus() != OrderStatus.PENDING) {
-            throw new InvalidOrderStatusChangeException("배송 전 주문만 취소 가능합니다.");
+            throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
         }
+
         order.setStatus(OrderStatus.CANCELED);
 
-        CanceledOrder record = CanceledOrder.builder()
-                .orderId(orderId)
-                .canceledAt(LocalDateTime.now())
-                .reason(reason)
-                .build();
-        canceledOrderRepository.save(record);
+        canceledOrderRepository.save(
+                CanceledOrder.builder()
+                        .orderId(orderId)
+                        .canceledAt(LocalDateTime.now())
+                        .reason(reason)
+                        .build());
+
         orderRepository.save(order);
     }
 
+    /*───────────────────────────────────────────────────────
+     * 4. 주문 상태 변경
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
     public StatusChangeResponseDto changeStatus(
@@ -112,10 +126,11 @@ public class OrderServiceImpl implements OrderService {
     ) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+
         OrderStatus oldStatus = order.getStatus();
         if (!oldStatus.canTransitionTo(newStatus)) {
             throw new InvalidOrderStatusChangeException(
-                    String.format("상태 전이 불가: %s → %s", oldStatus, newStatus));
+                    String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
         }
 
         OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
@@ -160,14 +175,19 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
+    /*───────────────────────────────────────────────────────
+     * 5. 반품 요청
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
     public int requestReturn(Long orderId, ReturnRequestDto dto) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+
         if (order.getStatus() == OrderStatus.RETURNED) {
-            throw new InvalidOrderStatusChangeException("이미 반품된 상품입니다.");
+            throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
         }
+
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
 
@@ -177,15 +197,19 @@ public class OrderServiceImpl implements OrderService {
         return order.getTotalPrice() - Returns.RETURNS_FEE;
     }
 
+    /*───────────────────────────────────────────────────────
+     * 6. 상태 변경 이력 조회
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional(readOnly = true)
     public List<OrderStatusLogDto> getStatusLog(Long orderId) {
+
         if (!orderRepository.existsById(orderId)) {
             throw new ResourceNotFoundException("주문을 찾을 수 없습니다.");
         }
+
         return statusLogRepository.findByOrderId(orderId).stream()
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
 }
-

@@ -25,12 +25,6 @@ public class Order {
     @Column(name = "user_id")
     private String userId;
 
-    @Column(name = "guest_name")
-    private String guestName;
-
-    @Column(name = "guest_phone")
-    private String guestPhone;
-
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
@@ -52,9 +46,11 @@ public class Order {
     @Column(name = "delivery_fee")
     private int deliveryFee; // 배송비
 
-    @Column(name = "final_price")
-    private int finalPrice; // 최종 결제 금액
+    @Column(name = "guest_id")
+    private Long guestId;
 
+    @Column(name = "order_address")
+    private String orderAddress; //회원: 장소테이블에서 참조
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -73,8 +69,6 @@ public class Order {
 
         return Order.builder()
                 .userId(req.getUserId())
-                .guestName(req.getGuestName())
-                .guestPhone(req.getGuestPhone())
                 .status(OrderStatus.PENDING)
                 .orderDate(LocalDate.now())
                 .requestedDeliveryDate(requestDeliveryDate)
@@ -82,7 +76,6 @@ public class Order {
                 .updatedAt(LocalDateTime.now())
                 .totalPrice(0)
                 .deliveryFee(DEFAULT_DELIVERY_FEE)
-                .finalPrice(0)
                 .build();
     }
 }

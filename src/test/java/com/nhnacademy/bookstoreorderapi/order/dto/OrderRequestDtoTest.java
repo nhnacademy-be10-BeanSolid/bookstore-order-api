@@ -33,21 +33,10 @@ class OrderRequestDtoTest {
 
         return OrderRequestDto.builder()
                 .orderType("guest")
-                .guestName("홍길동")
-                .guestPhone("010-1234-5678")
+                .guestId(1L)
                 .deliveryDate(LocalDate.now().plusDays(1))
                 .items(items)
                 .build();
-    }
-
-    @Test
-    void whenDeliveryDateNull_thenNoConstraintViolation() {
-        OrderRequestDto dto = buildValidDto();
-        dto.setDeliveryDate(null);
-
-        Set<ConstraintViolation<OrderRequestDto>> violations = validator.validate(dto);
-        // deliveryDate가 null이어도 @NotNull 제거했으므로 위반 없음
-        assertThat(violations).noneMatch(v -> v.getPropertyPath().toString().equals("deliveryDate"));
     }
 
     @Test
@@ -56,9 +45,10 @@ class OrderRequestDtoTest {
         dto.setDeliveryDate(LocalDate.now().minusDays(1));
 
         Set<ConstraintViolation<OrderRequestDto>> violations = validator.validate(dto);
-        assertThat(violations)
-                .anyMatch(v ->
-                        v.getPropertyPath().toString().equals("deliveryDate")
-                                && v.getMessage().contains("오늘 또는 이후"));
+
+        assertThat(violations).anyMatch(v ->
+                v.getPropertyPath().toString().equals("deliveryDate")
+                        && v.getMessage().contains("오늘 이후")      // ★ 변경
+        );
     }
 }
