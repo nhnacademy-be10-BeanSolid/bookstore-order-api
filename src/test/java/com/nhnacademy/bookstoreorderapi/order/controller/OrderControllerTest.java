@@ -94,8 +94,7 @@ class OrderControllerTest {
     void createOrder_guestValid_returnsOk() throws Exception {
         OrderRequestDto req = OrderRequestDto.builder()
                 .orderType("guest")
-                .guestName("테스트")
-                .guestPhone("010-0000-0001")
+                .guestId(1L)
                 .items(Collections.singletonList(
                         OrderItemDto.builder()
                                 .bookId(1L)
@@ -120,6 +119,7 @@ class OrderControllerTest {
         OrderRequestDto req = OrderRequestDto.builder()
                 .orderType("member")
                 .userId("42")
+                .orderAddress("서울특별시 강남구 테헤란로 123")   // ⭐️ 추가
                 .deliveryDate(LocalDate.of(2025, 6, 20))
                 .items(Collections.singletonList(
                         OrderItemDto.builder()

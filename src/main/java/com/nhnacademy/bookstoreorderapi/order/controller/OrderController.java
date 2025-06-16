@@ -65,17 +65,14 @@ public class OrderController {
     }
 
     private void validateOrderType(OrderRequestDto req) {
-        String type = req.getOrderType();
-        if ("guest".equalsIgnoreCase(type)) {
-            if (req.getGuestName() == null || req.getGuestPhone() == null) {
-                throw new IllegalArgumentException("비회원 주문은 이름과 전화번호가 필요합니다.");
+        switch (req.getOrderType().toLowerCase()) {
+            case "guest" -> {
+                if (req.getGuestId() == null) throw new IllegalArgumentException("guestId 필요");
             }
-        } else if ("member".equalsIgnoreCase(type)) {
-            if (req.getUserId() == null) {
-                throw new IllegalArgumentException("회원 주문은 userId가 필요합니다.");
+            case "member" -> {
+                if (req.getUserId() == null) throw new IllegalArgumentException("userId 필요");
             }
-        } else {
-            throw new IllegalArgumentException("orderType은 'member' 또는 'guest'여야 합니다.");
+            default -> throw new IllegalArgumentException("orderType 은 member | guest 만 허용");
         }
     }
 }

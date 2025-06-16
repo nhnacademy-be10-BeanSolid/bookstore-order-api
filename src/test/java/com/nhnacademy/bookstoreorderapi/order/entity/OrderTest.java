@@ -3,7 +3,6 @@ package com.nhnacademy.bookstoreorderapi.order.entity;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -14,56 +13,46 @@ import static org.assertj.core.api.Assertions.assertThat;
 class OrderTest {
 
     @Test
-    @DisplayName("Builder should correctly assign all fields")
-    void builder_assignsAllFields() {
-        LocalDateTime nowDateTime = LocalDateTime.now();
-        LocalDate today          = nowDateTime.toLocalDate();
-        LocalDate threeDaysLater = today.plusDays(3);
-
+    void addItem_setsBidirectionalRelation() {
+        // given
         Order order = Order.builder()
-                .orderId(100L)
-                .userId("42L")
-                .guestName("John Doe")
-                .guestPhone("010-1234-5678")
+                .userId("42")
                 .status(OrderStatus.PENDING)
-                .orderDate(today)
-                .requestedDeliveryDate(threeDaysLater)
-                .createdAt(nowDateTime.minusDays(1))
-                .updatedAt(nowDateTime)
-                .totalPrice(20000)
-                .finalPrice(23000)
+                .orderDate(LocalDate.now())
+                .requestedDeliveryDate(LocalDate.now().plusDays(2))
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .totalPrice(0)
+                .deliveryFee(0)
                 .build();
 
-        assertThat(order.getOrderId()).isEqualTo(100L);
-        assertThat(order.getUserId()).isEqualTo("42L");
-        assertThat(order.getGuestName()).isEqualTo("John Doe");
-        assertThat(order.getGuestPhone()).isEqualTo("010-1234-5678");
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        OrderItem item = OrderItem.builder()
+                .bookId(100L)
+                .quantity(2)
+                .unitPrice(10_000)
+                .isGiftWrapped(false)
+                .build();
 
-        assertThat(order.getOrderDate()).isEqualTo(today);
-        assertThat(order.getRequestedDeliveryDate()).isEqualTo(threeDaysLater);
+        // when
+        order.addItem(item);
 
-        assertThat(order.getCreatedAt()).isEqualTo(nowDateTime.minusDays(1));
-        assertThat(order.getUpdatedAt()).isEqualTo(nowDateTime);
+        // then
+        assertThat(order.getItems()).containsExactly(item);  // Order 쪽 컬렉션
+        assertThat(item.getOrder()).isEqualTo(order);        // 역방향 연관관계
+    }
 
-        assertThat(order.getTotalPrice()).isEqualTo(20000);
-        assertThat(order.getFinalPrice()).isEqualTo(23000);
+    @Test
+    void builder_initializesItemsList() {
+        // when
+        Order order = Order.builder().build();
 
+        // then
+        assertThat(order.getItems()).isNotNull();
         assertThat(order.getItems()).isEmpty();
     }
 
     @Test
-    @DisplayName("addItem should set order reference and add to items list")
-    void addItem_setsOrderAndAddsToList() {
-        Order order = Order.builder().orderId(1L).build();
-        OrderItem item = new OrderItem();
-        item.setOrderItemId(10L);
-        item.setQuantity(2);
-        item.setUnitPrice(1500);
-
-        order.addItem(item);
-
-        assertThat(order.getItems()).containsExactly(item);
-        assertThat(item.getOrder()).isSameAs(order);
+    void constant_defaultDeliveryFee_is5000() {
+        assertThat(Order.DEFAULT_DELIVERY_FEE).isEqualTo(5_000);
     }
 }
