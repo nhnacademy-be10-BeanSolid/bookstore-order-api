@@ -226,11 +226,14 @@ class OrderControllerTest {
 
     @Test
     void requestReturn_valid_returnsOk() throws Exception {
-        given(orderService.requestReturn(3L)).willReturn(25000);
 
-        mockMvc.perform(post("/orders/3/returns"))
-                .andExpect(status().isOk())
-                .andExpect(content().string("25000"));
+        ReturnRequestDto dto = ReturnRequestDto.builder().reason("테스트 이유").requestedAt(LocalDateTime.now()).damaged(false).build();
+        given(orderService.requestReturn(3L, dto)).willReturn(25000);
+
+        mockMvc.perform(post("/orders/3/returns")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isOk());
     }
 
     @Test

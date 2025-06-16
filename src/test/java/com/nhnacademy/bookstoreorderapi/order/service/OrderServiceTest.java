@@ -1,20 +1,14 @@
 // src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
-import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
-import org.junit.jupiter.api.DisplayName;
+import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -26,15 +20,10 @@ import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-
-import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
-
-import static org.assertj.core.api.Assertions.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
@@ -52,6 +41,8 @@ class OrderServiceTest {
     OrderStatusLogRepository statusLogRepository;
     @Mock
     TaskScheduler taskScheduler;
+    @Mock
+    ReturnRepository returnRepository;
 
     @InjectMocks
     OrderService orderService;
@@ -183,19 +174,33 @@ class OrderServiceTest {
     @Test
     void requestReturn_fromCompleted_returnsRefund() {
         Order o = Order.builder().id(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
+        ReturnRequestDto dto = ReturnRequestDto.builder()
+                .reason("테스트 이유")
+                .requestedAt(LocalDateTime.now())
+                .damaged(false)
+                .build();
+        Returns returns = Returns.createFrom(o, dto);
+
         when(orderRepository.findById(10L)).thenReturn(Optional.of(o));
+        when(orderRepository.save(any(Order.class))).thenReturn(o);
+        when(returnRepository.save(any(Returns.class))).thenReturn(returns);
 
-        int refund = orderService.requestReturn(10L);
+        int refund = orderService.requestReturn(10L, dto);
 
-        assertThat(refund).isEqualTo(50000 - 2500);
+        assertThat(refund).isEqualTo(50000 - Returns.RETURNS_FEE);
         assertThat(o.getStatus()).isEqualTo(OrderStatus.RETURNED);
     }
 
     @Test
     void requestReturn_notFound_throws() {
         when(orderRepository.findById(99L)).thenReturn(Optional.empty());
+        ReturnRequestDto dto = ReturnRequestDto.builder()
+                .reason("테스트 이유")
+                .requestedAt(LocalDateTime.now())
+                .damaged(false)
+                .build();
 
-        assertThatThrownBy(() -> orderService.requestReturn(99L))
+        assertThatThrownBy(() -> orderService.requestReturn(99L, dto))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("주문을 찾을 수 없습니다.");
     }

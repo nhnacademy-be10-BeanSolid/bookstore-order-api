@@ -31,6 +31,7 @@ public class OrderService {
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
+    private final ReturnRepository returnRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
@@ -152,7 +153,7 @@ public class OrderService {
     }
 
     @Transactional
-    public int requestReturn(Long orderId) {
+    public int requestReturn(Long orderId, ReturnRequestDto dto) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
         if (order.getStatus() == OrderStatus.RETURNED) {
@@ -160,7 +161,11 @@ public class OrderService {
         }
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
-        return order.getTotalPrice() - 2_500;
+
+        Returns returns = Returns.createFrom(order, dto);
+        returnRepository.save(returns);
+
+        return order.getTotalPrice() - Returns.RETURNS_FEE;
     }
 
     @Transactional(readOnly = true)
