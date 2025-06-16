@@ -15,7 +15,7 @@ public class Wrapping {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "wrapping_id")
-    private Long id;
+    private Long wrappingId;
 
     @Column(name = "name", nullable = false)
     private String name;
@@ -25,5 +25,5 @@ public class Wrapping {
     private Integer price;
 
     @Column(name = "is_active", nullable = false)
-    private Boolean active;
+    private Boolean isActive;
 }

@@ -33,6 +33,7 @@ class OrderServiceCancelTest {
     @Mock
     private CanceledOrderRepository canceledOrderRepository;
 
+    // OrderServiceImpl 클래스로 변경
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -42,12 +43,12 @@ class OrderServiceCancelTest {
     @BeforeEach
     void setUp() {
         pendingOrder = Order.builder()
-                .id(1L)
+                .orderId(1L)
                 .status(OrderStatus.PENDING)
                 .build();
 
         shippingOrder = Order.builder()
-                .id(2L)
+                .orderId(2L)
                 .status(OrderStatus.SHIPPING)
                 .build();
     }

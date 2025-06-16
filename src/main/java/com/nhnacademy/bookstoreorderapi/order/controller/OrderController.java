@@ -5,7 +5,6 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseEntity;
 
 import java.util.List;
 
@@ -16,35 +15,27 @@ public class OrderController {
     private final OrderService orderService;
 
     @GetMapping
-    public List<OrderResponseDto> listAll() {
-        return orderService.listAll();
-    }
-
-
-    @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponseDto> getOrderById(@PathVariable Long orderId) {
-
-        OrderResponseDto responseDto = orderService.getOrderById(orderId);
-        return ResponseEntity.ok(responseDto);
+    public List<OrderResponseDto> listMyOrders(@RequestParam String userId) {
+        return orderService.listByUser(userId);
     }
 
     @PostMapping//수정 - 각 API가 자신의 구체적인 DTO만 책임지도록!
-    public ResponseEntity<OrderResponseDto> createOrder(@Valid @RequestBody OrderRequestDto req) {
+    public OrderResponseDto createOrder(@Valid @RequestBody OrderRequestDto req) {
         validateOrderType(req);
-        return ResponseEntity.ok(orderService.createOrder(req));
+        return orderService.createOrder(req);
     }
 
     @PatchMapping("/{orderId}/status")
-    public ResponseEntity<StatusChangeResponseDto> changeStatus(
+    public StatusChangeResponseDto changeStatus(
             @PathVariable Long orderId,
             @Valid @RequestBody StatusChangeRequestDto dto
     ) {
-        return ResponseEntity.ok(orderService.changeStatus(
+        return orderService.changeStatus(
                 orderId,
                 dto.getNewStatus(),
                 dto.getChangedBy(),
                 dto.getMemo()
-        ));
+        );
     }
 
     @PostMapping("/{orderId}/cancel")
