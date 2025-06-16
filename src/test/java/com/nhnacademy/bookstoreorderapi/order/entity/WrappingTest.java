@@ -11,29 +11,29 @@ class WrappingTest {
     @Test
     void builderSetsFieldsCorrectly() {
         Wrapping wrap = Wrapping.builder()
-                .id(1L)
+                .wrappingId(1L)
                 .name("Test")
                 .price(1000)
-                .active(true)
+                .isActive(true)
                 .build();
 
-        assertThat(wrap.getId()).isEqualTo(1L);
+        assertThat(wrap.getWrappingId()).isEqualTo(1L);
         assertThat(wrap.getName()).isEqualTo("Test");
         assertThat(wrap.getPrice()).isEqualTo(1000);
-        assertThat(wrap.getActive()).isTrue();
+        assertThat(wrap.getIsActive()).isTrue();
     }
 
     @Test
     void setterAndGetterWork() {
         Wrapping wrap = new Wrapping();
-        wrap.setId(2L);
+        wrap.setWrappingId(2L);
         wrap.setName("Sample");
         wrap.setPrice(500);
-        wrap.setActive(false);
+        wrap.setIsActive(false);
 
-        assertThat(wrap.getId()).isEqualTo(2L);
+        assertThat(wrap.getWrappingId()).isEqualTo(2L);
         assertThat(wrap.getName()).isEqualTo("Sample");
         assertThat(wrap.getPrice()).isEqualTo(500);
-        assertThat(wrap.getActive()).isFalse();
+        assertThat(wrap.getIsActive()).isFalse();
     }
 }

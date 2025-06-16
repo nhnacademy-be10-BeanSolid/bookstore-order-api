@@ -1,10 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,13 +19,16 @@ import java.time.LocalDateTime;
 public class CanceledOrder {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+    @Column(name = "canceled_order_id")
+    private Long canceledOrderId;
+    @Column(name ="order_id")
     private Long orderId;
 
   //취소주문 시간
-    private LocalDateTime canceledAt;
+  @Column(name = "canceled_at", nullable = false)
+  private LocalDateTime canceledAt;
 
   //취소 주문 사유
-    private String reason;
+  @Column(name = "reason", nullable = false)
+  private String reason;
 }

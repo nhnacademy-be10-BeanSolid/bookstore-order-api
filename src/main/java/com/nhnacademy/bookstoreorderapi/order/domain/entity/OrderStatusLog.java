@@ -18,17 +18,17 @@ public class OrderStatusLog {
     private Long orderId;       // 주문 ID
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "old_status", nullable = false, length = 20)
+    @Column(name = "oldStatus", nullable = false, length = 20)
     private OrderStatus oldStatus;  //이전 상태
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "new_status", nullable = false, length = 20)
+    @Column(name = "newStatus", nullable = false, length = 20)
     private OrderStatus newStatus;  //변경된 상태
 
-    @Column(name = "changed_at", nullable = false)
+    @Column(name = "changedAt", nullable = false)
     private LocalDateTime changedAt;    //변경 시작
 
-    @Column(name = "changed_by")
+    @Column(name = "changedBy")
     private Long changedBy;    // 변경자 ID(관리자 등)
 
     @Column(name = "memo", columnDefinition = "TEXT")
