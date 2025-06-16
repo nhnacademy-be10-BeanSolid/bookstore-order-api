@@ -3,27 +3,36 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
-
-    private final OrderRepository          orderRepository;
-    private final WrappingRepository       wrappingRepository;
-    private final CanceledOrderRepository  canceledOrderRepository;
+    private final OrderRepository orderRepository;
+    private final WrappingRepository wrappingRepository;
+    private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
+    private final TaskScheduler taskScheduler;
+    private final ReturnsRepository returnRepository;
+
+    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
     /*───────────────────────────────────────────────────────
      * 1. 주문 생성
@@ -32,24 +41,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public OrderResponseDto createOrder(OrderRequestDto req) {
 
-        /* ① 배송 요청일(없으면 오늘) */
-        LocalDate deliveryDate = req.getDeliveryDate() != null
-                ? req.getDeliveryDate()
-                : LocalDate.now();
-
-        /* ② 주문 엔티티 구성 */
-        Order order = Order.builder()
-                .userId(req.getUserId())          // 회원 ID (member)
-                .guestId(req.getGuestId())        // 비회원 ID (guest)
-                .orderAddress(req.getOrderAddress())
-                .status(OrderStatus.PENDING)
-                .orderDate(LocalDate.now())
-                .requestedDeliveryDate(deliveryDate)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .totalPrice(0)                    // ↓ 아래에서 계산
-                .deliveryFee(0)
-                .build();
+        Order order = Order.createFrom(req);
 
         /* ③ 주문-상품( OrderItem ) 처리 */
         int total = 0;
@@ -67,39 +59,33 @@ public class OrderServiceImpl implements OrderService {
                     ? wrapping.getPrice() * dto.getQuantity()
                     : 0;
 
-            total += unitPrice * dto.getQuantity() + wrapFee;
+            sum += unitPrice * dto.getQuantity() + wrapFee;
 
-            order.addItem(OrderItem.builder()
-                    .bookId(dto.getBookId())
-                    .quantity(dto.getQuantity())
-                    .unitPrice(unitPrice)
-                    .isGiftWrapped(dto.getGiftWrapped())
-                    .wrapping(wrapping)
-                    .build());
+            OrderItem item = OrderItem.createFrom(dto, wrap, unitPrice);
+            order.addItem(item);
         }
 
-        /* ④ 배송비 계산(예: 회원 3만↑ 무료, 그 외 5천) */
-        int deliveryFee = (order.getUserId() != null && total >= 30_000)
-                ? 0 : Order.DEFAULT_DELIVERY_FEE;
-
-        order.setTotalPrice(total);
+        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
+        order.setTotalPrice(sum);
         order.setDeliveryFee(deliveryFee);
+        order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
 
-        /* ⑤ 응답 변환 */
         return OrderResponseDto.createFrom(saved);
     }
 
-    /*───────────────────────────────────────────────────────
-     * 2. 회원별 주문 목록
-     *──────────────────────────────────────────────────────*/
     @Override
-    @Transactional(readOnly = true)
     public List<OrderResponseDto> listByUser(String userId) {
-        return orderRepository.findAllByUserId(userId).stream()
+
+        List<Order> orders = orderRepository.findByUserId(userId);
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
+        }
+
+        return orders.stream()
                 .map(OrderResponseDto::createFrom)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /*───────────────────────────────────────────────────────
@@ -133,11 +119,12 @@ public class OrderServiceImpl implements OrderService {
      *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
-    public StatusChangeResponseDto changeStatus(Long orderId,
-                                                OrderStatus newStatus,
-                                                Long changedBy,
-                                                String memo) {
-
+    public StatusChangeResponseDto changeStatus(
+            Long orderId,
+            OrderStatus newStatus,
+            Long changedBy,
+            String memo
+    ) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
 
@@ -147,27 +134,46 @@ public class OrderServiceImpl implements OrderService {
                     String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
         }
 
-        OrderStatusLog log = statusLogRepository.save(
-                OrderStatusLog.builder()
-                        .orderId(orderId)
-                        .oldStatus(oldStatus)
-                        .newStatus(newStatus)
-                        .changedAt(LocalDateTime.now())
-                        .changedBy(changedBy)
-                        .memo(memo)
-                        .build());
+        OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
+        statusLogRepository.save(log);
 
         order.setStatus(newStatus);
         orderRepository.save(order);
 
-        return StatusChangeResponseDto.builder()
-                .orderId(orderId)
-                .oldStatus(oldStatus)
-                .newStatus(newStatus)
-                .changedAt(log.getChangedAt())
-                .changedBy(changedBy)
-                .memo(memo)
-                .build();
+        if (newStatus == OrderStatus.SHIPPING) {
+            scheduleAutoDeliveryComplete(orderId);
+        }
+
+        return StatusChangeResponseDto.createFrom(log);
+    }
+
+    private void scheduleAutoDeliveryComplete(Long orderId) {
+
+        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+
+        taskScheduler.schedule(() -> {
+            try {
+                completeDelivery(orderId);
+            } catch (Exception e) {
+                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+            }
+        }, triggerTime);
+    }
+
+    @Transactional
+    public void completeDelivery(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            return;
+        }
+
+        statusLogRepository.save(OrderStatusLog.createFrom(orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료"));
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
     }
 
     /*───────────────────────────────────────────────────────
@@ -175,8 +181,7 @@ public class OrderServiceImpl implements OrderService {
      *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
-    public int requestReturn(Long orderId) {
-
+    public int requestReturn(Long orderId, ReturnRequestDto dto) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
 
@@ -187,8 +192,10 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
 
-        /* 예시 : 반품 수수료 2,500원 제외 */
-        return order.getTotalPrice() - 2_500;
+        Returns returns = Returns.createFrom(order, dto);
+        returnRepository.save(returns);
+
+        return order.getTotalPrice() - Returns.RETURNS_FEE;
     }
 
     /*───────────────────────────────────────────────────────
@@ -203,15 +210,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return statusLogRepository.findByOrderId(orderId).stream()
-                .map(log -> OrderStatusLogDto.builder()
-                        .orderStateId(log.getOrderStateId())
-                        .orderId(log.getOrderId())
-                        .oldStatus(log.getOldStatus())
-                        .newStatus(log.getNewStatus())
-                        .changedAt(log.getChangedAt())
-                        .changedBy(log.getChangedBy())
-                        .memo(log.getMemo())
-                        .build())
+                .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
 }
