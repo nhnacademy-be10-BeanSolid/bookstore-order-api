@@ -3,9 +3,10 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl;
+import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -75,6 +76,18 @@ class OrderControllerTest {
                 .memo("발송 준비 완료")
                 .changedAt(LocalDateTime.now())
                 .build();
+    }
+
+    @Test
+    void listAll_returnsOkAndJsonArray() throws Exception {
+        given(orderService.listAll())
+                .willReturn(Arrays.asList(sampleGuestOrder, sampleMemberOrder));
+
+        mockMvc.perform(get("/orders")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].orderId").value(1L))
+                .andExpect(jsonPath("$[1].orderId").value(2L));
     }
 
     @Test

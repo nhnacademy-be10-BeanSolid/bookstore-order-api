@@ -9,8 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "orders")
-@Getter
-@Setter
+@Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -36,23 +35,27 @@ public class Order {
     private LocalDateTime orderDateAt;
 
     @Column(name = "delivery_at")
-    private LocalDateTime deliveryAt;
+    private LocalDateTime deliveryAt; // 배송 요청일
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
     @Column(name = "total_price")
-    private int totalPrice;
+    private int totalPrice; // 총 상품 금액
 
     @Column(name = "delivery_fee")
-    private int deliveryFee;
+    private int deliveryFee; // 배송비
 
     @Column(name = "final_price")
-    private int finalPrice;
+    private int finalPrice; // 최종 결제 금액
 
+    /**
+     * @Builder로 생성할 때 초기화(default)가 무시되는 문제를 막기 위해
+     * @Builder.Default를 붙여줍니다.
+     */
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();

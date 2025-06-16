@@ -1,3 +1,4 @@
+// src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
 package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
@@ -84,6 +85,8 @@ class OrderServiceTest {
 
     @Test
     void createOrder_guest_succeeds() {
+        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
+
         when(orderRepository.save(any())).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
             o.setOrderId(5L);

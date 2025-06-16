@@ -1,0 +1,32 @@
+
+### 1) 주문 생성: 배송일자 미지정 -> 기본 오늘
+POST localhost:10350/orders
+Content-Type: application/json
+
+{
+  "orderType": "guest",
+  "guestName": "테스트",
+  "guestPhone": "010-0000-0000",
+  "items": [
+    { "bookId": 1, "quantity": 1, "giftWrapped": false }
+  ]
+}
+
+### 2) 주문 조회
+GET localhost:10350/orders/1
+Content-Type: application/json
+
+### 3) 주문 상태 변경: 대기 -> 배송중
+PATCH localhost:10350/orders/1/status
+Content-Type: application/json
+
+{
+  "newStatus": "SHIPPING",
+  "changedBy": 3,
+  "memo": "배송시작"
+}
+
+### 4) 배송 자동 종료 확인: '배송중 -> 완료'로 주문 상태 변경
+GET localhost:10350/orders/1/status-log
+Content-Type: application/json
+

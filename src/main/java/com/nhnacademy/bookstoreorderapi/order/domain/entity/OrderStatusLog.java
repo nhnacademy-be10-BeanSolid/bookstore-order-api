@@ -33,4 +33,17 @@ public class OrderStatusLog {
 
     @Column(name = "memo", columnDefinition = "TEXT")
     private String memo;       // 변경 메모
+
+    public static OrderStatusLog createFrom(Long orderId, OrderStatus oldStatus,
+                                            OrderStatus newStatus, Long changedBy, String memo) {
+
+        return OrderStatusLog.builder()
+                .orderId(orderId)
+                .oldStatus(oldStatus)
+                .newStatus(newStatus)
+                .changedAt(LocalDateTime.now())
+                .changedBy(changedBy)
+                .memo(memo)
+                .build();
+    }
 }
