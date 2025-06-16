@@ -10,8 +10,10 @@ import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.ReturnRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -227,7 +229,7 @@ class OrderServiceTest {
         TaskScheduler scheduler = new ConcurrentTaskScheduler();
 
         Order testOrder = new Order();
-        testOrder.setId(1L);
+        testOrder.setOrderId(1L);
         testOrder.setStatus(OrderStatus.PENDING);
 
         Long changedBy = 99L;
@@ -245,7 +247,7 @@ class OrderServiceTest {
             return null;
         }).when(statusLogRepository).save(any(OrderStatusLog.class));
 
-        orderService.changeStatus(testOrder.getId(), OrderStatus.SHIPPING, changedBy, memo);
+        orderService.changeStatus(testOrder.getOrderId(), OrderStatus.SHIPPING, changedBy, memo);
 
         assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }

@@ -23,6 +23,7 @@ public class OrderServiceImpl implements OrderService {
     private final WrappingRepository wrappingRepository;
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
+    private final ReturnRepository returnRepository;
 
     @Override
     @Transactional
@@ -174,7 +175,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public int requestReturn(Long orderId) {
+    public int requestReturn(Long orderId, ReturnRequestDto dto) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
         if (order.getStatus() == OrderStatus.RETURNED) {
@@ -182,7 +183,11 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
-        return order.getTotalPrice() - 2_500;
+
+        Returns returns = Returns.createFrom(order, dto);
+        returnRepository.save(returns);
+
+        return order.getTotalPrice() - Returns.RETURNS_FEE;
     }
 
     @Override
