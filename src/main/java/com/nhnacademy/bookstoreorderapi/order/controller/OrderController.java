@@ -1,15 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.CancelOrderRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.SuccessResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -60,8 +55,10 @@ public class OrderController {
     }
 
     @PostMapping("/{orderId}/returns")
-    public int requestReturn(@PathVariable Long orderId) {
-        return orderService.requestReturn(orderId);
+    public ResponseEntity<Integer> requestReturn(@PathVariable Long orderId, @RequestBody ReturnRequestDto dto) {
+
+        int returnsAmount = orderService.requestReturn(orderId, dto);
+        return ResponseEntity.ok(returnsAmount);
     }
 
     private void validateOrderType(OrderRequestDto req) {
