@@ -59,16 +59,15 @@ public class OrderServiceImpl implements OrderService {
                     ? wrapping.getPrice() * dto.getQuantity()
                     : 0;
 
-            sum += unitPrice * dto.getQuantity() + wrapFee;
+            total += unitPrice * dto.getQuantity() + wrapFee;
 
-            OrderItem item = OrderItem.createFrom(dto, wrap, unitPrice);
+            OrderItem item = OrderItem.createFrom(dto, wrapping, unitPrice);
             order.addItem(item);
         }
 
-        int deliveryFee = (req.getUserId() != null && sum >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
-        order.setTotalPrice(sum);
+        int deliveryFee = (req.getUserId() != null && total >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
+        order.setTotalPrice(total);
         order.setDeliveryFee(deliveryFee);
-        order.setFinalPrice(sum + deliveryFee);
 
         Order saved = orderRepository.save(order);
 

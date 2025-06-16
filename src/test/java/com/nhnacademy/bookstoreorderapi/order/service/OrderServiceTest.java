@@ -189,8 +189,6 @@ class OrderServiceTest {
                 .build();
 
         assertThatThrownBy(() -> orderService.requestReturn(99L, dto))
-
-        assertThatThrownBy(() -> orderService.requestReturn(99L))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessage("주문을 찾을 수 없습니다.");
     }

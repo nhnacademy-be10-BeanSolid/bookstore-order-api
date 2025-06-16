@@ -69,8 +69,6 @@ public class Order {
 
         return Order.builder()
                 .userId(req.getUserId())
-                .guestName(req.getGuestName())
-                .guestPhone(req.getGuestPhone())
                 .status(OrderStatus.PENDING)
                 .orderDate(LocalDate.now())
                 .requestedDeliveryDate(requestDeliveryDate)
@@ -78,7 +76,6 @@ public class Order {
                 .updatedAt(LocalDateTime.now())
                 .totalPrice(0)
                 .deliveryFee(DEFAULT_DELIVERY_FEE)
-                .finalPrice(0)
                 .build();
     }
 }
