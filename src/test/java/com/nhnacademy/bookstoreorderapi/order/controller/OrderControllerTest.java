@@ -6,7 +6,6 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -30,7 +29,7 @@ class OrderControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private OrderServiceImpl orderService;
+    private OrderService orderService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -62,7 +61,7 @@ class OrderControllerTest {
                 .orderId(3L)
                 .oldStatus(OrderStatus.PENDING)
                 .newStatus(OrderStatus.SHIPPING)
-                .changedBy(999L)            // <-- Long literal
+                .changedBy(999L)
                 .memo("발송 준비 완료")
                 .changedAt(LocalDateTime.now())
                 .build();
@@ -72,18 +71,19 @@ class OrderControllerTest {
                 .orderId(3L)
                 .oldStatus(OrderStatus.PENDING)
                 .newStatus(OrderStatus.SHIPPING)
-                .changedBy(999L)            // <-- Long literal
+                .changedBy(999L)
                 .memo("발송 준비 완료")
                 .changedAt(LocalDateTime.now())
                 .build();
     }
 
     @Test
-    void listAll_returnsOkAndJsonArray() throws Exception {
-        given(orderService.listAll())
+    void listMyOrders_returnsOkAndJsonArray() throws Exception {
+        given(orderService.listByUser("42"))
                 .willReturn(Arrays.asList(sampleGuestOrder, sampleMemberOrder));
 
         mockMvc.perform(get("/orders")
+                        .param("userId", "42")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].orderId").value(1L))
@@ -92,17 +92,18 @@ class OrderControllerTest {
 
     @Test
     void createOrder_guestValid_returnsOk() throws Exception {
-        // 비회원 주문 요청 DTO
-        OrderRequestDto req = new OrderRequestDto();
-        req.setOrderType("guest");
-        req.setGuestName("테스트");
-        req.setGuestPhone("010-0000-0001");
-        // items 리스트를 반드시 비워 있지 않게 설정
-        OrderItemDto item = new OrderItemDto();
-        item.setBookId(1L);
-        item.setQuantity(1);
-        item.setGiftWrapped(false);
-        req.setItems(Collections.singletonList(item));
+        OrderRequestDto req = OrderRequestDto.builder()
+                .orderType("guest")
+                .guestName("테스트")
+                .guestPhone("010-0000-0001")
+                .items(Collections.singletonList(
+                        OrderItemDto.builder()
+                                .bookId(1L)
+                                .quantity(1)
+                                .giftWrapped(false)
+                                .build()
+                ))
+                .build();
 
         given(orderService.createOrder(any(OrderRequestDto.class)))
                 .willReturn(sampleGuestOrder);
@@ -116,17 +117,19 @@ class OrderControllerTest {
 
     @Test
     void createOrder_memberValid_returnsOk() throws Exception {
-        // 회원 주문 요청 DTO
-        OrderRequestDto req = new OrderRequestDto();
-        req.setOrderType("member");
-        req.setUserId("42");
-        req.setDeliveryDate(LocalDate.of(2025, 6, 20));
-        OrderItemDto item = new OrderItemDto();
-        item.setBookId(2L);
-        item.setQuantity(3);
-        item.setGiftWrapped(true);
-        item.setWrappingId(1L);
-        req.setItems(Collections.singletonList(item));
+        OrderRequestDto req = OrderRequestDto.builder()
+                .orderType("member")
+                .userId("42")
+                .deliveryDate(LocalDate.of(2025, 6, 20))
+                .items(Collections.singletonList(
+                        OrderItemDto.builder()
+                                .bookId(2L)
+                                .quantity(3)
+                                .giftWrapped(true)
+                                .wrappingId(1L)
+                                .build()
+                ))
+                .build();
 
         given(orderService.createOrder(any(OrderRequestDto.class)))
                 .willReturn(sampleMemberOrder);
@@ -142,7 +145,7 @@ class OrderControllerTest {
     void changeStatus_valid_returnsOk() throws Exception {
         StatusChangeRequestDto dto = new StatusChangeRequestDto();
         dto.setNewStatus(OrderStatus.SHIPPING);
-        dto.setChangedBy(999L); // <-- Long literal
+        dto.setChangedBy(999L);
         dto.setMemo("발송 준비 완료");
 
         given(orderService.changeStatus(eq(3L), any(), anyLong(), anyString()))
@@ -164,7 +167,8 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(dto)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("주문이 정상적으로 취소되었습니다."));
+                .andExpect(jsonPath("$.message")
+                        .value("주문이 정상적으로 취소되었습니다."));
     }
 
     @Test

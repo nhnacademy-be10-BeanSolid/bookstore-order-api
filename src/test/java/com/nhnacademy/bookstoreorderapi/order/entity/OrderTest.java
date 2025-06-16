@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,7 +16,9 @@ class OrderTest {
     @Test
     @DisplayName("Builder should correctly assign all fields")
     void builder_assignsAllFields() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime nowDateTime = LocalDateTime.now();
+        LocalDate today          = nowDateTime.toLocalDate();
+        LocalDate threeDaysLater = today.plusDays(3);
 
         Order order = Order.builder()
                 .orderId(100L)
@@ -23,10 +26,10 @@ class OrderTest {
                 .guestName("John Doe")
                 .guestPhone("010-1234-5678")
                 .status(OrderStatus.PENDING)
-                .orderDateAt(now)
-                .deliveryAt(now.plusDays(3))
-                .createdAt(now.minusDays(1))
-                .updatedAt(now)
+                .orderDate(today)
+                .requestedDeliveryDate(threeDaysLater)
+                .createdAt(nowDateTime.minusDays(1))
+                .updatedAt(nowDateTime)
                 .totalPrice(20000)
                 .finalPrice(23000)
                 .build();
@@ -36,13 +39,16 @@ class OrderTest {
         assertThat(order.getGuestName()).isEqualTo("John Doe");
         assertThat(order.getGuestPhone()).isEqualTo("010-1234-5678");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
-        assertThat(order.getOrderDateAt()).isSameAs(now);
-        assertThat(order.getDeliveryAt()).isEqualTo(now.plusDays(3));
-        assertThat(order.getCreatedAt()).isEqualTo(now.minusDays(1));
-        assertThat(order.getUpdatedAt()).isSameAs(now);
+
+        assertThat(order.getOrderDate()).isEqualTo(today);
+        assertThat(order.getRequestedDeliveryDate()).isEqualTo(threeDaysLater);
+
+        assertThat(order.getCreatedAt()).isEqualTo(nowDateTime.minusDays(1));
+        assertThat(order.getUpdatedAt()).isEqualTo(nowDateTime);
+
         assertThat(order.getTotalPrice()).isEqualTo(20000);
-        assertThat(Order.DEFAULT_DELIVERY_FEE).isEqualTo(5000);
         assertThat(order.getFinalPrice()).isEqualTo(23000);
+
         assertThat(order.getItems()).isEmpty();
     }
 
