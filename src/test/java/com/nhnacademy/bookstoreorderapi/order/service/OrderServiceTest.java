@@ -7,6 +7,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatu
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
+import com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,7 @@ class OrderServiceTest {
     ReturnRepository returnRepository;
 
     @InjectMocks
-    OrderService orderService;
+    OrderServiceImpl orderService;
 
     OrderRequestDto guestReq;
     OrderRequestDto memberReq;
