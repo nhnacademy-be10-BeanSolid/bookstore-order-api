@@ -28,7 +28,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +44,7 @@ class OrderServiceTest {
     @Mock
     TaskScheduler taskScheduler;
     @Mock
-    ReturnRepository returnRepository;
+    ReturnsRepository returnRepository;
 
     @InjectMocks
     OrderServiceImpl orderService;
@@ -159,7 +158,7 @@ class OrderServiceTest {
 
     @Test
     void requestReturn_fromCompleted_returnsRefund() {
-        Order o = Order.builder().id(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
+        Order o = Order.builder().orderId(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
         ReturnRequestDto dto = ReturnRequestDto.builder()
                 .reason("테스트 이유")
                 .requestedAt(LocalDateTime.now())
@@ -226,7 +225,7 @@ class OrderServiceTest {
         TaskScheduler scheduler = new ConcurrentTaskScheduler();
 
         Order testOrder = new Order();
-        testOrder.setId(1L);
+        testOrder.setOrderId(1L);
         testOrder.setStatus(OrderStatus.PENDING);
 
         Long changedBy = 99L;
@@ -244,7 +243,7 @@ class OrderServiceTest {
             return null;
         }).when(statusLogRepository).save(any(OrderStatusLog.class));
 
-        orderService.changeStatus(testOrder.getId(), OrderStatus.SHIPPING, changedBy, memo);
+        orderService.changeStatus(testOrder.getOrderId(), OrderStatus.SHIPPING, changedBy, memo);
 
         assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }

@@ -39,13 +39,11 @@ public class Returns {
 
     public static Returns createFrom(Order order, ReturnRequestDto dto) {
 
-        Returns returns = Returns.builder()
+        return Returns.builder()
                 .order(order)
                 .reason(dto.getReason())
                 .damaged(dto.getDamaged())
                 .requestedAt(dto.getRequestedAt())
                 .build();
-
-        return returns;
     }
 }

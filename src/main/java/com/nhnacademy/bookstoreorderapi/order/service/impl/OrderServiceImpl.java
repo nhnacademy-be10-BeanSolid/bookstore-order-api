@@ -30,7 +30,7 @@ public class OrderServiceImpl implements OrderService {
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
-    private final ReturnRepository returnRepository;
+    private final ReturnsRepository returnRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
@@ -71,11 +71,16 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public List<OrderResponseDto> listAll() {
-        return orderRepository.findAll().stream()
+    public List<OrderResponseDto> listByUser(String userId) {
+
+        List<Order> orders = orderRepository.findByUserId(userId);
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
+        }
+
+        return orders.stream()
                 .map(OrderResponseDto::createFrom)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -140,7 +145,6 @@ public class OrderServiceImpl implements OrderService {
         }, triggerTime);
     }
 
-    @Override
     @Transactional
     public void completeDelivery(Long orderId) {
 
@@ -182,15 +186,6 @@ public class OrderServiceImpl implements OrderService {
         return statusLogRepository.findByOrderId(orderId).stream()
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public OrderResponseDto getOrderById(Long orderId) {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-
-        return OrderResponseDto.createFrom(order);
     }
 }
 

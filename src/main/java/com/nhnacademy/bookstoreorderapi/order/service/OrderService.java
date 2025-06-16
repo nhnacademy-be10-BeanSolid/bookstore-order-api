@@ -13,6 +13,6 @@ public interface OrderService {
                                          OrderStatus newStatus,
                                          Long changedBy,
                                          String memo);
-    int requestReturn(Long orderId);
+    int requestReturn(Long orderId, ReturnRequestDto req);
     List<OrderStatusLogDto> getStatusLog(Long orderId);
 }
