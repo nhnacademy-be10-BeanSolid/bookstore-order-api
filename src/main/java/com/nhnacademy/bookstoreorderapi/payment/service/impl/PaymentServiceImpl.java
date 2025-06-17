@@ -1,84 +1,78 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentNotFoundException;
-import com.nhnacademy.bookstoreorderapi.payment.gateway.PaymentGateway;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import lombok.RequiredArgsConstructor;
-
-import com.nhnacademy.bookstoreorderapi.payment.domain.*;
+import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-/**
- * 결제 비즈니스 로직.
- */
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
+
 @Service
-@RequiredArgsConstructor
 @Transactional
+@RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
 
-    private final PaymentRepository paymentRepository;
-    private final PaymentGateway paymentGateway;   // Toss·Payco 등 구현체 주입
+    private final PaymentRepository paymentRepo;
+    private final TossPaymentConfig tossProps;
 
+    /** 1) 최초 DB 저장 */
     @Override
-    public Payment createPayment(Long orderId,
-                                 PaymentMethod method,
-                                 String provider,
-                                 int amount) {
-
-        Payment payment = Payment.builder()
-                .orderId(orderId)
-                .method(method)
-                .provider(provider)
-                .amount(amount)
-                .status(PaymentStatus.REQUESTED)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        paymentGateway.requestPayment(payment);   // PG 호출
-        return paymentRepository.save(payment);
+    public Payment saveInitial(Payment payment, String userEmail) {
+        if (payment.getPayAmount() < 1_000) {
+            throw new IllegalArgumentException("최소 결제금액은 1,000원입니다.");
+        }
+        // userEmail → 필요한 경우 payment.setUserId(…) 등
+        return paymentRepo.save(payment);
     }
 
+    /** 2) 결제 성공 */
     @Override
-    public Payment approvePayment(Long paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+    public void markSuccess(String paymentKey, Long orderId, long amount) {
 
-        payment.approve(LocalDateTime.now());
-        paymentGateway.confirmPayment(payment);
-        return payment;
+        Payment payment = paymentRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalStateException("주문 ID 없음"));
+
+        // 토스 결제 승인
+        RestTemplate rt = new RestTemplate();
+        HttpHeaders headers = authHeaders(tossProps.getTestSecretApiKey());
+        HttpEntity<Object> body = new HttpEntity<>(
+                new TossAcceptBody(orderId, amount), headers);
+
+        rt.postForObject(
+                TossPaymentConfig.PAYMENTS_URL + paymentKey,
+                body,
+                Object.class);
+
+        payment.setPaySuccessYn(true);
+        payment.setPaymentKey(paymentKey);
     }
 
+    /** 3) 결제 실패 */
     @Override
-    public Payment cancelPayment(Long paymentId, int cancelAmount, String reason) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-
-        payment.cancel(cancelAmount, reason, LocalDateTime.now());
-        paymentGateway.cancelPayment(payment);
-        return payment;
+    public void markFail(Long orderId, String failMessage) {
+        paymentRepo.findByOrderId(orderId)
+                .ifPresent(p -> {
+                    p.setPaySuccessYn(false);
+                    p.setPayFailReason(failMessage);
+                });
     }
 
-
-    @Transactional(readOnly = true)
-    public Payment getPayment(Long paymentId) {
-        return paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+    /* ───────── private util ───────── */
+    private HttpHeaders authHeaders(String secretKey) {
+        String enc = Base64.getEncoder()
+                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
+        HttpHeaders h = new HttpHeaders();
+        h.setBasicAuth(enc);
+        h.setContentType(MediaType.APPLICATION_JSON);
+        return h;
     }
 
-    @Transactional(readOnly = true)
-    public List<Payment> getPaymentsByOrder(Long orderId) {
-        return paymentRepository.findAllByOrderId(orderId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Payment> getPaymentsByStatus(PaymentStatus status) {
-        return paymentRepository.findAllByStatus(status);
-    }
+    /** 토스 승인 요청 바디 */
+    private record TossAcceptBody(Long orderId, Long amount) {}
 }

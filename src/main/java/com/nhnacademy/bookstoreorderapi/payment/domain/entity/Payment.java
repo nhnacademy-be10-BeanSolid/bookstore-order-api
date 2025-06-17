@@ -2,42 +2,39 @@ package com.nhnacademy.bookstoreorderapi.payment.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payment")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class Payment {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long paymentId;     //PK, AUTO_INCREMENT
+
+    /** === DB 컬럼 === */
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_id")
+    private Long paymentId;                 // PK (결제 ID)
 
     @Column(name = "order_id", nullable = false)
-    private Long orderId;       // 주문 ID (FK)
+    private Long orderId;                   // 주문 ID(FK)
 
-    @Column(name ="method" , nullable = false, length =  50)
-    private String method;      // 결제 수단 (카드, 계좌)
+    @Column(name = "pay_type", nullable = false, length = 50)
+    private String payType;                 // 결제수단
 
-    @Column(name ="provider", nullable = false, length = 50)
-    private String provider;    //PG사
+    @Column(name = "pay_amount", nullable = false)
+    private Long payAmount;                 // 결제금액
 
-    @Column(name = "amount", nullable = false)
-    private Long amount;        //결제 금액
+    @Column(name = "pay_name", nullable = false, length = 50)
+    private String payName;                 // 주문/결제 제목
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 20)
-    private String status;      //결제 상태
+    @Column(name = "pay_success_yn")
+    private Boolean paySuccessYn;           // 결제 성공 여부
 
-    @Column(name ="approved_at")
-    private LocalDateTime approvedAt;   //결제 승인 시각
+    @Column(name = "pay_fail_reason")
+    private String payFailReason;           // 결제 실패 사유
 
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;    //레코드 생성 시각
-
+    @Column(name = "payment_key")
+    private String paymentKey;              // 토스 결제키
 }
