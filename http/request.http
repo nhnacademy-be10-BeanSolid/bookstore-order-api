@@ -100,3 +100,15 @@ Accept: {{ct}}
 ### 8) 상태 변경 이력 조회
 GET {{host}}/orders/{{orderIdMember}}/status-log
 Accept: {{ct}}
+
+
+### 결제 승인 요청 테스트
+POST https://api.tosspayments.com/v1/payments/confirm HTTP/1.1
+Authorization: Basic dGVzdF9za19EbnlScFFXR3JOOUUwamEwcE56Z1ZLd3YxTTlFOg==
+Content-Type: application/json
+
+{
+  "paymentKey":"tviva202506171743071XuQ8",
+  "amount":5000000,
+  "orderId":"yvce_w7-fpurCbewR7347"
+}
