@@ -1,0 +1,42 @@
+
+spring:
+  application:
+    name: order-api
+
+  # 활성 프로파일
+  profiles:
+    active: dev
+
+  # Config Server 설정을 가져옴 (Eureka 연동 시 주소 생략)
+  config:
+    import: "optional:configserver:"
+
+  cloud:
+    config:
+      discovery:
+        # Eureka 등 서비스 디스커버리로 Config Server 위치 탐색 활성화
+        enabled: true
+        # Eureka에 등록된 Config Server의 서비스 이름
+        service-id: config-server
+      # 가져올 설정 파일 이름(naver-api.yml 등)
+      name: mysql
+
+# Eureka 서버 URL 리스트
+eureka:
+  client:
+    service-url:
+      defaultZone:
+        - http://s1.java21.net:10344/eureka
+        - http://s1.java21.net:10345/eureka
+
+# HTTP 서버 포트 설정
+server:
+  port: 10350
+
+# TossPayments 결제 설정
+payment:
+  toss:
+    test-client-api-key: test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
+    test-secret-api-key: test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
+    success-url: http://localhost:10350/api/payments/toss/success
+    fail-url: http://localhost:10350/api/payments/toss/fail

@@ -31,12 +31,12 @@ class OrderServiceCancelTest {
     @BeforeEach
     void setUp() {
         pendingOrder = Order.builder()
-                .orderId(1L)
+                .id(1L)
                 .status(OrderStatus.PENDING)
                 .build();
 
         shippingOrder = Order.builder()
-                .orderId(2L)
+                .id(2L)
                 .status(OrderStatus.SHIPPING)
                 .build();
     }
