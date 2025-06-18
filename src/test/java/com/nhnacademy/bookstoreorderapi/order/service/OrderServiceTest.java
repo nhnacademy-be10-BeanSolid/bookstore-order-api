@@ -167,15 +167,15 @@ class OrderServiceTest {
                 .requestedAt(LocalDateTime.now())
                 .damaged(false)
                 .build();
-        Returns returns = Returns.createFrom(o, dto);
+        OrderReturn orderReturn = OrderReturn.createFrom(o, dto);
 
         when(orderRepository.findById(10L)).thenReturn(Optional.of(o));
         when(orderRepository.save(any(Order.class))).thenReturn(o);
-        when(returnRepository.save(any(Returns.class))).thenReturn(returns);
+        when(returnRepository.save(any(OrderReturn.class))).thenReturn(orderReturn);
 
         int refund = orderService.requestReturn(10L, dto);
 
-        assertThat(refund).isEqualTo(50000 - Returns.RETURNS_FEE);
+        assertThat(refund).isEqualTo(50000 - OrderReturn.RETURNS_FEE);
         assertThat(o.getStatus()).isEqualTo(OrderStatus.RETURNED);
     }
 

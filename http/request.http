@@ -86,7 +86,7 @@ Accept: {{ct}}
 
 
 ### 7) 반품 요청 (회원 주문)
-POST {{host}}/orders/{{orderIdMember}}/returns
+POST {{host}}/orders/{{orderIdMember}}/orderReturn
 Content-Type: {{ct}}
 Accept: {{ct}}
 

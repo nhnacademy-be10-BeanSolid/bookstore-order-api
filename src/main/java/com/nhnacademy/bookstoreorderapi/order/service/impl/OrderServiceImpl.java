@@ -191,10 +191,10 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(OrderStatus.RETURNED);
         orderRepository.save(order);
 
-        Returns returns = Returns.createFrom(order, dto);
-        returnRepository.save(returns);
+        OrderReturn orderReturn = OrderReturn.createFrom(order, dto);
+        returnRepository.save(orderReturn);
 
-        return order.getTotalPrice() - Returns.RETURNS_FEE;
+        return order.getTotalPrice() - OrderReturn.RETURNS_FEE;
     }
 
     /*───────────────────────────────────────────────────────
