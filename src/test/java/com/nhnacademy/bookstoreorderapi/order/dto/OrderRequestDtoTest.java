@@ -34,7 +34,7 @@ class OrderRequestDtoTest {
         return OrderRequestDto.builder()
                 .orderType("guest")
                 .guestId(1L)
-                .deliveryDate(LocalDate.now().plusDays(1))
+                .requestedDeliveryDate(LocalDate.now().plusDays(1))
                 .items(items)
                 .build();
     }
@@ -42,12 +42,12 @@ class OrderRequestDtoTest {
     @Test
     void whenDeliveryDateInPast_thenFutureOrPresentViolation() {
         OrderRequestDto dto = buildValidDto();
-        dto.setDeliveryDate(LocalDate.now().minusDays(1));
+        dto.setRequestedDeliveryDate(LocalDate.now().minusDays(1));
 
         Set<ConstraintViolation<OrderRequestDto>> violations = validator.validate(dto);
 
         assertThat(violations).anyMatch(v ->
-                v.getPropertyPath().toString().equals("deliveryDate")
+                v.getPropertyPath().toString().equals("requestedDeliveryDate")
                         && v.getMessage().contains("오늘 이후")      // ★ 변경
         );
     }
