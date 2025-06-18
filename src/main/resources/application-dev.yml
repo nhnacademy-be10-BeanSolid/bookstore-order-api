@@ -6,5 +6,22 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
+
+  # ① Ant 패턴 URL 매칭(프로필별로 다르게 주고 싶으면 여기에도 명시)
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+########################
+# ✨  Actuator 노출  ✨
+########################
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, mappings
+  endpoint:
+    health:
+      show-details: always
