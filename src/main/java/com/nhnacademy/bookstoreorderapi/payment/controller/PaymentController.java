@@ -1,6 +1,8 @@
 // src/main/java/com/nhnacademy/bookstoreorderapi/payment/controller/PaymentController.java
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
@@ -21,6 +23,7 @@ public class PaymentController {
 
     private final PaymentService service;
     private final TossPaymentConfig tossProps;
+    private final OrderRepository orderRepository;
 
     /* 1. 결제 요청 */
     @PostMapping(value = "/toss", consumes = "application/json", produces = "application/json")
@@ -28,10 +31,12 @@ public class PaymentController {
             @AuthenticationPrincipal(expression = "username") String email,
             @RequestBody @Valid PaymentReqDto dto) {
 
-        // 샘플용 안전한 주문번호
-        long orderId = System.currentTimeMillis();
+//        // 샘플용 안전한 주문번호
+//        long orderId = System.currentTimeMillis();
 
-        Payment saved = service.saveInitial(dto.toEntity(orderId), email);
+        Order order = orderRepository.findById(1L).orElse(null);
+
+        Payment saved = service.saveInitial(dto.toEntity(order), email);
 
         String success = (dto.getSuccessUrl() != null && !dto.getSuccessUrl().isBlank())
                 ? dto.getSuccessUrl()
@@ -42,7 +47,8 @@ public class PaymentController {
 
         PaymentResDto res = PaymentResDto.builder()
                 .paymentId(saved.getPaymentId())
-                .orderId(saved.getOrderId())
+//                .orderId(saved.getOrderId())
+                .orderId(saved.getOrder().getOrderId())
                 .payAmount(saved.getPayAmount())
                 .payType(saved.getPayType())
                 .orderName(saved.getPayName())
@@ -56,7 +62,7 @@ public class PaymentController {
     /* 2. 성공 콜백 */
     @GetMapping("/toss/success")
     public ResponseEntity<Void> success(@RequestParam String paymentKey,
-                                        @RequestParam Long orderId,
+                                        @RequestParam String orderId,
                                         @RequestParam Long amount) {
 
         service.markSuccess(paymentKey, orderId, amount);
@@ -65,7 +71,7 @@ public class PaymentController {
 
     /* 3. 실패 콜백 */
     @GetMapping("/toss/fail")
-    public ResponseEntity<Void> fail(@RequestParam Long orderId,
+    public ResponseEntity<Void> fail(@RequestParam String orderId,
                                      @RequestParam String message) {
 
         service.markFail(orderId, message);

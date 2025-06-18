@@ -31,8 +31,8 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public void markSuccess(String paymentKey, Long orderId, long amount) {
-        Payment pay = paymentRepo.findByOrderId(orderId)
+    public void markSuccess(String paymentKey, String orderId, long amount) {
+        Payment pay = paymentRepo.findByOrder_OrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 ID 없음"));
 
         if (!pay.getPayAmount().equals(amount)) {
@@ -73,8 +73,9 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    public void markFail(Long orderId, String failMessage) {
-        paymentRepo.findByOrderId(orderId)
+    public void markFail(String orderId, String failMessage) {
+//        paymentRepo.findByOrderId(orderId)
+        paymentRepo.findByOrder_OrderId(orderId)
                 .ifPresent(p -> {
                     p.setPaySuccessYn(false);
                     p.setPayFailReason(failMessage);
@@ -83,5 +84,5 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     /** 토스 승인 요청 바디용 내부 클래스 */
-    private record TossAcceptBody(Long orderId, Long amount) {}
+    private record TossAcceptBody(String orderId, Long amount) {}
 }

@@ -39,7 +39,7 @@ Accept: {{ct}}
   "orderAddress": "서울특별시 강남구 테헤란로 123",
   "requestedDeliveryDate": "2025-06-21",
   "items": [
-    { "bookId": 2, "quantity": 3, "giftWrapped": true, "wrappingId": 1 }
+    { "bookId": 2, "quantity": 3, "giftWrapped": true }
   ]
 }
 
@@ -127,3 +127,18 @@ Content-Length: 61
   "orderName": "포인트 충전"
 }
 
+
+### 선생님꺼
+POST /api/v1/payments/toss HTTP/1.1
+Host: localhost:10350
+Content-Type: application/json
+Accept: application/json
+Authorization: Basic dGVzdF9za19EbnlScFFXR3JOOUUwamEwcE56Z1ZLd3YxTTlFOg==
+
+{
+  "payType":   "CARD",
+  "payAmount": 58500,
+  "orderName": "테스트 결제",
+  "successUrl":"http://localhost:3000/payments/success",
+  "failUrl":   "http://localhost:3000/payments/fail"
+}

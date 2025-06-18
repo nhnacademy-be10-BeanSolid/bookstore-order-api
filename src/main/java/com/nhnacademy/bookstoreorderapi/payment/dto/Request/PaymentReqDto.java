@@ -2,6 +2,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.dto.Request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -27,9 +28,9 @@ public class PaymentReqDto {
    private String successUrl;
    private String failUrl;
 
-   public Payment toEntity(long orderId) {
+   public Payment toEntity(Order order) {
       return Payment.builder()
-              .orderId(orderId)
+              .order(order)
               .payAmount(this.payAmount)
               .payType(this.payType)
               .payName(this.orderName)

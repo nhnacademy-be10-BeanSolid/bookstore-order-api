@@ -10,7 +10,8 @@ import lombok.*;
 public class PaymentResDto {
 
     private Long paymentId;   // (옵션) DB PK
-    private Long orderId;     // 주문 ID
+//    private Long orderId;     // 주문 ID
+    private String orderId;
 
     private Long payAmount;   // ★ 컨트롤러에서 쓰는 exact 이름·타입
 

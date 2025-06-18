@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,8 +18,11 @@ public class Payment {
     @Column(name = "payment_id")
     private Long paymentId;                 // PK (결제 ID)
 
-    @Column(name = "order_id", nullable = false)
-    private Long orderId;                   // 주문 ID(FK)
+//    @Column(name = "order_id", nullable = false)
+//    private Long orderId;                   // 주문 ID(FK)
+    @OneToOne
+    @JoinColumn(name = "order_id")
+    private Order order;
 
     @Column(name = "pay_type", nullable = false, length = 50)
     private String payType;                 // 결제수단
