@@ -37,7 +37,7 @@ public class OrderRequestDto {
 
     /* 3. 배송 요청일(오늘 이후) – null 이면 오늘 */
     @FutureOrPresent(message = "deliveryDate 는 오늘 이후여야 합니다.")
-    private LocalDate deliveryDate;
+    private LocalDate requestedDeliveryDate;
 
     /* 4. 주문 상품 목록 */
     @NotEmpty(message = "items 항목이 비어 있을 수 없습니다.")
