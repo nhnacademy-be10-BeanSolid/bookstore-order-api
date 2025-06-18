@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderIdGenerator;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import jakarta.persistence.*;
 import lombok.*;
@@ -19,8 +20,10 @@ public class Order {
     public static final int DEFAULT_DELIVERY_FEE = 5000;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "order_id")
-    private Long orderId;
+    private Long id;
+
+    @Column(name = "order_id", length = 64, nullable = false, unique = true)
+    private String orderId;
 
     @Column(name = "user_id")
     private String userId;
@@ -63,8 +66,8 @@ public class Order {
 
     public static Order createFrom(OrderRequestDto req) {
 
-        LocalDate requestDeliveryDate = req.getDeliveryDate() != null
-                ? req.getDeliveryDate()
+        LocalDate requestDeliveryDate = req.getRequestedDeliveryDate() != null
+                ? req.getRequestedDeliveryDate()
                 : LocalDate.now();
 
         return Order.builder()
@@ -77,5 +80,13 @@ public class Order {
                 .totalPrice(0)
                 .deliveryFee(DEFAULT_DELIVERY_FEE)
                 .build();
+    }
+
+    @PrePersist
+    private void ensureOrderId() {
+
+        if (this.orderId == null) {
+            this.orderId = OrderIdGenerator.generate();
+        }
     }
 }

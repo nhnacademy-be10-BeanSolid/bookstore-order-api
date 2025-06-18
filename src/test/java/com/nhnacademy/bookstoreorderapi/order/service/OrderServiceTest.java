@@ -67,7 +67,7 @@ class OrderServiceTest {
         memberReq = OrderRequestDto.builder()
                 .orderType("member")
                 .userId("member42")
-                .deliveryDate(LocalDate.of(2025, 6, 20))
+                .requestedDeliveryDate(LocalDate.of(2025, 6, 20))
                 .items(List.of(
                         OrderItemDto.builder()
                                 .bookId(200L)
@@ -92,7 +92,7 @@ class OrderServiceTest {
 
         when(orderRepository.save(any())).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
-            o.setOrderId(5L);
+            o.setId(5L);
             return o;
         });
 
@@ -108,7 +108,7 @@ class OrderServiceTest {
         when(wrappingRepository.findById(1L)).thenReturn(Optional.of(wrap));
         when(orderRepository.save(any())).thenAnswer(inv -> {
             Order o = inv.getArgument(0);
-            o.setOrderId(6L);
+            o.setId(6L);
             return o;
         });
 
@@ -133,7 +133,7 @@ class OrderServiceTest {
 
     @Test
     void changeStatus_validTransition_logsAndUpdates() {
-        Order o = Order.builder().orderId(8L).status(OrderStatus.PENDING).build();
+        Order o = Order.builder().id(8L).status(OrderStatus.PENDING).build();
         when(orderRepository.findById(8L)).thenReturn(Optional.of(o));
         when(statusLogRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -148,7 +148,7 @@ class OrderServiceTest {
 
     @Test
     void changeStatus_invalidTransition_throws() {
-        Order o = Order.builder().orderId(9L).status(OrderStatus.PENDING).build();
+        Order o = Order.builder().id(9L).status(OrderStatus.PENDING).build();
         when(orderRepository.findById(9L)).thenReturn(Optional.of(o));
 
         assertThatThrownBy(() ->
@@ -161,7 +161,7 @@ class OrderServiceTest {
 
     @Test
     void requestReturn_fromCompleted_returnsRefund() {
-        Order o = Order.builder().orderId(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
+        Order o = Order.builder().id(10L).status(OrderStatus.COMPLETED).totalPrice(50000).build();
         ReturnRequestDto dto = ReturnRequestDto.builder()
                 .reason("테스트 이유")
                 .requestedAt(LocalDateTime.now())
@@ -233,7 +233,7 @@ class OrderServiceTest {
         TaskScheduler scheduler = new ConcurrentTaskScheduler();
 
         Order testOrder = new Order();
-        testOrder.setOrderId(1L);
+        testOrder.setId(1L);
         testOrder.setStatus(OrderStatus.PENDING);
 
         Long changedBy = 99L;
@@ -251,7 +251,7 @@ class OrderServiceTest {
             return null;
         }).when(statusLogRepository).save(any(OrderStatusLog.class));
 
-        orderService.changeStatus(testOrder.getOrderId(), OrderStatus.SHIPPING, changedBy, memo);
+        orderService.changeStatus(testOrder.getId(), OrderStatus.SHIPPING, changedBy, memo);
 
         assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
     }
