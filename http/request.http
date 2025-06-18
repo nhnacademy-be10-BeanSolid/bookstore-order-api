@@ -112,3 +112,18 @@ Content-Type: application/json
   "amount":5000000,
   "orderId":"yvce_w7-fpurCbewR7347"
 }
+
+
+###
+POST /api/v1/payments/toss HTTP/1.1
+Host: localhost:10350
+Content-Type: application/json
+Accept: application/json
+Content-Length: 61
+
+{
+  "payType": "CARD",
+  "amount": 58500,
+  "orderName": "포인트 충전"
+}
+

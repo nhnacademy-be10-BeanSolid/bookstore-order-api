@@ -6,12 +6,12 @@ import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 @Service
 @Transactional
@@ -19,60 +19,69 @@ import java.util.Base64;
 public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepository paymentRepo;
-    private final TossPaymentConfig tossProps;
+    private final TossPaymentConfig    tossProps;
+    private final RestTemplate         restTemplate;  // @Bean 으로 등록된 RestTemplate
 
-    /** 1) 최초 DB 저장 */
     @Override
     public Payment saveInitial(Payment payment, String userEmail) {
         if (payment.getPayAmount() < 1_000) {
             throw new IllegalArgumentException("최소 결제금액은 1,000원입니다.");
         }
-        // userEmail → 필요한 경우 payment.setUserId(…) 등
         return paymentRepo.save(payment);
     }
 
-    /** 2) 결제 성공 */
     @Override
     public void markSuccess(String paymentKey, Long orderId, long amount) {
+        Payment pay = paymentRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 ID 없음"));
 
-        Payment payment = paymentRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new IllegalStateException("주문 ID 없음"));
+        if (!pay.getPayAmount().equals(amount)) {
+            throw new IllegalArgumentException("요청 금액 불일치");
+        }
+        // 이미 성공 처리된 건은 무시
+        if (Boolean.TRUE.equals(pay.getPaySuccessYn())) {
+            return;
+        }
 
-        // 토스 결제 승인
-        RestTemplate rt = new RestTemplate();
-        HttpHeaders headers = authHeaders(tossProps.getTestSecretApiKey());
-        HttpEntity<Object> body = new HttpEntity<>(
-                new TossAcceptBody(orderId, amount), headers);
+        // 실제 토스 승인 호출 (sandbox 모드가 아니면)
+        if (!tossProps.isSandbox()) {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth(tossProps.getTestSecretApiKey(), "");
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-        rt.postForObject(
-                TossPaymentConfig.PAYMENTS_URL + paymentKey,
-                body,
-                Object.class);
+            HttpEntity<TossAcceptBody> request = new HttpEntity<>(
+                    new TossAcceptBody(orderId, amount),
+                    headers
+            );
+            try {
+                restTemplate.postForEntity(
+                        // 반드시 /confirm 을 붙여야 승인 API 호출됩니다
+                        TossPaymentConfig.PAYMENTS_URL + paymentKey + "/confirm",
+                        request,
+                        Void.class
+                );
+            } catch (RestClientException ex) {
+                markFail(orderId, "토스 승인 실패: " + ex.getMessage());
+                throw new IllegalStateException("PG 승인 실패", ex);
+            }
+        }
 
-        payment.setPaySuccessYn(true);
-        payment.setPaymentKey(paymentKey);
+        // DB 업데이트
+        pay.setPaySuccessYn(true);
+        pay.setPaymentKey(paymentKey);
+        paymentRepo.save(pay);
     }
 
-    /** 3) 결제 실패 */
     @Override
     public void markFail(Long orderId, String failMessage) {
         paymentRepo.findByOrderId(orderId)
                 .ifPresent(p -> {
                     p.setPaySuccessYn(false);
                     p.setPayFailReason(failMessage);
+                    paymentRepo.save(p);
                 });
     }
 
-    /* ───────── private util ───────── */
-    private HttpHeaders authHeaders(String secretKey) {
-        String enc = Base64.getEncoder()
-                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
-        HttpHeaders h = new HttpHeaders();
-        h.setBasicAuth(enc);
-        h.setContentType(MediaType.APPLICATION_JSON);
-        return h;
-    }
-
-    /** 토스 승인 요청 바디 */
+    /** 토스 승인 요청 바디용 내부 클래스 */
     private record TossAcceptBody(Long orderId, Long amount) {}
 }

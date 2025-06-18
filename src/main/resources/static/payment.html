@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>포인트 충전 테스트</title>
+    <style>
+        body { font-family: sans-serif; margin: 40px; }
+        label { display: block; margin: 8px 0 4px; }
+        input { width: 200px; padding: 4px; }
+        button { margin-top: 12px; padding: 6px 12px; }
+    </style>
+</head>
+<body>
+<h1>결제 요청 테스트 UI</h1>
+
+<label for="payType">payType</label>
+<input id="payType" value="CARD" />
+
+<label for="payAmount">payAmount</label>
+<input id="payAmount" value="58500" />
+
+<label for="orderName">orderName</label>
+<input id="orderName" value="테스트 결제" />
+
+<button id="payBtn">결제 요청</button>
+
+<script src="https://js.tosspayments.com/v1/payment" async></script>
+<script>
+    const CLIENT_KEY = 'test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn'; // application.yml 과 동일한 테스트 client key
+
+    document.getElementById('payBtn').addEventListener('click', async () => {
+        // 1) 입력값 읽기
+        const payType   = document.getElementById('payType').value;
+        const amount    = Number(document.getElementById('payAmount').value);
+        const orderName = document.getElementById('orderName').value;
+
+        try {
+            // 2) 백엔드에 JSON 으로 POST (키를 payAmount 로 변경)
+            const resp = await fetch('/api/v1/payments/toss', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    payType,
+                    payAmount: amount,
+                    orderName
+                })
+            });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => null);
+                throw new Error(err?.message || resp.statusText);
+            }
+
+            // 3) 응답 JSON 파싱
+            const data = await resp.json();
+            console.log('백엔드 응답:', data);
+
+            // 4) 토스 SDK 로 결제창 띄우기
+            const toss = TossPayments(CLIENT_KEY);
+            toss.requestPayment(data.payType, {
+                amount:    data.payAmount,
+                orderId:   data.orderId,
+                orderName: data.orderName,
+                // 여기서는 예시로 하드코딩했지만, 실제론 로그인한 사용자의 정보를 넣으세요
+                customerName:  '홍길동',
+                customerEmail: 'hong@domain.com',
+                successUrl:    data.successUrl,
+                failUrl:       data.failUrl
+            }).catch(e => {
+                console.error('결제창 호출 에러:', e.code, e.message);
+            });
+
+        } catch (e) {
+            console.error('결제 준비 중 에러:', e);
+            alert('결제 요청에 실패했습니다:\n' + e.message);
+        }
+    });
+</script>
+</body>
+</html>
