@@ -38,7 +38,7 @@ public class OrderResponseDto {
 
         // ④ DTO 조립
         return OrderResponseDto.builder()
-                .orderId(order.getOrderId())
+                .orderId(order.getId())
                 .totalPrice(order.getTotalPrice())
                 .deliveryFee(order.getDeliveryFee())
                 .finalPrice(finalPrice)      // ← 필드 채워주기

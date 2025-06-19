@@ -1,13 +1,27 @@
+
 spring:
   datasource:
-    url: jdbc:mysql://s4.java21.net:13306/project_be10_team3_dev?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    url: jdbc:mysql://10.116.64.14:13306/project_be10_team3_dev?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
     driver-class-name: com.mysql.cj.jdbc.Driver
-
 
   jpa:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
 
-server:
-  port: 10350
+  # ① Ant 패턴 URL 매칭(프로필별로 다르게 주고 싶으면 여기에도 명시)
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+########################
+# ✨  Actuator 노출  ✨
+########################
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, mappings
+  endpoint:
+    health:
+      show-details: always

@@ -6,13 +6,13 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "return")
+@Table(name = "order_return")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Returns {
+public class OrderReturn {
 
     public static final int RETURNS_FEE = 2_500;
 
@@ -37,9 +37,9 @@ public class Returns {
     @Column(name = "refunded_as_points", nullable = false)
     private Boolean refundedAsPoints;
 
-    public static Returns createFrom(Order order, ReturnRequestDto dto) {
+    public static OrderReturn createFrom(Order order, ReturnRequestDto dto) {
 
-        return Returns.builder()
+        return OrderReturn.builder()
                 .order(order)
                 .reason(dto.getReason())
                 .damaged(dto.getDamaged())

@@ -39,7 +39,7 @@ Accept: {{ct}}
   "orderAddress": "서울특별시 강남구 테헤란로 123",
   "requestedDeliveryDate": "2025-06-21",
   "items": [
-    { "bookId": 2, "quantity": 3, "giftWrapped": true, "wrappingId": 1 }
+    { "bookId": 2, "quantity": 3, "giftWrapped": true }
   ]
 }
 
@@ -86,7 +86,7 @@ Accept: {{ct}}
 
 
 ### 7) 반품 요청 (회원 주문)
-POST {{host}}/orders/{{orderIdMember}}/returns
+POST {{host}}/orders/{{orderIdMember}}/orderReturn
 Content-Type: {{ct}}
 Accept: {{ct}}
 
@@ -100,3 +100,45 @@ Accept: {{ct}}
 ### 8) 상태 변경 이력 조회
 GET {{host}}/orders/{{orderIdMember}}/status-log
 Accept: {{ct}}
+
+
+### 결제 승인 요청 테스트
+POST https://api.tosspayments.com/v1/payments/confirm HTTP/1.1
+Authorization: Basic dGVzdF9za19EbnlScFFXR3JOOUUwamEwcE56Z1ZLd3YxTTlFOg==
+Content-Type: application/json
+
+{
+  "paymentKey":"tviva202506171743071XuQ8",
+  "amount":5000000,
+  "orderId":"yvce_w7-fpurCbewR7347"
+}
+
+
+###
+POST /api/v1/payments/toss HTTP/1.1
+Host: localhost:10350
+Content-Type: application/json
+Accept: application/json
+Content-Length: 61
+
+{
+  "payType": "CARD",
+  "amount": 58500,
+  "orderName": "포인트 충전"
+}
+
+
+### 선생님꺼
+POST /api/v1/payments/toss HTTP/1.1
+Host: localhost:10350
+Content-Type: application/json
+Accept: application/json
+Authorization: Basic dGVzdF9za19EbnlScFFXR3JOOUUwamEwcE56Z1ZLd3YxTTlFOg==
+
+{
+  "payType":   "CARD",
+  "payAmount": 58500,
+  "orderName": "테스트 결제",
+  "successUrl":"http://localhost:3000/payments/success",
+  "failUrl":   "http://localhost:3000/payments/fail"
+}
