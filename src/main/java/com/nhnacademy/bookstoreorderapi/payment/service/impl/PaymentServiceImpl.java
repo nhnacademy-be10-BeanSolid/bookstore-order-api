@@ -24,6 +24,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Payment saveInitial(Payment payment, String userEmail) {
+        if (payment.getPayAmount() == null) {
+            throw new IllegalArgumentException("결제 금액을 입력해주세요.");
+        }
         if (payment.getPayAmount() < 1_000) {
             throw new IllegalArgumentException("최소 결제금액은 1,000원입니다.");
         }
@@ -82,6 +85,7 @@ public class PaymentServiceImpl implements PaymentService {
                     paymentRepo.save(p);
                 });
     }
+
 
     /** 토스 승인 요청 바디용 내부 클래스 */
     private record TossAcceptBody(String orderId, Long amount) {}

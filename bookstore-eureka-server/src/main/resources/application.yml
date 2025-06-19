@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: eureka-server
+  config:
+    activate:
+      on-profile: eureka1
+
+
+---
+spring:
+  config:
+    activate:
+      on-profile: eureka1
+server:
+  port: 10344
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:10345/eureka
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: eureka2
+server:
+  port: 10345
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:10344/eureka

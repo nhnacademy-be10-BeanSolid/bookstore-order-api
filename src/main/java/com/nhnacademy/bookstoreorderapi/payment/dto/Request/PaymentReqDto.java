@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 @Getter
@@ -14,6 +15,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class PaymentReqDto {
+   @NotNull(message = "결제 금액(payAmount)은 필수입니다.")
    @Min(value = 1000, message = "최소 결제 금액은 1,000원입니다.")
    @JsonProperty("payAmount")
    private Long payAmount;

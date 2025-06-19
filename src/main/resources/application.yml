@@ -36,8 +36,8 @@ payment:
   toss:
     test-client-api-key: test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
     test-secret-api-key: test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
-    success-url: http://localhost:10350/api/payments/toss/success
-    fail-url: http://localhost:10350/api/payments/toss/fail
+    success-url: http://localhost:10350/api/v1/payments/toss/success
+    fail-url: http://localhost:10350/api/v1/payments/toss/fail
     sandbox: true
 
 # dev 외 다른 프로파일에서도 보려면 여기도
