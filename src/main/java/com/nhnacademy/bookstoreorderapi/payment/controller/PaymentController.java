@@ -16,7 +16,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("")
+@RequestMapping("api/v1/payments")
 @RequiredArgsConstructor
 @Validated
 public class PaymentController {
@@ -26,7 +26,7 @@ public class PaymentController {
     private final OrderRepository orderRepository;
 
     /* 1. 결제 요청 */
-    @PostMapping(value = "api/v1/payments/toss/success", consumes = "application/json", produces = "application/json")
+    @PostMapping(value = "/toss", consumes = "application/json", produces = "application/json")
     public ResponseEntity<PaymentResDto> requestPayment(
             @AuthenticationPrincipal(expression = "username") String email,
             @RequestBody @Valid PaymentReqDto dto) {
