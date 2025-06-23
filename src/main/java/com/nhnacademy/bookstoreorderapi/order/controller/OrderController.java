@@ -1,75 +1,104 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/order/controller/OrderController.java
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
+import java.util.Map;
 
 @RestController
-@RequestMapping("/orders")
+@RequestMapping("/api/v1/orders")
 @RequiredArgsConstructor
 public class OrderController {
     private final OrderService orderService;
+    private final OrderRepository orderRepository;
 
+    /**
+     * 1) 주문 생성
+     */
+    @PostMapping
+    public ResponseEntity<OrderResponseDto> createOrder(@RequestBody OrderRequestDto req) {
+        long newId = orderService.createOrder(req);
+        Order created = orderRepository.findById(newId)
+                .orElseThrow(() -> new IllegalStateException("생성된 주문을 조회할 수 없습니다: " + newId));
+        OrderResponseDto dto = OrderResponseDto.createFrom(created);
+        return ResponseEntity
+                .created(URI.create("/api/v1/orders/" + newId))
+                .body(dto);
+    }
+
+    /**
+     * 2) 사용자별 주문 조회
+     */
     @GetMapping
-    public List<OrderResponseDto> listMyOrders(@RequestParam String userId) {
-        return orderService.listByUser(userId);
+    public ResponseEntity<List<OrderResponseDto>> listByUser(@RequestParam String userId) {
+        List<OrderResponseDto> list = orderService.listByUser(userId);
+        return ResponseEntity.ok(list);
     }
 
-    @PostMapping//수정 - 각 API가 자신의 구체적인 DTO만 책임지도록!
-    public OrderResponseDto createOrder(@Valid @RequestBody OrderRequestDto req) {
-        validateOrderType(req);
-        return orderService.createOrder(req);
-    }
+    /**
+     * 3) 주문 취소
+     */
+    @DeleteMapping("/{orderId}")
+    public ResponseEntity<Void> cancelOrder(
+            @PathVariable long orderId,
+            @RequestParam String reason) {
 
-    @PatchMapping("/{orderId}/status")
-    public StatusChangeResponseDto changeStatus(
-            @PathVariable Long orderId,
-            @Valid @RequestBody StatusChangeRequestDto dto
-    ) {
-        return orderService.changeStatus(
-                orderId,
-                dto.getNewStatus(),
-                dto.getChangedBy(),
-                dto.getMemo()
-        );
-    }
-
-    @PostMapping("/{orderId}/cancel")
-    public SuccessResponseDto cancelOrder(
-            @PathVariable Long orderId,
-            @RequestBody(required = false) CancelOrderRequestDto dto
-    ) {
-        String reason = (dto != null ? dto.getReason() : null);
         orderService.cancelOrder(orderId, reason);
-        return new SuccessResponseDto("주문이 정상적으로 취소되었습니다.");
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{orderId}/status-log")
-    public List<OrderStatusLogDto> getStatusLog(@PathVariable Long orderId) {
-        return orderService.getStatusLog(orderId);
+    /**
+     * 4) 상태 변경
+     */
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<StatusChangeResponseDto> changeStatus(
+            @PathVariable long orderId,
+            @RequestParam OrderStatus newStatus,
+            @RequestParam Long changedBy,
+            @RequestParam String memo) {
+
+        StatusChangeResponseDto res = orderService.changeStatus(
+                orderId,
+                newStatus,
+                changedBy,
+                memo
+        );
+        return ResponseEntity.ok(res);
     }
 
-    @PostMapping("/{orderId}/returns")
-    public ResponseEntity<Integer> requestReturn(@PathVariable Long orderId, @RequestBody ReturnRequestDto dto) {
+    /**
+     * 5) 반품 요청
+     */
+    @PostMapping("/{orderId}/return")
+    public ResponseEntity<Map<String,Integer>> requestReturn(
+            @PathVariable long orderId,
+            @RequestBody ReturnRequestDto req) {
 
-        int returnsAmount = orderService.requestReturn(orderId, dto);
-        return ResponseEntity.ok(returnsAmount);
+        int refund = orderService.requestReturn(orderId, req);
+        return ResponseEntity.ok(Map.of("refundAmount", refund));
     }
 
-    private void validateOrderType(OrderRequestDto req) {
-        switch (req.getOrderType().toLowerCase()) {
-            case "guest" -> {
-                if (req.getGuestId() == null) throw new IllegalArgumentException("guestId 필요");
-            }
-            case "member" -> {
-                if (req.getUserId() == null) throw new IllegalArgumentException("userId 필요");
-            }
-            default -> throw new IllegalArgumentException("orderType 은 member | guest 만 허용");
-        }
+    /**
+     * 6) 상태 로그 조회
+     */
+    @GetMapping("/{orderId}/logs")
+    public ResponseEntity<List<OrderStatusLogDto>> getStatusLog(
+            @PathVariable long orderId) {
+
+        List<OrderStatusLogDto> logs = orderService.getStatusLog(orderId);
+        return ResponseEntity.ok(logs);
     }
 }

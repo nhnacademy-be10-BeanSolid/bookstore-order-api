@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.OrderIdGenerator;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,55 +8,64 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "orders")
 @Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 @Builder
 public class Order {
     public static final int DEFAULT_DELIVERY_FEE = 5000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id;  // 내부 PK
 
     @Column(name = "order_id", length = 64, nullable = false, unique = true)
-    private String orderId;
+    private String orderId;  // 비즈니스 주문번호
 
     @Column(name = "user_id")
     private String userId;
 
+    @Column(name = "guest_id")
+    private Long guestId;
+
     @Enumerated(EnumType.STRING)
+    @Column(name = "order_status")
     private OrderStatus status;
 
     @Column(name = "order_date", columnDefinition = "DATE")
     private LocalDate orderDate;
 
     @Column(name = "requested_delivery_date", columnDefinition = "DATE")
-    private LocalDate requestedDeliveryDate; // 배송 요청일
+    private LocalDate requestedDeliveryDate;
 
     @Column(name = "created_at")
-    private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
+    private LocalDateTime updatedAt;
 
     @Column(name = "total_price")
-    private int totalPrice; // 총 상품 금액
+    private int totalPrice;
 
     @Column(name = "delivery_fee")
-    private int deliveryFee; // 배송비
-
-    @Column(name = "guest_id")
-    private Long guestId;
+    private int deliveryFee;
 
     @Column(name = "order_address")
-    private String orderAddress; //회원: 장소테이블에서 참조
+    private String orderAddress;
 
-    @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
+
+    @PrePersist
+    private void ensureOrderId() {
+        if (this.orderId == null) {
+            this.orderId = UUID.randomUUID().toString();
+        }
+    }
 
     public void addItem(OrderItem item) {
         item.setOrder(this);
@@ -65,28 +73,27 @@ public class Order {
     }
 
     public static Order createFrom(OrderRequestDto req) {
-
-        LocalDate requestDeliveryDate = req.getRequestedDeliveryDate() != null
+        LocalDate now = LocalDate.now();
+        LocalDate reqDate = req.getRequestedDeliveryDate() != null
                 ? req.getRequestedDeliveryDate()
-                : LocalDate.now();
+                : now;
 
-        return Order.builder()
-                .userId(req.getUserId())
+        Order o = Order.builder()
                 .status(OrderStatus.PENDING)
-                .orderDate(LocalDate.now())
-                .requestedDeliveryDate(requestDeliveryDate)
+                .orderDate(now)
+                .requestedDeliveryDate(reqDate)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
-                .totalPrice(0)
+                .orderAddress(req.getOrderAddress())
                 .deliveryFee(DEFAULT_DELIVERY_FEE)
+                .totalPrice(0)
                 .build();
-    }
 
-    @PrePersist
-    private void ensureOrderId() {
-
-        if (this.orderId == null) {
-            this.orderId = OrderIdGenerator.generate();
+        if ("member".equalsIgnoreCase(req.getOrderType())) {
+            o.setUserId(req.getUserId());
+        } else {
+            o.setGuestId(req.getGuestId());
         }
+        return o;
     }
 }

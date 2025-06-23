@@ -4,81 +4,76 @@ import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class PaymentServiceImpl implements PaymentService {
-
     private final PaymentRepository paymentRepo;
-    private final TossPaymentConfig    tossProps;
-    private final RestTemplate         restTemplate;  // @Bean 으로 등록된 RestTemplate
+    private final TossPaymentConfig tossProps;
+    private final RestTemplate restTemplate;
 
     @Override
-    public Payment saveInitial(Payment payment, String userEmail) {
+    public Payment saveInitial(Payment payment, String userId) {
         if (payment.getPayAmount() == null) {
             throw new IllegalArgumentException("결제 금액을 입력해주세요.");
         }
         if (payment.getPayAmount() < 1_000) {
             throw new IllegalArgumentException("최소 결제금액은 1,000원입니다.");
         }
+        payment.setPaySuccessYn(false);
+        payment.setPaymentKey(null);
         return paymentRepo.save(payment);
     }
 
     @Override
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        Payment pay = paymentRepo.findByOrder_OrderId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("주문 ID 없음"));
+        Payment p = paymentRepo.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new IllegalArgumentException("해당 결제 내역이 없습니다: " + paymentKey));
 
-        if (!pay.getPayAmount().equals(amount)) {
-            throw new IllegalArgumentException("요청 금액 불일치");
+        if (!p.getOrder().getOrderId().equals(orderId)) {
+            throw new IllegalArgumentException("잘못된 주문번호입니다: " + orderId);
         }
-        // 이미 성공 처리된 건은 무시
-        if (Boolean.TRUE.equals(pay.getPaySuccessYn())) {
+        if (!p.getPayAmount().equals(amount)) {
+            throw new IllegalArgumentException(
+                    "잘못된 결제금액입니다: 예상=" + p.getPayAmount() + ", 실제=" + amount);
+        }
+        if (Boolean.TRUE.equals(p.getPaySuccessYn())) {
             return;
         }
 
-        // 실제 토스 승인 호출 (sandbox 모드가 아니면)
         if (!tossProps.isSandbox()) {
             HttpHeaders headers = new HttpHeaders();
             headers.setBasicAuth(tossProps.getTestSecretApiKey(), "");
             headers.setContentType(MediaType.APPLICATION_JSON);
 
-            HttpEntity<TossAcceptBody> request = new HttpEntity<>(
-                    new TossAcceptBody(orderId, amount),
+            HttpEntity<Map<String, Object>> req = new HttpEntity<>(
+                    Map.of("orderId", orderId, "amount", amount),
                     headers
             );
-            try {
-                restTemplate.postForEntity(
-                        // 반드시 /confirm 을 붙여야 승인 API 호출됩니다
-                        TossPaymentConfig.PAYMENTS_URL + paymentKey + "/confirm",
-                        request,
-                        Void.class
-                );
-            } catch (RestClientException ex) {
-                markFail(orderId, "토스 승인 실패: " + ex.getMessage());
-                throw new IllegalStateException("PG 승인 실패", ex);
-            }
+
+            restTemplate.postForEntity(
+                    TossPaymentConfig.PAYMENTS_URL + paymentKey + "/confirm",
+                    req,
+                    Void.class
+            );
         }
 
-        // DB 업데이트
-        pay.setPaySuccessYn(true);
-        pay.setPaymentKey(paymentKey);
-        paymentRepo.save(pay);
+        p.setPaySuccessYn(true);
+        p.setPaymentKey(paymentKey);
+        paymentRepo.save(p);
     }
 
     @Override
-    public void markFail(String orderId, String failMessage) {
-//        paymentRepo.findByOrderId(orderId)
-        paymentRepo.findByOrder_OrderId(orderId)
+    public void markFail(String paymentKey, String failMessage) {
+        paymentRepo.findByPaymentKey(paymentKey)
                 .ifPresent(p -> {
                     p.setPaySuccessYn(false);
                     p.setPayFailReason(failMessage);
@@ -86,7 +81,39 @@ public class PaymentServiceImpl implements PaymentService {
                 });
     }
 
+    @Override
+    public Map<String, Object> cancelPaymentPoint(
+            String paymentKey, String cancelReason, String userId, Long guestId) {
 
-    /** 토스 승인 요청 바디용 내부 클래스 */
-    private record TossAcceptBody(String orderId, Long amount) {}
+        Payment payment = paymentRepo.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new IllegalArgumentException("해당 결제가 없습니다: " + paymentKey));
+
+        Map<String, Object> response;
+        if (tossProps.isSandbox()) {
+            response = Map.of(
+                    "status",       "CANCELED",
+                    "requestedAt",  System.currentTimeMillis(),
+                    "cancelReason", cancelReason
+            );
+        } else {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth(tossProps.getTestSecretApiKey(), "");
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            HttpEntity<Map<String, String>> req =
+                    new HttpEntity<>(Map.of("cancelReason", cancelReason), headers);
+
+            response = restTemplate.postForObject(
+                    TossPaymentConfig.PAYMENTS_URL + paymentKey + "/cancel",
+                    req,
+                    Map.class
+            );
+        }
+
+        payment.setPaySuccessYn(false);
+        payment.setPayFailReason("환불: " + cancelReason);
+        paymentRepo.save(payment);
+
+        return response;
+    }
 }

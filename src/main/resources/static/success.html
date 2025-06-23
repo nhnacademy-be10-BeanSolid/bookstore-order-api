@@ -10,6 +10,7 @@
         .response-text { margin-left: 8px; }
         #confirm-success { display: none; }   /* 숨겨두기 */
         #loading { font-size: 1.2em; }
+        #cancelBtn { margin-top: 16px; padding: 8px 16px; }
     </style>
 </head>
 <body>
@@ -37,6 +38,8 @@
             <span id="paymentKey" class="response-text"></span>
         </div>
     </div>
+    <!-- 결제 취소 버튼 추가 -->
+    <button id="cancelBtn">결제 취소하기</button>
 </div>
 
 <script>
@@ -49,14 +52,14 @@
     // 10초 대기 후에 성공 화면으로 전환
     setTimeout(() => {
         // 로딩 숨기고, 성공 화면 보이기
-        document.getElementById('loading').style.display      = 'none';
+        document.getElementById('loading').style.display = 'none';
         const successDiv = document.getElementById('confirm-success');
-        successDiv.style.display                              = 'block';
+        successDiv.style.display = 'block';
 
         // 성공 정보 채우기
-        document.getElementById('paymentKey').textContent     = paymentKey;
-        document.getElementById('orderId').textContent        = orderId;
-        document.getElementById('amount').textContent         = amount;
+        document.getElementById('paymentKey').textContent = paymentKey;
+        document.getElementById('orderId').textContent    = orderId;
+        document.getElementById('amount').textContent     = amount;
 
         // 부모 창에 성공 메시지 보내기
         window.opener?.postMessage(
@@ -64,7 +67,29 @@
             '*'
         );
 
-        // ※ 필요하면 여기서 추가로 팝업 자동 닫기 로직을 더할 수 있습니다.
+        // 결제 취소 버튼 핸들러 등록
+        document.getElementById('cancelBtn').addEventListener('click', () => {
+            fetch(
+                `/api/v1/payments/toss/cancel/point`
+                + `?paymentKey=${encodeURIComponent(paymentKey)}`
+                + `&cancelReason=${encodeURIComponent('맘에 안듬')}`,
+                {
+                    method: 'GET',
+                    credentials: 'include'   // 로그인 세션(쿠키)을 함께 보내려면 필요
+                }
+            )
+                .then(res => {
+                    if (!res.ok) throw new Error(res.statusText);
+                    return res.json();
+                })
+                .then(json => {
+                    alert('환불 요청 성공:\n' + JSON.stringify(json, null, 2));
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert('환불 요청 중 오류가 발생했습니다.');
+                });
+        });
 
     }, 10_000); // 10,000ms = 10초
 </script>

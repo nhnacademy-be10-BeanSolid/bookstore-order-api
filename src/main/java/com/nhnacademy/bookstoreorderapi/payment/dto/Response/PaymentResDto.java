@@ -1,23 +1,25 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/payment/dto/Response/PaymentResDto.java
 package com.nhnacademy.bookstoreorderapi.payment.dto.Response;
 
 import lombok.*;
 
-@Getter
-@Setter
+@Getter @Setter
 @Builder
-@NoArgsConstructor
 @AllArgsConstructor
+@NoArgsConstructor
 public class PaymentResDto {
+    private Long    paymentId;
+    private String  orderId;
+    private Long    payAmount;
+    private String  payType;
+    private String  orderName;
 
-    private Long paymentId;   // (옵션) DB PK
-//    private Long orderId;     // 주문 ID
-    private String orderId;
+    // 토스페이 결제 요청 응답에서 돌아오는 키
+    private String  paymentKey;
+    private String  nextRedirectAppUrl;
+    private String  nextRedirectPcUrl;
 
-    private Long payAmount;   // ★ 컨트롤러에서 쓰는 exact 이름·타입
-
-    private String payType;   // 카드 / 계좌 등
-    private String orderName; // 주문/결제 제목
-
-    private String successUrl;
-    private String failUrl;
+    // 성공/실패 리다이렉트용 (필요하다면)
+    private String  successUrl;
+    private String  failUrl;
 }

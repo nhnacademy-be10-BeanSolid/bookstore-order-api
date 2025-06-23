@@ -18,7 +18,7 @@ Accept: {{ct}}
   "orderType": "guest",
   "guestId": {{guestId}},
   "orderAddress": "서울특별시 마포구 양화로 45",
-  "requestedDeliveryDate": "2025-06-20",
+  "requestedDeliveryDate": "2025-06-23",
   "items": [
     { "bookId": 1, "quantity": 1, "giftWrapped": false }
   ]
@@ -37,7 +37,7 @@ Accept: {{ct}}
   "orderType": "member",
   "userId": "{{memberId}}",
   "orderAddress": "서울특별시 강남구 테헤란로 123",
-  "requestedDeliveryDate": "2025-06-21",
+  "requestedDeliveryDate": "2025-06-23",
   "items": [
     { "bookId": 2, "quantity": 3, "giftWrapped": true }
   ]
@@ -141,4 +141,136 @@ Authorization: Basic dGVzdF9za19EbnlScFFXR3JOOUUwamEwcE56Z1ZLd3YxTTlFOg==
   "orderName": "테스트 결제",
   "successUrl":"http://localhost:3000/payments/success",
   "failUrl":   "http://localhost:3000/payments/fail"
+}
+
+### 결제 취소
+GET /api/v1/payments/toss/cancel/point?paymentKey=tviva202506201409215viS4&cancelReason=맘에%20안듬 HTTP/1.1
+Host: localhost:10350
+Accept: application/json
+#Authorization: Bearer <YOUR_JWT_TOKEN>  # Spring Security 사용 시
+
+
+### 3) 회원 주문 생성
+POST {{host}}/orders
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderType": "member",
+  "userId": "{{memberId}}",
+  "orderAddress": "서울특별시 강남구 테헤란로 123",
+  "requestedDeliveryDate": "2025-06-21",
+  "items": [
+    { "bookId": 2, "quantity": 3, "giftWrapped": true }
+  ]
+}
+
+> {% client.global.set("orderIdMember", response.body.orderId) %}
+
+###
+### Environment: dev
+
+
+###
+
+
+###
+# 환경 변수 선언
+
+###
+###
+# 1) 주문 생성
+### 주문 생성
+POST http://localhost:10350/orders
+Content-Type: application/json
+
+{
+  "orderType": "member",
+  "userId": "test-user-1",
+  "orderAddress": "서울특별시 강남구 XX",
+  "requestedDeliveryDate": "2025-06-21",
+  "items": [{ "bookId": 2, "quantity": 3, "giftWrapped": true }]
+}
+
+> {%
+    client.global.set("newOrderId", response.body.orderId);
+%}
+
+### 결제 요청
+POST http://localhost:10350/api/v1/payments/toss
+Content-Type: application/json
+
+{
+  "orderId": "{{newOrderId}}",
+  "payAmount": 3000,
+  "payType": "CARD",
+  "orderName": "테스트 결제"
+}
+
+
+###
+
+# curl -v -X POST http://localhost:10350/api/v1/payments/toss
+#  -H "Content-Type: application/json"
+#  -d '{
+#    "orderId": "실제생성된-orderId-값",
+#    "payAmount": 3000,
+#    "payType": "CARD",
+#    "orderName": "테스트 결제"
+#  }'
+### 3) 회원 주문 생성
+POST {{host}}/orders
+Content-Type: {{ct}}
+Accept: {{ct}}
+
+{
+  "orderType": "member",
+  "userId": "{{memberId}}",
+  "orderAddress": "서울특별시 강남구 테헤란로 123",
+  "requestedDeliveryDate": "2025-06-21",
+  "items": [
+    { "bookId": 2, "quantity": 3, "giftWrapped": true }
+  ]
+}
+
+> {% client.global.set("orderIdMember", response.body.orderId); %}
+
+
+### 4) 토스 결제 요청
+POST {{host}}/api/v1/payments/toss
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderId": "{{orderIdMember}}",
+  "payAmount": 3000,
+  "payType": "CARD",
+  "orderName": "도서 구매 결제",
+  "successUrl": "https://your-callback.com/success",
+  "failUrl": "https://your-callback.com/fail"
+}
+
+> {% client.global.set("paymentId", response.body.paymentId); %}
+
+
+###
+
+
+
+POST http://localhost:10350/api/v1/orders
+Content-Type: application/json
+Accept: application/json
+
+{
+  "orderType": "member",
+  "userId": "{{memberId}}",
+  "orderAddress": "서울특별시 강남구 테헤란로 123",
+  "requestedDeliveryDate": "2025-06-23",
+  "items": [
+    {
+      "bookId": 2,
+      "quantity": 3,
+      "giftWrapped": true
+    }
+  ]
 }
