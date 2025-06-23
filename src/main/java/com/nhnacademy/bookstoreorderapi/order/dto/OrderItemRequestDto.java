@@ -8,15 +8,12 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class OrderItemDto {
+public class OrderItemRequestDto {
     @NotNull
     private Long bookId;
 
     @NotNull @Min(1)
     private Integer quantity;
-
-    @NotNull
-    private Boolean giftWrapped;
 
     private Long wrappingId;
 }
