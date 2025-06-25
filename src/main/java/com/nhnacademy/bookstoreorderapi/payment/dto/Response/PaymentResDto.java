@@ -5,21 +5,19 @@ import lombok.*;
 
 @Getter @Setter
 @Builder
-@AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 public class PaymentResDto {
-    private Long    paymentId;
-    private String  orderId;
-    private Long    payAmount;
-    private String  payType;
-    private String  orderName;
 
-    // 토스페이 결제 요청 응답에서 돌아오는 키
-    private String  paymentKey;
-    private String  nextRedirectAppUrl;
-    private String  nextRedirectPcUrl;
+    private Long paymentId;        // DB PK
+    private String orderId;        // 연결된 주문의 비즈니스 ID
 
-    // 성공/실패 리다이렉트용 (필요하다면)
-    private String  successUrl;
-    private String  failUrl;
+    private Long payAmount;        // 결제 금액
+    private String payType;        // 결제 수단
+    private String payName;        // 주문명
+
+    private String paymentKey;     // Toss API 가 내려준 키
+
+
+    private String successUrl;     // 콜백 URL
+    private String failUrl;
 }

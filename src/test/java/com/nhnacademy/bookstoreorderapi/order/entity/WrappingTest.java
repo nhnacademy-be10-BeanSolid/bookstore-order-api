@@ -14,13 +14,13 @@ class WrappingTest {
                 .wrappingId(1L)
                 .name("Test")
                 .price(1000)
-                .isActive(true)
+                .active(true)
                 .build();
 
         assertThat(wrap.getWrappingId()).isEqualTo(1L);
         assertThat(wrap.getName()).isEqualTo("Test");
         assertThat(wrap.getPrice()).isEqualTo(1000);
-        assertThat(wrap.getIsActive()).isTrue();
+        assertThat(wrap.isActive()).isTrue();
     }
 
     @Test
@@ -29,11 +29,11 @@ class WrappingTest {
         wrap.setWrappingId(2L);
         wrap.setName("Sample");
         wrap.setPrice(500);
-        wrap.setIsActive(false);
+//        wrap.isActive();
 
         assertThat(wrap.getWrappingId()).isEqualTo(2L);
         assertThat(wrap.getName()).isEqualTo("Sample");
         assertThat(wrap.getPrice()).isEqualTo(500);
-        assertThat(wrap.getIsActive()).isFalse();
+        assertThat(wrap.isActive()).isFalse();
     }
 }

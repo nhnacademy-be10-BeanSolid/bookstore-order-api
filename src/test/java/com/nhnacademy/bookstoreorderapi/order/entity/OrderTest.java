@@ -30,7 +30,7 @@ class OrderTest {
                 .bookId(100L)
                 .quantity(2)
                 .unitPrice(10_000)
-                .isGiftWrapped(false)
+                .giftWrapped(false)
                 .build();
 
         // when

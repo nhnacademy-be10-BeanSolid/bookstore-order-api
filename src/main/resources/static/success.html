@@ -8,26 +8,27 @@
         .response-section { margin: 20px 0; text-align: left; display: inline-block; }
         .response-label { font-weight: bold; }
         .response-text { margin-left: 8px; }
-        #confirm-success { display: none; }   /* 숨겨두기 */
+        #confirm-success { display: none; }
         #loading { font-size: 1.2em; }
-        #cancelBtn { margin-top: 16px; padding: 8px 16px; }
+        button { margin-top: 16px; padding: 8px 16px; }
+        #error { color: red; }
     </style>
 </head>
 <body>
-<!-- 1) 로딩 화면 -->
+
 <div id="loading">
     <img src="https://static.toss.im/lotties/loading-spot-apng.png" width="60" height="60" alt="로딩" />
     <p>결제 처리 중입니다… 잠시만 기다려주세요.</p>
 </div>
 
-<!-- 2) 10초 후에 보여줄 성공 화면 -->
 <div id="confirm-success">
-    <img src="https://static.toss.im/illusts/check-blue-spot-ending-frame.png" width="120" height="120" alt="성공" />
+    <img src="https://static.toss.im/illusts/check-blue-spot-ending-frame.png"
+         width="120" height="120" alt="성공" />
     <h2>결제를 완료했어요</h2>
     <div class="response-section">
         <div>
             <span class="response-label">결제 금액:</span>
-            <span id="amount" class="response-text"></span>
+            <span id="amount" class="response-text"></span> 원
         </div>
         <div>
             <span class="response-label">주문번호:</span>
@@ -38,60 +39,96 @@
             <span id="paymentKey" class="response-text"></span>
         </div>
     </div>
-    <!-- 결제 취소 버튼 추가 -->
     <button id="cancelBtn">결제 취소하기</button>
+    <button id="closeBtn">창 닫기</button>
+    <div id="cancelResult" style="margin-top:12px;"></div>
 </div>
 
+<div id="error" style="display:none;"></div>
+
 <script>
-    // URL 파라미터 읽어오기
-    const params     = new URLSearchParams(window.location.search);
-    const paymentKey = params.get('paymentKey') || '';
-    const orderId    = params.get('orderId')    || '';
-    const amount     = params.get('amount')     || '';
+    (function() {
+        const origin      = window.location.origin;
+        const params      = new URLSearchParams(window.location.search);
+        const paymentKey  = params.get('paymentKey');
+        const orderId     = params.get('orderId');
+        const amount      = params.get('amount');
 
-    // 10초 대기 후에 성공 화면으로 전환
-    setTimeout(() => {
-        // 로딩 숨기고, 성공 화면 보이기
-        document.getElementById('loading').style.display = 'none';
-        const successDiv = document.getElementById('confirm-success');
-        successDiv.style.display = 'block';
+        if (!paymentKey || !orderId || !amount) {
+            document.getElementById('loading').style.display = 'none';
+            const err = document.getElementById('error');
+            err.textContent = '결제 정보가 올바르게 전달되지 않았습니다.';
+            err.style.display = 'block';
+            return;
+        }
 
-        // 성공 정보 채우기
-        document.getElementById('paymentKey').textContent = paymentKey;
-        document.getElementById('orderId').textContent    = orderId;
-        document.getElementById('amount').textContent     = amount;
+        // 10초 후에 성공 화면으로 전환
+        setTimeout(() => {
+            document.getElementById('loading').style.display        = 'none';
+            const successDiv = document.getElementById('confirm-success');
+            successDiv.style.display                                = 'block';
 
-        // 부모 창에 성공 메시지 보내기
-        window.opener?.postMessage(
-            { type: 'toss:success', paymentKey, orderId, amount },
-            '*'
-        );
+            document.getElementById('paymentKey').textContent       = paymentKey;
+            document.getElementById('orderId').textContent          = orderId;
+            document.getElementById('amount').textContent           = amount;
 
-        // 결제 취소 버튼 핸들러 등록
-        document.getElementById('cancelBtn').addEventListener('click', () => {
-            fetch(
-                `/api/v1/payments/toss/cancel/point`
-                + `?paymentKey=${encodeURIComponent(paymentKey)}`
-                + `&cancelReason=${encodeURIComponent('맘에 안듬')}`,
-                {
-                    method: 'GET',
-                    credentials: 'include'   // 로그인 세션(쿠키)을 함께 보내려면 필요
+            // 부모창에 메시지 전송 (origin 검사 포함)
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage(
+                        { type: 'toss:success', paymentKey, orderId, amount },
+                        origin
+                    );
+                } catch (e) {
+                    console.warn('부모창 전송 실패', e);
                 }
-            )
-                .then(res => {
-                    if (!res.ok) throw new Error(res.statusText);
-                    return res.json();
-                })
-                .then(json => {
-                    alert('환불 요청 성공:\n' + JSON.stringify(json, null, 2));
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert('환불 요청 중 오류가 발생했습니다.');
-                });
-        });
+            }
 
-    }, 10_000); // 10,000ms = 10초
+            const cancelBtn = document.getElementById('cancelBtn');
+            const closeBtn  = document.getElementById('closeBtn');
+            const resultEl  = document.getElementById('cancelResult');
+
+            cancelBtn.addEventListener('click', () => {
+                cancelBtn.disabled = true;
+                resultEl.textContent = '환불 요청 중…';
+
+                const body = new URLSearchParams();
+                body.append('paymentKey', paymentKey);
+                body.append('cancelReason', '사용자 요청');
+
+                fetch(
+                    `${origin}/api/v1/payments/toss/cancel/point`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        body: body.toString(),
+                        credentials: 'include',
+                        mode: 'cors'
+                    }
+                )
+                    .then(res => {
+                        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                        return res.json();
+                    })
+                    .then(json => {
+                        resultEl.textContent = '환불 성공: ' + JSON.stringify(json);
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        resultEl.innerHTML = '환불 실패: ' + err.message +
+                            '<br/><button id="retry">다시 시도</button>';
+                        document.getElementById('retry').addEventListener('click', () => {
+                            cancelBtn.disabled = false;
+                            resultEl.textContent = '';
+                        });
+                    });
+            });
+
+            closeBtn.addEventListener('click', () => window.close());
+        }, 10000);
+    })();
 </script>
 </body>
 </html>

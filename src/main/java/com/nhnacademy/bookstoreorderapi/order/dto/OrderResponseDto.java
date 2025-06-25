@@ -41,7 +41,7 @@ public class OrderResponseDto {
                 .orderId(order.getId())
                 .totalPrice(order.getTotalPrice())
                 .deliveryFee(order.getDeliveryFee())
-                .finalPrice(finalPrice)      // ← 필드 채워주기
+                .finalPrice(finalPrice)
                 .message(msg)
                 .orderStatus(order.getStatus())
                 .build();

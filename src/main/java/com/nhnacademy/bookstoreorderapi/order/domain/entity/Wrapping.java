@@ -24,6 +24,6 @@ public class Wrapping {
     @Column(name = "price", nullable = false)
     private Integer price;
 
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive;
+    @Column(name = "is_active")
+    private boolean active;
 }

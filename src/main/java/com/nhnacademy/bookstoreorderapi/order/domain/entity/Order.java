@@ -1,3 +1,4 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/order/domain/entity/Order.java
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
@@ -18,42 +19,29 @@ import java.util.UUID;
 public class Order {
     public static final int DEFAULT_DELIVERY_FEE = 5000;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;  // 내부 PK
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     @Column(name = "order_id", length = 64, nullable = false, unique = true)
-    private String orderId;  // 비즈니스 주문번호
+    private String orderId;
 
-    @Column(name = "user_id")
     private String userId;
-
-    @Column(name = "guest_id")
     private Long guestId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "order_status")
     private OrderStatus status;
 
-    @Column(name = "order_date", columnDefinition = "DATE")
+    @Column(columnDefinition = "DATE")
     private LocalDate orderDate;
 
-    @Column(name = "requested_delivery_date", columnDefinition = "DATE")
+    @Column(columnDefinition = "DATE")
     private LocalDate requestedDeliveryDate;
 
-    @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @Column(name = "total_price")
     private int totalPrice;
-
-    @Column(name = "delivery_fee")
     private int deliveryFee;
-
-    @Column(name = "order_address")
     private String orderAddress;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -72,9 +60,10 @@ public class Order {
         this.items.add(item);
     }
 
+    /** 주문 기본 정보만 초기화 **/
     public static Order createFrom(OrderRequestDto req) {
         LocalDate now = LocalDate.now();
-        LocalDate reqDate = req.getRequestedDeliveryDate() != null
+        LocalDate reqDate = (req.getRequestedDeliveryDate() != null)
                 ? req.getRequestedDeliveryDate()
                 : now;
 

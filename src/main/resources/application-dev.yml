@@ -1,4 +1,3 @@
-
 spring:
   datasource:
     url: jdbc:mysql://10.116.64.14:13306/project_be10_team3_dev?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
@@ -7,9 +6,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: true
+    show-sql: true          # ←★ 콘솔에 SQL 출력
+    properties:             # ❶ 포매팅 옵션 (있으면 유지)
+      hibernate:
+        format_sql: true
 
-  # ① Ant 패턴 URL 매칭(프로필별로 다르게 주고 싶으면 여기에도 명시)
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -25,3 +26,11 @@ management:
   endpoint:
     health:
       show-details: always
+
+########################
+# 🚀  Hibernate 로그 레벨
+########################
+logging:
+  level:
+    org.hibernate.SQL: DEBUG     # ←★ 실제 SQL
+    org.hibernate.type: TRACE    #   바인딩 파라미터까지 확인하고 싶으면 추가

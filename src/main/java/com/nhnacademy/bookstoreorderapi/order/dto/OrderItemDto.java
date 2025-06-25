@@ -1,22 +1,18 @@
 package com.nhnacademy.bookstoreorderapi.order.dto;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 @Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class OrderItemDto {
-    @NotNull
-    private Long bookId;
 
-    @NotNull @Min(1)
-    private Integer quantity;
+    private Long     bookId;
+    private int      quantity;
+    private Boolean  giftWrapped;   // true/false
+    private Long     wrappingId;    // 포장 옵션 ID (nullable)
 
-    @NotNull
-    private Boolean giftWrapped;
-
-    private Long wrappingId;
+    /* ★ 추가: 단가 */
+    @JsonProperty("unitPrice")      // JSON 키와 매핑
+    private Integer unitPrice;
 }
