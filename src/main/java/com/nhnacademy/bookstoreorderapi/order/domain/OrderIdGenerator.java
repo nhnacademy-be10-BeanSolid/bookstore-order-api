@@ -1,48 +1,46 @@
 package com.nhnacademy.bookstoreorderapi.order.domain;
 
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Random;
 
 /**
- * 랜덤 문자열 생성 클래스.
+ * 주문번호 생성 클래스.
+ *
+ * <p>이 클래스는 다음 형식의 주문번호를 생성합니다:
+ * <pre>{주문이 생성된 연월(YYYYMM)}-{알파벳 대소문자 및 숫자 중 6자리}-{알파벳 대소문자 및 숫자 중 6자리}</pre>
+ * 예) 202506-4fG7hK-9Lm2Pq</p>
  */
 public class OrderIdGenerator {
 
     private static final SecureRandom random = new SecureRandom();
-    private static final String UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    private static final String LOWER = "abcdefghijklmnopqrstuvwxyz";
-    private static final String DIGIT = "0123456789";
-    private static final String SPECIAL_CHARACTER = "-_";
-    private static final String ALL = UPPER + LOWER + DIGIT + SPECIAL_CHARACTER;
+    private static final int SEGMENT_LENGTH = 6;
+    private static final String CHAR_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                            + "abcdefghijklmnopqrstuvwxyz"
+                                            + "0123456789";
 
-    /**
-     * 길이 64인 랜덤 문자열을 생성하여 {@link com.nhnacademy.bookstoreorderapi.order.domain.entity.Order Order}의 orderId로 설정한다.
-     *
-     * @return 길이 64인 랜덤 문자열
-     */
     public static String generate() {
 
-        // 필수 포함 문자 4개
-        List<Character> chars = new ArrayList<>(List.of(
-                randomFrom(UPPER), randomFrom(LOWER), randomFrom(DIGIT), randomFrom(SPECIAL_CHARACTER)
-        ));
+        String yearMonth = nowYearMonth();
+        String segment1 = randomSegment();
+        String segment2 = randomSegment();
 
-        // 나머지 60개 문자는 전체에서 랜덤 생성
-        for (int i = 0; i < 60; i++) {
-            chars.add(randomFrom(ALL));
+        return String.format("%s-%s-%s", yearMonth, segment1, segment2);
+    }
+
+    private static String randomSegment() {
+
+        StringBuilder sb = new StringBuilder();
+        Random random = new SecureRandom(); // 보안을 위해 SecureRandom을 사용.
+        for (int i = 0; i < 6; i++) {
+            sb.append(CHAR_POOL.charAt(random.nextInt(CHAR_POOL.length())));
         }
-
-        Collections.shuffle(chars, random);
-        StringBuilder sb = new StringBuilder(64);
-        chars.forEach(sb::append);
 
         return sb.toString();
     }
 
-    private static char randomFrom(String s) {
-
-        return s.charAt(random.nextInt(s.length()));
+    private static String nowYearMonth() {
+        return LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMM"));
     }
 }
