@@ -1,11 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -31,49 +32,97 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
+    private final BookServiceClient bookServiceClient;
+    private final OrderItemRepository orderItemRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
-    /*───────────────────────────────────────────────────────
-     * 1. 주문 생성
-     *──────────────────────────────────────────────────────*/
+    // 주문 생성
     @Override
     @Transactional
-    public OrderResponseDto createOrder(OrderRequestDto req) {
+    public void createOrder(OrderRequest orderRequest, String userId) {
 
-        Order order = Order.createFrom(req);
+        Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
+        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.getItems().size(), userId);
 
-        /* ③ 주문-상품( OrderItem ) 처리 */
-        int total = 0;
-        for (OrderItemDto dto : req.getItems()) {
+        Order order = Order.of(orderRequest, userId);
 
-            Wrapping wrapping = null;
-            if (dto.getWrappingId() != null) {
-                wrapping = wrappingRepository.findById(dto.getWrappingId())
-                        .orElseThrow(() -> new BadRequestException(
-                                "잘못된 wrappingId : " + dto.getWrappingId()));
-            }
+        List<OrderItemRequest> itemRequests = orderRequest.getItems();
+        Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
+        Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
 
-            int unitPrice = 10_000;                           // 예시용 기본 단가
-            int wrapFee   = Boolean.TRUE.equals(dto.getGiftWrapped()) && wrapping != null
-                    ? wrapping.getPrice() * dto.getQuantity()
-                    : 0;
+        List<OrderItem> items = buildOrderItems(order, itemRequests, bookMap, wrappingMap);
 
-            total += unitPrice * dto.getQuantity() + wrapFee;
+        int totalPrice = calculateTotal(items);
+        order.setTotalPrice(totalPrice);
+        order.setDeliveryFee(determineFee(totalPrice, userId));
 
-            OrderItem item = OrderItem.createFrom(dto, wrapping, unitPrice);
-            order.addItem(item);
-        }
-
-        int deliveryFee = (req.getUserId() != null && total >= 30_000) ? 0 : Order.DEFAULT_DELIVERY_FEE;
-        order.setTotalPrice(total);
-        order.setDeliveryFee(deliveryFee);
-
-        Order saved = orderRepository.save(order);
-
-        return OrderResponseDto.createFrom(saved);
+        orderRepository.save(order);
+        log.info("주문 완료: orderId={}, userId={}, totalPrice={}, deliveryFee={}",
+                order.getId(),
+                userId,
+                order.getTotalPrice(),
+                order.getDeliveryFee());
     }
 
+    private int determineFee(int totalPrice, String userId) {
+        final int THRESHOLD = 30_000;
+        final int FEE = 5_000;
+
+        return totalPrice >= THRESHOLD && Objects.nonNull(userId) ? 0 : FEE;
+    }
+
+    private int calculateTotal(List<OrderItem> items) {
+        return items.stream().mapToInt(i -> i.getUnitPrice() * i.getQuantity()).sum();
+    }
+
+    private List<OrderItem> buildOrderItems(Order order,
+                                            List<OrderItemRequest> itemRequests,
+                                            Map<Long, BookOrderResponse> bookMap,
+                                            Map<Long, Wrapping> wrappingMap)
+    {
+        List<OrderItem> items = new ArrayList<>();
+        for (OrderItemRequest req : itemRequests) {
+            BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.getBookId()),
+                    "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getBookId());
+            Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.getWrappingId()),
+                    "wrapping을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getWrappingId());
+            OrderItem item = OrderItem.of(book, req.getQuantity());
+
+            order.addItem(item);
+            wrapping.addItem(item);
+            items.add(item);
+        }
+
+        //TODO 99: 영속성 전파(cascade)가 설정이 되어 있다면 saveAll을 생략할 수 있다고 함. 되어 있다면 지우기.
+        wrappingRepository.saveAll(wrappingMap.values());
+        orderItemRepository.saveAll(items);
+        log.debug("wrapping & orderItem 저장 완료, item's size={}", items.size());
+
+        return items;
+    }
+
+    private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
+
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getWrappingId).toList();
+        List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
+        if (wrappings.size() != new HashSet<>(ids).size())
+            throw new WrappingNotFoundException("wrapping의 개수가 일치하지 않습니다: " + ids);
+        log.debug("{}개의 포장지를 가져옵니다. ids={}", wrappings.size(), ids);
+        return wrappings.stream().collect(Collectors.toMap(Wrapping::getId, Function.identity()));
+    }
+
+    private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
+
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getBookId).toList();
+        List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
+        if (books == null || books.isEmpty())
+            throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
+        log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
+        return books.stream().collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
+    }
+
+    // 주문 조회
     @Override
     public List<OrderResponseDto> listByUser(String userId) {
 

@@ -2,11 +2,12 @@ package com.nhnacademy.bookstoreorderapi.order.service;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 
 import java.util.List;
 
 public interface OrderService {
-    OrderResponseDto createOrder(OrderRequestDto req);
+    void createOrder(OrderRequest orderRequest, String userId);
     List<OrderResponseDto> listByUser(String userId);
     void cancelOrder(Long orderId, String reason);
     StatusChangeResponseDto changeStatus(Long orderId,

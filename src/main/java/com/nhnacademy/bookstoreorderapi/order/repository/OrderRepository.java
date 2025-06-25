@@ -7,7 +7,5 @@ import java.util.List;
 
 // JpaRepository<Order, Long> 를 상속해야 save() 메서드를 쓸 수 있습니다.
 public interface OrderRepository extends JpaRepository<Order, Long> {
-    List<Order> findAllByUserId(String userId);
-
     List<Order> findByUserId(String userId);
 }

@@ -1,6 +1,5 @@
-package com.nhnacademy.bookstoreorderapi.order.dto;
+package com.nhnacademy.bookstoreorderapi.order.dto.request;
 
-import com.nhnacademy.bookstoreorderapi.order.validation.ExactlyOneOfUserIdOrGuestId;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -13,13 +12,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ExactlyOneOfUserIdOrGuestId
-public class OrderRequestDto {
-
-    @Pattern(regexp = "\\S+", message = "userId는 비어있거나 공백 뿐이면 안됩니다.")
-    private String userId;
-    @Positive(message = "guestId는 양수여야 합니다.")
-    private Long guestId;
+public class OrderRequest {
 
     @NotBlank(message = "배송지는 빈 문자열 혹은 공백이면 안됩니다")
     private String address;
@@ -30,5 +23,5 @@ public class OrderRequestDto {
     // 주문 상품 목록
     @NotEmpty(message = "items 항목이 비어 있을 수 없습니다.")
     @Valid // @Valid가 있어야 OrderItemDto에 대한 값 검증이 이루어짐.(컬렉션 타입에 대한 재귀적 검증)
-    private List<OrderItemRequestDto> items;
+    private List<OrderItemRequest> items;
 }
