@@ -1,3 +1,4 @@
+// PaymentController.java
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
@@ -19,68 +20,69 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
-    private final PaymentService paymentService; // 서비스 주입
+    private final PaymentService paymentService;
 
-    // 1) 결제창(인증) 생성
+    /** 1) 결제 요청 */
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}",
-            consumes = MediaType.APPLICATION_JSON_VALUE,
-            produces = MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable String orderId,
             @RequestBody @Valid PaymentReqDto dto) {
 
-        log.info("[PAY] requestPayment: orderId={} dto={}", orderId, dto);
-        PaymentResDto result = paymentService.requestTossPayment(orderId, dto);
-        return ResponseEntity.created(URI.create("/api/v1/payments/" + result.getPaymentId()))
-                .body(result);
+        PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
+        return ResponseEntity
+                .created(URI.create("/api/v1/payments/" + res.getPaymentId()))
+                .body(res);
     }
 
-    // 2) 성공 콜백
+    /** 2) 결제 성공 콜백 */
     @GetMapping("/toss/success")
-    public RedirectView tossSuccess(@RequestParam String paymentKey,
-                                    @RequestParam String orderId,
-                                    @RequestParam Long amount,
-                                    @RequestParam(required = false) String paymentType) {
-
-        log.info("[PAY CALLBACK] success: orderId={} key={} amount={} type={}",
-                orderId, paymentKey, amount, paymentType);
-        paymentService.markSuccess(paymentKey, orderId, amount);
-        return new RedirectView("/success.html"); // 성공 페이지로 이동
+    public RedirectView tossSuccess(@RequestParam Map<String,String> params) {
+        log.info("[PAY CALLBACK] success: params={}", params);
+        String pk    = params.get("paymentKey");
+        String oid   = params.get("orderId");
+        Long   amt   = params.containsKey("amount")
+                ? Long.valueOf(params.get("amount")) : null;
+        if (pk != null && oid != null && amt != null) {
+            paymentService.markSuccess(pk, oid, amt);
+        } else {
+            log.warn("파라미터 누락: {}", params);
+        }
+        RedirectView rv = new RedirectView("/success.html");
+        params.forEach(rv::addStaticAttribute);
+        return rv;
     }
 
-    // 3) 실패 콜백
+    /** 3) 결제 실패 콜백 */
     @GetMapping("/toss/fail")
-    public RedirectView tossFail(@RequestParam Map<String, String> params) {
-
-        log.info("[PAY CALLBACK] fail: {}", params);
+    public RedirectView tossFail(@RequestParam Map<String,String> params) {
+        log.info("[PAY CALLBACK] fail: params={}", params);
         paymentService.markFail(params.get("paymentKey"), params.get("message"));
-        return new RedirectView("/fail.html"); // 실패 페이지로 이동
+        RedirectView rv = new RedirectView("/fail.html");
+        params.forEach(rv::addStaticAttribute);
+        return rv;
     }
 
-    // 4) 포인트 환불(취소)
+    /** 4) 포인트 환불 */
     @PostMapping(path = "/toss/cancel/point",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Map<String, Object>> cancelPaymentPoint(
+    public ResponseEntity<Map<String,Object>> cancelPaymentPoint(
             @RequestParam String paymentKey,
             @RequestParam String cancelReason) {
 
-        log.info("[PAY CANCEL] key={} reason={}", paymentKey, cancelReason);
-        Map<String, Object> resp = paymentService.cancelPaymentPoint(paymentKey, cancelReason);
-        return ResponseEntity.ok(resp);
+        return ResponseEntity.ok(
+                paymentService.cancelPaymentPoint(paymentKey, cancelReason)
+        );
     }
 
-    // 예외 처리 공통
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
-
-        log.error("[PAY][ERROR] ", ex);
-        Map<String, Object> body = Map.of(
-                "timestamp", System.currentTimeMillis(),
-                "status", HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "error", HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                "message", ex.getMessage()
-        );
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(body);
+    public ResponseEntity<Map<String,Object>> handleAll(Exception ex) {
+        log.error("[PAY][ERROR]", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of(
+                        "status",  HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                        "message", ex.getMessage()
+                ));
     }
 }

@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8" />
     <title>Toss Payments 테스트</title>
-
     <style>
         body   { font-family: sans-serif; margin: 40px; }
         label  { display: block; margin: 8px 0 4px; }
@@ -11,7 +10,7 @@
         select,
         button { padding: 6px; font-size: 1rem; }
         input  { width: 240px; }
-        select { width: 254px; }          /* input 폭과 맞춤 */
+        select { width: 254px; }
     </style>
 </head>
 <body>
@@ -36,14 +35,11 @@
 <button id="payBtn">결제하기</button>
 
 <script>
-    /* --------------------------------------------------
-     *  “결제하기” 클릭  →  우리 서버 → Toss 리다이렉트
-     * -------------------------------------------------- */
     document.getElementById('payBtn').addEventListener('click', async () => {
         const orderId   = document.getElementById('orderId').value.trim();
         const payAmount = +document.getElementById('amount').value;
         const payName   = document.getElementById('orderName').value.trim();
-        const payType   = document.getElementById('payType').value;   // CARD / ACCOUNT
+        const payType   = document.getElementById('payType').value;
 
         if (!orderId || !payAmount || !payName) {
             alert('Order ID / Amount / Order Name를 모두 입력하세요');
@@ -56,28 +52,34 @@
                 headers: { 'Content-Type': 'application/json' },
                 body   : JSON.stringify({ payAmount, payType, payName })
             });
-
             if (!res.ok) {
                 alert('결제 요청 실패 :\n' + await res.text());
                 return;
             }
 
-            const data = await res.json();   // PaymentResDto
-            /* ---------- Toss checkout URL 선택 ---------- */
-            const redirectUrl =
-                data.redirectUrl           // 새 필드
-                || data.nextRedirectPcUrl     // 구(舊) 필드 – PC
-                || data.nextRedirectAppUrl;   // 구(舊) 필드 – 모바일
+            const data = await res.json();
+            console.log('[결제 응답 데이터]', data);
 
-            if (redirectUrl) {
-                window.location.href = redirectUrl;   // Toss 결제창으로 이동
-            } else {
-                alert('redirect URL 없음. 응답 확인 필요');
-                console.log('[결제 응답 데이터]', data);
+            const payPageUrl =
+                data.redirectUrl ||
+                data.nextRedirectPcUrl ||
+                data.nextRedirectAppUrl ||
+                data.checkoutUrl ||
+                data.paymentUrl ||
+                data.checkoutPageUrl ||
+                data.successUrl ||
+                data.failUrl;
+
+            if (!payPageUrl) {
+                alert('결제 페이지 URL을 찾을 수 없습니다. 콘솔을 확인하세요.');
+                return;
             }
+
+            window.location.href = payPageUrl;
+
         } catch (err) {
-            console.error(err);
-            alert('통신 오류 : ' + err.message);
+            console.error('결제 요청 중 오류', err);
+            alert('결제 요청 중 오류가 발생했습니다.');
         }
     });
 </script>

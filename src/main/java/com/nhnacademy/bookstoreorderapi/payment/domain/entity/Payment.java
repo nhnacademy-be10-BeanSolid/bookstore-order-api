@@ -29,7 +29,7 @@ public class Payment {
     private String payName;
 
     /* ───── FK: 주문 번호 (varchar 64) ───── */
-    @Column(name = "order_id", nullable = false, length = 64)
+    @Column(name = "order_id", nullable = false,  unique = true,length = 64)
     private String orderId;
 
     /* 결제 성공 여부 및 부가정보 */

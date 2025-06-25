@@ -1,89 +1,113 @@
+### ────────── 공통 변수 ──────────
+@host       = http://localhost:10350
+@ct         = application/json
+@memberId   = 42
+
+### Toss 테스트 Key
+@clientKey  = test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
+@secretKey  = test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
+@basicAuth  = Basic dGVzdF9za19HdjZMamVLRDhhOTUxMms5dmFteDh3WXhBZFh5Og==
+
 ### ────────── 1) 비회원 주문 생성 ──────────
-POST http://localhost:10350/api/v1/orders
-Content-Type: application/json
-Accept: application/json
+POST {{host}}/api/v1/orders
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
 {
-  "orderType"            : "guest",
-  "guestId"              : 101,
-  "orderAddress"         : "서울특별시 마포구 양화로 45",
+  "orderType": "guest",
+  "guestId":   101,
+  "orderAddress": "서울특별시 마포구 양화로 45",
   "requestedDeliveryDate": "2025-06-23",
-  "payMethod"            : "CARD",
-  "orderName"            : "도서 1권",
+  "payMethod": "CARD",
+  "orderName": "도서 1권",
   "items": [
     { "bookId": 1, "quantity": 1, "giftWrapped": false, "unitPrice": 15000 }
   ]
 }
+> {% client.global.set("orderIdGuest", response.body.orderId); %}
 
 ### ────────── 2) 회원 주문 생성 ──────────
-POST http://localhost:10350/api/v1/orders
-Content-Type: application/json
-Accept: application/json
+POST {{host}}/api/v1/orders
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
 {
-  "orderType"            : "member",
-  "userId"               : "42",
-  "orderAddress"         : "서울특별시 강남구 테헤란로 123",
+  "orderType": "member",
+  "userId":    "{{memberId}}",
+  "orderAddress": "서울특별시 강남구 테헤란로 123",
   "requestedDeliveryDate": "2025-06-24",
-  "payMethod"            : "CARD",
-  "orderName"            : "도서 4권",
+  "payMethod": "CARD",
+  "orderName": "도서 4권",
   "items": [
     { "bookId": 2, "quantity": 4, "giftWrapped": false, "unitPrice": 8000 }
   ]
 }
+> {% client.global.set("orderIdMember", response.body.orderId); %}
 
-### ────────── 3) PENDING → SHIPPING ──────────
-PATCH http://localhost:10350/api/v1/orders/<ORDER_ID>/status
-Content-Type: application/json
-Accept: application/json
+### ────────── 3) 결제창(인증) 요청 ──────────
+POST {{host}}/api/v1/payments/toss/d6e2b904-5237-4d4c-8414-9d093a4e0261
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
-{ "newStatus": "SHIPPING", "changedBy": 42, "memo": "배송 시작" }
+{
+  "payAmount": 32000,
+  "payType":   "CARD",
+  "payName":   "도서 4권",
+  "successUrl": "http://localhost:10350/api/v1/payments/toss/success",
+  "failUrl":    "http://localhost:10350/api/v1/payments/toss/fail"
+}
+> {% client.global.set("paymentKey",  response.body.paymentKey); %}
 
-### ────────── 4) SHIPPING → COMPLETED ──────────
-PATCH http://localhost:10350/api/v1/orders/<ORDER_ID>/status
-Content-Type: application/json
-Accept: application/json
+### ────────── 4) Toss 결제 확정(confirm) ──────────
+POST https://api.tosspayments.com/v1/payments/confirm
+Authorization: {{basicAuth}}
+Content-Type: {{ct}}
 
-{ "newStatus": "COMPLETED", "changedBy": 42, "memo": "배송 완료" }
+{
+  "orderId":    "96926700-d686-4d7d-a11c-9307a5303803",
+  "paymentKey": "tviva20250625171612ON7e4",
+  "amount":     32000
+}
 
-### ────────── 5) 비회원 주문 취소 ──────────
-POST http://localhost:10350/api/v1/orders/<ORDER_ID>/cancel
-Content-Type: application/json
-Accept: application/json
+### ────────── 5) 성공 콜백 시뮬레이션 ──────────
+GET {{host}}/api/v1/payments/toss/success?paymentKey=tviva20250625160439Kzu88&orderId=96926700-d686-4d7d-a11c-9307a5303803&amount=32000&paymentType=CARD
+Accept: {{ct}}
+
+### ────────── 6) PENDING → SHIPPING ──────────
+PATCH {{host}}/api/v1/orders/1/status
+Content-Type: {{ct}}
+Accept:       {{ct}}
+
+{ "newStatus": "SHIPPING", "changedBy": {{memberId}}, "memo": "배송 시작" }
+
+### ────────── 7) SHIPPING → COMPLETED ──────────
+PATCH {{host}}/api/v1/orders/{{orderIdMember}}/status
+Content-Type: {{ct}}
+Accept:       {{ct}}
+
+{ "newStatus": "COMPLETED", "changedBy": {{memberId}}, "memo": "배송 완료" }
+
+### ────────── 8) 비회원 주문 취소 ──────────
+POST {{host}}/api/v1/orders/{{orderIdGuest}}/cancel
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
 { "reason": "단순 변심", "changedBy": "guest-101" }
 
-### ────────── 6) 반품 요청 (회원) ──────────
-POST http://localhost:10350/api/v1/orders/<ORDER_ID>/orderReturn
-Content-Type: application/json
-Accept: application/json
+### ────────── 9) 반품 요청(회원) ──────────
+POST {{host}}/api/v1/orders/{{orderIdMember}}/orderReturn
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
-{ "reason": "파본 발견", "changedBy": 42 }
+{ "reason": "파본 발견", "changedBy": {{memberId}} }
 
-### ────────── 7) 상태 로그 조회 ──────────
-GET http://localhost:10350/api/v1/orders/<ORDER_ID>/status-log
-Accept: application/json
+### ────────── 10) 상태 로그 조회 ──────────
+GET {{host}}/api/v1/orders/{{orderIdMember}}/status-log
+Accept: {{ct}}
 
-### ────────── 8) 결제 요청 (토스) ──────────
-POST http://localhost:10350/api/v1/payments/toss
-Content-Type: application/json
-Accept: application/json
+### ────────── 11) 결제 취소(선택) ──────────
+POST {{host}}/api/v1/payments/toss/cancel/point
+Content-Type: application/x-www-form-urlencoded
+Accept:       {{ct}}
 
-{
-  "orderId"   : "<d45d8d75-a5ed-4713-bca5-a3f9fa9c0bb7>",
-  "payAmount" : 15000,
-  "payType"   : "CARD",
-  "payName"   : "도서 1권",
-  "successUrl": "https://your.domain.com/pay/success",
-  "failUrl"   : "https://your.domain.com/pay/fail"
-}
-
-### ────────── 9) 결제 취소 ──────────
-POST http://localhost:10350/api/v1/payments/toss/cancel
-Content-Type: application/json
-Accept: application/json
-
-{
-  "paymentKey"  : "<PAYMENT_KEY>",
-  "cancelReason": "구매자 변심"
-}
+paymentKey={{paymentKey}}&cancelReason=구매자%20변심

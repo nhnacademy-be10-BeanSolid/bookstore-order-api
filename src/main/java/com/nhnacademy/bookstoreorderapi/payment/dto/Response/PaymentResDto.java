@@ -1,4 +1,3 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/payment/dto/Response/PaymentResDto.java
 package com.nhnacademy.bookstoreorderapi.payment.dto.Response;
 
 import lombok.*;
@@ -20,4 +19,6 @@ public class PaymentResDto {
 
     private String successUrl;     // 콜백 URL
     private String failUrl;
+    private String redirectUrl;  //
+
 }

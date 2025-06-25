@@ -1,15 +1,25 @@
 // src/main/java/com/nhnacademy/bookstoreorderapi/order/service/impl/OrderServiceImpl.java
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
-import com.nhnacademy.bookstoreorderapi.order.dto.*;
-import com.nhnacademy.bookstoreorderapi.order.repository.*;
-
-import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
-import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
-import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
-
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.CanceledOrder;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderReturn;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.ReturnsRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +44,6 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusLogRepository  statusLogRepository;
     private final ReturnsRepository         returnRepository;
     private final TaskScheduler             taskScheduler;
-    private final PaymentRepository         paymentRepository;
 
     /* ───── 비즈니스 상수 ───── */
     private static final int FREE_DELIVERY_THRESHOLD = 30_000;   // 회원 3만원 이상 무료
@@ -51,27 +60,23 @@ public class OrderServiceImpl implements OrderService {
 
         /* 2) DTO → OrderItem (단가를 JSON 에서 그대로 사용) */
         for (OrderItemDto dto : req.getItems()) {
-
             if (dto.getUnitPrice() == null) {
                 throw new IllegalArgumentException(
                         "unitPrice(단가)가 누락되었습니다: bookId=" + dto.getBookId());
             }
 
-            Wrapping wrapping = null;
-            if (Boolean.TRUE.equals(dto.getGiftWrapped())) {
-                wrapping = wrappingRepository.findById(dto.getWrappingId())
-                        .orElseThrow(() ->
-                                new ResourceNotFoundException(
-                                        "포장 옵션이 없습니다: " + dto.getWrappingId()));
-            }
+            var wrapping = Boolean.TRUE.equals(dto.getGiftWrapped())
+                    ? wrappingRepository.findById(dto.getWrappingId())
+                    .orElseThrow(() ->
+                            new ResourceNotFoundException("포장 옵션이 없습니다: " + dto.getWrappingId()))
+                    : null;
 
             OrderItem item = OrderItem.createFrom(dto, wrapping, dto.getUnitPrice());
             order.addItem(item);
         }
 
         /* 3) 총 상품 금액 */
-        int total = order.getItems()
-                .stream()
+        int total = order.getItems().stream()
                 .mapToInt(i -> i.getUnitPrice() * i.getQuantity())
                 .sum();
         order.setTotalPrice(total);
@@ -83,18 +88,8 @@ public class OrderServiceImpl implements OrderService {
                 : DEFAULT_DELIVERY_FEE;
         order.setDeliveryFee(deliveryFee);
 
-        /* 5) 저장 후 PK 확보 */
+        /* 5) 저장 후 PK 확보 (orders, order_item만 INSERT) */
         Order savedOrder = orderRepository.save(order);
-
-        /* 6) 결제 레코드 */
-        Payment payment = Payment.builder()
-                .orderId(savedOrder.getOrderId())        // varchar(64)
-                .payAmount((long) (total + deliveryFee)) // JSON 금액 그대로
-                .payType(PayType.valueOf(req.getPayMethod()))
-                .payName(req.getOrderName())
-                .paySuccessYn(Boolean.TRUE)
-                .build();
-        paymentRepository.save(payment);
 
         return savedOrder.getId();
     }
@@ -103,13 +98,10 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public List<OrderResponseDto> listByUser(String userId) {
-
-        List<Order> orders = orderRepository.findByUserId(userId);
-
+        var orders = orderRepository.findByUserId(userId);
         if (orders.isEmpty()) {
             throw new OrderNotFoundException("주문을 찾을 수 없습니다: " + userId);
         }
-
         return orders.stream()
                 .map(OrderResponseDto::createFrom)
                 .collect(Collectors.toList());
@@ -119,22 +111,21 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void cancelOrder(long orderId, String reason) {
-
-        Order order = orderRepository.findById(orderId)
+        var order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("주문이 없습니다: " + orderId));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
         }
-
         order.setStatus(OrderStatus.CANCELED);
         canceledOrderRepository.save(
                 CanceledOrder.builder()
                         .orderId(orderId)
                         .canceledAt(LocalDateTime.now())
                         .reason(reason)
-                        .build());
+                        .build()
+        );
     }
 
     /* ───────────────────────── 주문 상태 변경 ───────────────────────── */
@@ -144,26 +135,23 @@ public class OrderServiceImpl implements OrderService {
                                                 OrderStatus newStatus,
                                                 long changedBy,
                                                 String memo) {
-
-        Order order = orderRepository.findById(orderId)
+        var order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("주문이 없습니다: " + orderId));
 
-        OrderStatus oldStatus = order.getStatus();
+        var oldStatus = order.getStatus();
         if (!oldStatus.canTransitionTo(newStatus)) {
             throw new InvalidOrderStatusChangeException(
                     String.format("상태 전이 불가: %s → %s", oldStatus, newStatus));
         }
 
-        /* 로그 저장 */
-        OrderStatusLog log = OrderStatusLog.createFrom(
-                orderId, oldStatus, newStatus, changedBy, memo);
+        // 로그 저장
+        var log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
         statusLogRepository.save(log);
 
-        /* 실제 상태 변경 */
         order.setStatus(newStatus);
 
-        /* 배송 중 → 배송 완료 자동 전환 예약 */
+        // 배송 중 → 배송 완료 자동 전환 예약
         if (newStatus == OrderStatus.SHIPPING) {
             taskScheduler.schedule(
                     () -> completeDelivery(orderId),
@@ -174,23 +162,18 @@ public class OrderServiceImpl implements OrderService {
         return StatusChangeResponseDto.createFrom(log);
     }
 
-    /** 배송 자동 완료 (예약 작업) */
     @Transactional
     protected void completeDelivery(long orderId) {
-
-        Order order = orderRepository.findById(orderId)
+        var order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("주문이 없습니다: " + orderId));
+        if (order.getStatus() != OrderStatus.SHIPPING) return;
 
-        if (order.getStatus() != OrderStatus.SHIPPING) {
-            return;
-        }
-
-        OrderStatusLog log = OrderStatusLog.createFrom(
+        var log = OrderStatusLog.createFrom(
                 orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED,
-                0L, "자동완료");
+                0L, "자동완료"
+        );
         statusLogRepository.save(log);
-
         order.setStatus(OrderStatus.COMPLETED);
     }
 
@@ -198,32 +181,28 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public int requestReturn(long orderId, ReturnRequestDto dto) {
-
-        Order order = orderRepository.findById(orderId)
+        var order = orderRepository.findById(orderId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("주문이 없습니다: " + orderId));
 
         if (order.getStatus() == OrderStatus.RETURNED) {
             throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
         }
-
         order.setStatus(OrderStatus.RETURNED);
 
-        OrderReturn ret = OrderReturn.createFrom(order, dto);
+        var ret = OrderReturn.createFrom(order, dto);
         returnRepository.save(ret);
 
-        /* 예시: 상품 금액 – 반품 수수료 */
+        // 예시: 상품 금액 – 반품 수수료
         return order.getTotalPrice() - OrderReturn.RETURNS_FEE;
     }
 
     /* ───────────────────────── 상태 변경 이력 조회 ───────────────────────── */
     @Override
     @Transactional(readOnly = true)
-    public List<OrderStatusLogDto> getStatusLog(long orderId) {
-
-        return statusLogRepository.findByOrderId(orderId)
-                .stream()
-                .map(OrderStatusLogDto::createFrom)
+    public List<com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto> getStatusLog(long orderId) {
+        return statusLogRepository.findByOrderId(orderId).stream()
+                .map(com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
 }
