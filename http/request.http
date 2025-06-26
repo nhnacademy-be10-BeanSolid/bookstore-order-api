@@ -111,3 +111,116 @@ Content-Type: application/x-www-form-urlencoded
 Accept:       {{ct}}
 
 paymentKey={{paymentKey}}&cancelReason=구매자%20변심
+
+
+
+
+
+
+
+
+
+
+
+##############
+
+
+### ────────── 1) 비회원 주문 생성 ──────────
+POST http://localhost:10350/orders
+Content-Type: application/json
+X-User-Id: 42              # 로그인 사용자 PK
+
+{
+  "orderType": "member",
+  "userId": 42,
+
+  "receiverName": "김개발",
+  "receiverPhoneNumber": "010-9876-5432",
+  "address": "서울특별시 강남구 테헤란로 123",
+
+  "requestedDeliveryDate": "2025-07-01",
+
+  "payMethod": "ACCOUNT",
+  "orderName": "개발서적 세트",
+
+  "items": [
+    {
+      "bookId": 7,
+      "quantity": 2,
+      "unitPrice": 20000,
+      "giftWrapped": true,
+      "wrappingId": 3
+    }
+  ]
+}
+
+### ────────── 2) 회원 주문 생성 ──────────
+POST http://localhost:10350/orders
+Content-Type: application/json
+X-User-Id: 101             # 게스트라도 헤더는 필요
+
+{
+  "orderType": "guest",
+  "guestId": 101,
+
+  "receiverName": "홍길동",
+  "receiverPhoneNumber": "010-1234-5678",
+  "address": "서울특별시 마포구 양화로 45",
+
+  "requestedDeliveryDate": "2025-06-30",
+
+  "payMethod": "CARD",
+  "orderName": "도서 1권",
+
+  "items": [
+    {
+      "bookId": 1,
+      "quantity": 1,
+      "unitPrice": 15000,
+      "giftWrapped": false
+    }
+  ]
+}
+
+
+
+### ────────── 3) 회원 주문 전체 조회 ──────────
+GET {{host}}/orders
+X-User-Id: {{memberId}}
+
+
+
+### ────────── 4) 주문 상태 수동 변경 (예: PENDING → SHIPPING) ──────────
+PATCH {{host}}/orders/{{orderIdMember}}/status
+Content-Type: {{ct}}
+
+{
+  "newStatus": "SHIPPING",
+  "changedBy": 999,
+  "memo": "CJ택배 집하 완료"
+}
+
+
+
+### ────────── 5) 주문 취소 (PENDING 상태에서만 가능) ──────────
+POST {{host}}/orders/{{orderIdGuest}}/cancel
+Content-Type: {{ct}}
+
+{ "reason": "단순 변심" }
+
+
+
+### ────────── 6) 주문 상태 변경 이력 조회 ──────────
+GET {{host}}/orders/{{orderIdMember}}/status-log
+
+
+
+### ────────── 7) 반품(환불) 요청 ──────────
+POST {{host}}/orders/{{orderIdMember}}/returns
+Content-Type: {{ct}}
+
+{
+  "reason": "파손 배송",
+  "isDamaged": true,
+  "refundedAsPoints": false
+}
