@@ -1,41 +1,35 @@
 // src/main/java/com/nhnacademy/bookstoreorderapi/payment/dto/Request/PaymentReqDto.java
 package com.nhnacademy.bookstoreorderapi.payment.dto.Request;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
+import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor @Builder
 public class PaymentReqDto {
-   @NotNull(message = "결제 금액(payAmount)은 필수입니다.")
-   @Min(value = 1000, message = "최소 결제 금액은 1,000원입니다.")
-   @JsonProperty("payAmount")
+
+   @NotNull(message = "결제 금액(payAmount)는 필수입니다.")
    private Long payAmount;
 
-   @NotBlank
-   private String payType;
+   @NotNull(message = "결제 수단(payType)는 필수입니다.")
+   private PayType payType;
 
-   @NotBlank
-   private String orderName;
+   @NotNull(message = "주문명(payName)은 필수입니다.")
+   private String payName;
 
-   // 클라이언트에서 커스터마이징한 URL (옵션)
-   private String successUrl;
-   private String failUrl;
+//   private String successUrl;
+//   private String failUrl;
 
    public Payment toEntity(Order order) {
       return Payment.builder()
-              .order(order)
+              .orderId(order.getOrderId())
               .payAmount(this.payAmount)
               .payType(this.payType)
-              .payName(this.orderName)
+              .payName(this.payName)
+              .paySuccessYn(false)
               .build();
    }
 }

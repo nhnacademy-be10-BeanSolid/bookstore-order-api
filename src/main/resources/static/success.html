@@ -5,68 +5,80 @@
     <title>결제 완료</title>
     <style>
         body { font-family: sans-serif; margin: 40px; text-align: center; }
-        .response-section { margin: 20px 0; text-align: left; display: inline-block; }
-        .response-label { font-weight: bold; }
-        .response-text { margin-left: 8px; }
-        #confirm-success { display: none; }   /* 숨겨두기 */
-        #loading { font-size: 1.2em; }
+        .response-section { margin: 20px 0; display: inline-block; text-align: left; }
+        .response-label { font-weight: bold; display: inline-block; width: 100px; }
+        .response-text  { margin-left: 8px; }
+        button { margin: 8px; padding: 8px 16px; }
+        #error { color: red; margin-top: 20px; }
     </style>
 </head>
 <body>
-<!-- 1) 로딩 화면 -->
+
 <div id="loading">
-    <img src="https://static.toss.im/lotties/loading-spot-apng.png" width="60" height="60" alt="로딩" />
     <p>결제 처리 중입니다… 잠시만 기다려주세요.</p>
 </div>
 
-<!-- 2) 10초 후에 보여줄 성공 화면 -->
-<div id="confirm-success">
-    <img src="https://static.toss.im/illusts/check-blue-spot-ending-frame.png" width="120" height="120" alt="성공" />
-    <h2>결제를 완료했어요</h2>
+<div id="confirm-success" style="display:none;">
+    <h2>결제를 완료했어요 🎉</h2>
     <div class="response-section">
-        <div>
-            <span class="response-label">결제 금액:</span>
-            <span id="amount" class="response-text"></span>
-        </div>
-        <div>
-            <span class="response-label">주문번호:</span>
-            <span id="orderId" class="response-text"></span>
-        </div>
-        <div>
-            <span class="response-label">paymentKey:</span>
-            <span id="paymentKey" class="response-text"></span>
-        </div>
+        <div><span class="response-label">결제금액:</span><span id="amount"      class="response-text">-</span> 원</div>
+        <div><span class="response-label">주문번호:</span><span id="orderId"     class="response-text">-</span></div>
+        <div><span class="response-label">결제키:</span><span id="paymentKey"  class="response-text">-</span></div>
+        <div><span class="response-label">결제ID:</span><span id="paymentId"   class="response-text">-</span></div>
     </div>
+    <button id="cancelBtn">환불하기</button>
+    <button id="closeBtn">닫기</button>
+    <div id="cancelResult" style="margin-top:12px;"></div>
 </div>
 
+<div id="error" style="display:none;"></div>
+
 <script>
-    // URL 파라미터 읽어오기
-    const params     = new URLSearchParams(window.location.search);
-    const paymentKey = params.get('paymentKey') || '';
-    const orderId    = params.get('orderId')    || '';
-    const amount     = params.get('amount')     || '';
+    (function() {
+        const params    = new URLSearchParams(window.location.search);
+        const paymentKey= params.get('paymentKey')   || params.get('payment_key');
+        const orderId   = params.get('orderId')      || params.get('order_id');
+        const amount    = params.get('amount')       || params.get('payAmount');
+        const paymentId = params.get('paymentId')    || params.get('payment_id');
 
-    // 10초 대기 후에 성공 화면으로 전환
-    setTimeout(() => {
-        // 로딩 숨기고, 성공 화면 보이기
-        document.getElementById('loading').style.display      = 'none';
-        const successDiv = document.getElementById('confirm-success');
-        successDiv.style.display                              = 'block';
+        if (!paymentKey || !orderId || !amount) {
+            document.getElementById('loading').style.display = 'none';
+            const err = document.getElementById('error');
+            err.textContent = '결제 정보가 올바르게 전달되지 않았습니다.';
+            err.style.display = 'block';
+            return;
+        }
 
-        // 성공 정보 채우기
-        document.getElementById('paymentKey').textContent     = paymentKey;
-        document.getElementById('orderId').textContent        = orderId;
-        document.getElementById('amount').textContent         = amount;
+        setTimeout(() => {
+            document.getElementById('loading').style.display        = 'none';
+            document.getElementById('confirm-success').style.display= 'block';
+            document.getElementById('paymentKey').textContent       = paymentKey;
+            document.getElementById('orderId').textContent          = orderId;
+            document.getElementById('amount').textContent           = amount;
+            document.getElementById('paymentId').textContent        = paymentId || '-';
 
-        // 부모 창에 성공 메시지 보내기
-        window.opener?.postMessage(
-            { type: 'toss:success', paymentKey, orderId, amount },
-            '*'
-        );
+            document.getElementById('cancelBtn').addEventListener('click', () => {
+                const resultEl = document.getElementById('cancelResult');
+                resultEl.textContent = '환불 요청 중…';
+                fetch(
+                    `${window.location.origin}/api/v1/payments/toss/cancel/point`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({ paymentKey, cancelReason: '사용자 요청' })
+                    }
+                )
+                    .then(res => res.ok ? res.json() : Promise.reject(res.status))
+                    .then(json => resultEl.textContent = '환불 성공: ' + JSON.stringify(json))
+                    .catch(err => {
+                        resultEl.innerHTML = '환불 실패: ' + err + '<br/><button id="retry">다시 시도</button>';
+                        document.getElementById('retry').addEventListener('click', () => resultEl.textContent = '');
+                    });
+            });
 
-        // ※ 필요하면 여기서 추가로 팝업 자동 닫기 로직을 더할 수 있습니다.
-
-    }, 10_000); // 10,000ms = 10초
+            document.getElementById('closeBtn').addEventListener('click', () => window.close());
+        }, 2000);
+    })();
 </script>
 </body>
 </html>

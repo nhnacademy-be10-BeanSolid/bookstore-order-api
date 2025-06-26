@@ -2,22 +2,23 @@ package com.nhnacademy.bookstoreorderapi.payment.dto.Response;
 
 import lombok.*;
 
-@Getter
-@Setter
+@Getter @Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor @AllArgsConstructor
 public class PaymentResDto {
 
-    private Long paymentId;   // (옵션) DB PK
-//    private Long orderId;     // 주문 ID
-    private String orderId;
+    private Long paymentId;        // DB PK
+    private String orderId;        // 연결된 주문의 비즈니스 ID
 
-    private Long payAmount;   // ★ 컨트롤러에서 쓰는 exact 이름·타입
+    private Long payAmount;        // 결제 금액
+    private String payType;        // 결제 수단
+    private String payName;        // 주문명
 
-    private String payType;   // 카드 / 계좌 등
-    private String orderName; // 주문/결제 제목
+    private String paymentKey;     // Toss API 가 내려준 키
 
-    private String successUrl;
+
+    private String successUrl;     // 콜백 URL
     private String failUrl;
+    private String redirectUrl;  //
+
 }
