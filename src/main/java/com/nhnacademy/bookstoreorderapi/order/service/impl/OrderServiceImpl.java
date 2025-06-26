@@ -1,25 +1,14 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/order/service/impl/OrderServiceImpl.java
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.CanceledOrder;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderReturn;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.repository.CanceledOrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.ReturnsRepository;
-import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,181 +17,255 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.util.List;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+    private final OrderRepository orderRepository;
+    private final WrappingRepository wrappingRepository;
+    private final CanceledOrderRepository canceledOrderRepository;
+    private final OrderStatusLogRepository statusLogRepository;
+    private final TaskScheduler taskScheduler;
+    private final ReturnsRepository returnRepository;
+    private final BookServiceClient bookServiceClient;
+    private final OrderItemRepository orderItemRepository;
 
-    private final OrderRepository           orderRepository;
-    private final WrappingRepository        wrappingRepository;
-    private final CanceledOrderRepository   canceledOrderRepository;
-    private final OrderStatusLogRepository  statusLogRepository;
-    private final ReturnsRepository         returnRepository;
-    private final TaskScheduler             taskScheduler;
+    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
-    /* ───── 비즈니스 상수 ───── */
-    private static final int FREE_DELIVERY_THRESHOLD = 30_000;   // 회원 3만원 이상 무료
-    private static final int DEFAULT_DELIVERY_FEE    = 5_000;    // 그 외 5천원
-    private static final Duration DELIVERY_DELAY     = Duration.ofSeconds(5);
-
-    /* ───────────────────────── 주문 생성 ───────────────────────── */
+    // 주문 생성
     @Override
     @Transactional
-    public long createOrder(OrderRequestDto req) {
+    public void createOrder(OrderRequest orderRequest, Long userId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
 
-        /* 1) Order 기본 정보 */
-        Order order = Order.createFrom(req);
+        Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
+        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.getItems().size(), userId);
 
-        /* 2) DTO → OrderItem (단가를 JSON 에서 그대로 사용) */
-        for (OrderItemDto dto : req.getItems()) {
-            if (dto.getUnitPrice() == null) {
-                throw new IllegalArgumentException(
-                        "unitPrice(단가)가 누락되었습니다: bookId=" + dto.getBookId());
-            }
+        Order order = Order.of(orderRequest, userId);
 
-            var wrapping = Boolean.TRUE.equals(dto.getGiftWrapped())
-                    ? wrappingRepository.findById(dto.getWrappingId())
-                    .orElseThrow(() ->
-                            new ResourceNotFoundException("포장 옵션이 없습니다: " + dto.getWrappingId()))
-                    : null;
+        List<OrderItemRequest> itemRequests = orderRequest.getItems();
+        Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
+        Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
 
-            OrderItem item = OrderItem.createFrom(dto, wrapping, dto.getUnitPrice());
-            order.addItem(item);
-        }
+        List<OrderItem> items = buildOrderItems(order, itemRequests, bookMap, wrappingMap);
 
-        /* 3) 총 상품 금액 */
-        int total = order.getItems().stream()
-                .mapToInt(i -> i.getUnitPrice() * i.getQuantity())
-                .sum();
-        order.setTotalPrice(total);
+        int totalPrice = calculateTotal(items);
+        order.setTotalPrice(totalPrice);
+        ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userId));
+        order.setShippingInfo(shippingInfo);
 
-        /* 4) 배송비 */
-        boolean isMember   = "member".equalsIgnoreCase(req.getOrderType());
-        int     deliveryFee = (isMember && total >= FREE_DELIVERY_THRESHOLD)
-                ? 0
-                : DEFAULT_DELIVERY_FEE;
-        order.setDeliveryFee(deliveryFee);
-
-        /* 5) 저장 후 PK 확보 (orders, order_item만 INSERT) */
-        Order savedOrder = orderRepository.save(order);
-
-        return savedOrder.getId();
+        orderRepository.save(order);
+        log.info("주문 완료: id={}, orderId={}, userId={}, totalPrice={}, deliveryFee={}, address={}",
+                order.getId(),
+                order.getOrderId(),
+                userId,
+                order.getTotalPrice(),
+                shippingInfo.deliveryFee(),
+                shippingInfo.address());
     }
 
-    /* ───────────────────────── 주문 조회 (사용자별) ───────────────────────── */
+    // 회원 주문 전체 조회
     @Override
-    @Transactional(readOnly = true)
-    public List<OrderResponseDto> listByUser(String userId) {
-        var orders = orderRepository.findByUserId(userId);
+    public List<OrderResponse> findAllByUserId(String xUserId) {
+
+        //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
+        Long userId = Long.parseLong(xUserId); // 임시
+
+        List<Order> orders = orderRepository.findAllByUserId(userId);
         if (orders.isEmpty()) {
-            throw new OrderNotFoundException("주문을 찾을 수 없습니다: " + userId);
+            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
         }
+
         return orders.stream()
-                .map(OrderResponseDto::createFrom)
-                .collect(Collectors.toList());
+                .map(OrderResponse::createFrom)
+                .toList();
     }
 
-    /* ───────────────────────── 주문 취소 ───────────────────────── */
+    private int determineFee(int totalPrice, Long userId) {
+        final int THRESHOLD = 30_000;
+        final int FEE = 5_000;
+
+        return totalPrice >= THRESHOLD && Objects.nonNull(userId) ? 0 : FEE;
+    }
+
+    private int calculateTotal(List<OrderItem> items) {
+        return items.stream().mapToInt(i -> i.getUnitPrice() * i.getQuantity()).sum();
+    }
+
+    private List<OrderItem> buildOrderItems(Order order,
+                                            List<OrderItemRequest> itemRequests,
+                                            Map<Long, BookOrderResponse> bookMap,
+                                            Map<Long, Wrapping> wrappingMap)
+    {
+        List<OrderItem> items = new ArrayList<>();
+        for (OrderItemRequest req : itemRequests) {
+            BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.getBookId()),
+                    "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getBookId());
+            Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.getWrappingId()),
+                    "wrapping을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getWrappingId());
+            OrderItem item = OrderItem.of(book, req.getQuantity());
+
+            order.addItem(item);
+            wrapping.addItem(item);
+            items.add(item);
+        }
+
+        //TODO 주문: 영속성 전파(cascade)가 설정이 되어 있다면 saveAll을 생략할 수 있다고 함. 되어 있다면 지우기.
+        wrappingRepository.saveAll(wrappingMap.values());
+        orderItemRepository.saveAll(items);
+        log.debug("wrapping & orderItem 저장 완료, item's size={}", items.size());
+
+        return items;
+    }
+
+    private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
+
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getWrappingId).toList();
+        List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
+        if (wrappings.size() != new HashSet<>(ids).size())
+            throw new WrappingNotFoundException("wrapping의 개수가 일치하지 않습니다: " + ids);
+        log.debug("{}개의 포장지를 가져옵니다. ids={}", wrappings.size(), ids);
+        return wrappings.stream().collect(Collectors.toMap(Wrapping::getId, Function.identity()));
+    }
+
+    private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
+
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getBookId).toList();
+        List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
+        if (books == null || books.isEmpty())
+            throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
+        log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
+        return books.stream().collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
+    }
+
+    /*───────────────────────────────────────────────────────
+     * 3. 주문 취소
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
-    public void cancelOrder(long orderId, String reason) {
-        var order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("주문이 없습니다: " + orderId));
+    public void cancelOrder(Long orderId, String reason) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
         }
+
         order.setStatus(OrderStatus.CANCELED);
+
         canceledOrderRepository.save(
                 CanceledOrder.builder()
                         .orderId(orderId)
                         .canceledAt(LocalDateTime.now())
                         .reason(reason)
-                        .build()
-        );
+                        .build());
+
+        orderRepository.save(order);
     }
 
-    /* ───────────────────────── 주문 상태 변경 ───────────────────────── */
+    /*───────────────────────────────────────────────────────
+     * 4. 주문 상태 변경
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
-    public StatusChangeResponseDto changeStatus(long orderId,
-                                                OrderStatus newStatus,
-                                                long changedBy,
-                                                String memo) {
-        var order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("주문이 없습니다: " + orderId));
+    public StatusChangeResponseDto changeStatus(
+            Long orderId,
+            OrderStatus newStatus,
+            Long changedBy,
+            String memo
+    ) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
 
-        var oldStatus = order.getStatus();
+        OrderStatus oldStatus = order.getStatus();
         if (!oldStatus.canTransitionTo(newStatus)) {
             throw new InvalidOrderStatusChangeException(
-                    String.format("상태 전이 불가: %s → %s", oldStatus, newStatus));
+                    String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
         }
 
-        // 로그 저장
-        var log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
+        OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
         statusLogRepository.save(log);
 
         order.setStatus(newStatus);
+        orderRepository.save(order);
 
-        // 배송 중 → 배송 완료 자동 전환 예약
         if (newStatus == OrderStatus.SHIPPING) {
-            taskScheduler.schedule(
-                    () -> completeDelivery(orderId),
-                    Instant.now().plus(DELIVERY_DELAY)
-            );
+            scheduleAutoDeliveryComplete(orderId);
         }
 
         return StatusChangeResponseDto.createFrom(log);
     }
 
-    @Transactional
-    protected void completeDelivery(long orderId) {
-        var order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("주문이 없습니다: " + orderId));
-        if (order.getStatus() != OrderStatus.SHIPPING) return;
+    private void scheduleAutoDeliveryComplete(Long orderId) {
 
-        var log = OrderStatusLog.createFrom(
-                orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED,
-                0L, "자동완료"
-        );
-        statusLogRepository.save(log);
-        order.setStatus(OrderStatus.COMPLETED);
+        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+
+        taskScheduler.schedule(() -> {
+            try {
+                completeDelivery(orderId);
+            } catch (Exception e) {
+                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+            }
+        }, triggerTime);
     }
 
-    /* ───────────────────────── 반품 요청 ───────────────────────── */
+    @Transactional
+    public void completeDelivery(Long orderId) {
+
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            return;
+        }
+
+        statusLogRepository.save(OrderStatusLog.createFrom(orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료"));
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
+    }
+
+    /*───────────────────────────────────────────────────────
+     * 5. 반품 요청
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional
-    public int requestReturn(long orderId, ReturnRequestDto dto) {
-        var order = orderRepository.findById(orderId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("주문이 없습니다: " + orderId));
+    public int requestReturn(Long orderId, ReturnRequestDto dto) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
 
         if (order.getStatus() == OrderStatus.RETURNED) {
             throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
         }
+
         order.setStatus(OrderStatus.RETURNED);
+        orderRepository.save(order);
 
-        var ret = OrderReturn.createFrom(order, dto);
-        returnRepository.save(ret);
+        OrderReturn orderReturn = OrderReturn.createFrom(order, dto);
+        returnRepository.save(orderReturn);
 
-        // 예시: 상품 금액 – 반품 수수료
         return order.getTotalPrice() - OrderReturn.RETURNS_FEE;
     }
 
-    /* ───────────────────────── 상태 변경 이력 조회 ───────────────────────── */
+    /*───────────────────────────────────────────────────────
+     * 6. 상태 변경 이력 조회
+     *──────────────────────────────────────────────────────*/
     @Override
     @Transactional(readOnly = true)
-    public List<com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto> getStatusLog(long orderId) {
+    public List<OrderStatusLogDto> getStatusLog(Long orderId) {
+
+        if (!orderRepository.existsById(orderId)) {
+            throw new ResourceNotFoundException("주문을 찾을 수 없습니다.");
+        }
+
         return statusLogRepository.findByOrderId(orderId).stream()
-                .map(com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto::createFrom)
+                .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
 }

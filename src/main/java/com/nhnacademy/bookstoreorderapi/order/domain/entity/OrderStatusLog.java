@@ -31,7 +31,8 @@ public class OrderStatusLog {
     @Column(name = "changedBy")
     private Long changedBy;    // 변경자 ID(관리자 등)
 
-    @Column(name = "memo", columnDefinition = "TEXT")
+//    @Column(name = "memo", columnDefinition = "TEXT")
+    @Lob
     private String memo;       // 변경 메모
 
     public static OrderStatusLog createFrom(Long orderId, OrderStatus oldStatus,

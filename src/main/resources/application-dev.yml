@@ -1,3 +1,4 @@
+
 spring:
   datasource:
     url: jdbc:mysql://10.116.64.14:13306/project_be10_team3_dev?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
@@ -6,11 +7,16 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
-    show-sql: true          # ←★ 콘솔에 SQL 출력
-    properties:             # ❶ 포매팅 옵션 (있으면 유지)
+    show-sql: true
+    properties:
       hibernate:
-        format_sql: true
+        format_sql: true # SQL 쿼리를 보기 좋게 포맷팅하여 출력.
+        use_sql_comments: true # SQL 쿼리에 주석 포함.
+        highlight_sql: true # Hibernate에서 SQL 로깅을 할 때 색상으로 SQL문 강조.
+        auto_quote_keyword: true # 예약어를 인식하여 자동으로 인용 부호 추가.(DB 예약어와 충돌 방지)
 
+
+  # ① Ant 패턴 URL 매칭(프로필별로 다르게 주고 싶으면 여기에도 명시)
   mvc:
     pathmatch:
       matching-strategy: ant_path_matcher
@@ -27,10 +33,8 @@ management:
     health:
       show-details: always
 
-########################
-# 🚀  Hibernate 로그 레벨
-########################
 logging:
   level:
-    org.hibernate.SQL: DEBUG     # ←★ 실제 SQL
-    org.hibernate.type: TRACE    #   바인딩 파라미터까지 확인하고 싶으면 추가
+    com.nhnacademy.bookstoreorderapi: DEBUG
+    org.springframework: INFO
+    org.hibernate: INFO

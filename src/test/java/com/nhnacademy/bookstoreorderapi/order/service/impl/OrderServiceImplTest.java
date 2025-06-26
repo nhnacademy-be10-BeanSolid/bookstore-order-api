@@ -1,40 +1,45 @@
-//// src/test/java/com/nhnacademy/bookstoreorderapi/order/service/OrderServiceTest.java
-//package com.nhnacademy.bookstoreorderapi.order.service;
-//
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-//import com.nhnacademy.bookstoreorderapi.order.domain.exception.BadRequestException;
-//import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-//import com.nhnacademy.bookstoreorderapi.order.domain.exception.ResourceNotFoundException;
-//import com.nhnacademy.bookstoreorderapi.order.dto.*;
-//import com.nhnacademy.bookstoreorderapi.order.repository.*;
-//import com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl;
-//import org.junit.jupiter.api.BeforeEach;
-//import org.junit.jupiter.api.DisplayName;
-//import org.junit.jupiter.api.Test;
-//import org.junit.jupiter.api.extension.ExtendWith;
-//import org.mockito.*;
-//import org.mockito.junit.jupiter.MockitoExtension;
-//import org.springframework.scheduling.TaskScheduler;
-//import org.springframework.scheduling.concurrent.ConcurrentTaskScheduler;
-//
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.util.Date;
-//import java.util.List;
-//import java.util.Optional;
-//
-//import static org.assertj.core.api.Assertions.assertThat;
+package com.nhnacademy.bookstoreorderapi.order.service.impl;
+
 //import static org.assertj.core.api.Assertions.assertThatThrownBy;
 //
+import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.ResponseEntity;
+
+import java.time.LocalDate;
+import java.util.List;
+
 //import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.*;
+import static org.assertj.core.api.Assertions.*;
+
 //
-//@ExtendWith(MockitoExtension.class)
-//class OrderServiceTest {
-//
-//    @Mock
-//    OrderRepository orderRepository;
-//    @Mock
-//    WrappingRepository wrappingRepository;
+@ExtendWith(MockitoExtension.class)
+class OrderServiceImplTest {
+
+    @Mock
+    OrderRepository orderRepository;
+    @Mock
+    BookServiceClient bookServiceClient;
+    @Mock
+    WrappingRepository wrappingRepository;
+    @Mock
+    OrderItemRepository orderItemRepository;
 //    @Mock
 //    CanceledOrderRepository canceledOrderRepository;
 //    @Mock
@@ -44,20 +49,33 @@
 //    @Mock
 //    ReturnsRepository returnRepository;
 //
-//    @InjectMocks
-//    private OrderServiceImpl orderService;
-//
+    @InjectMocks
+    private OrderServiceImpl orderService;
+
+    //
 //    private OrderRequestDto guestReq;
 //    private OrderRequestDto memberReq;
 //    private Wrapping        wrap;
 //
 //    @BeforeEach
 //    void setUp() {
-//        guestReq = OrderRequestDto.builder()
+//
+//        List<OrderItemRequest> items = List.of(new OrderItemRequest(1L, 1, 1L),
+//                new OrderItemRequest(2L, 1, 1L));
+//
+//        OrderRequest orderRequest = OrderRequest.builder()
+//                .address("광주광역시")
+//                .requestedDeliveryDate(LocalDate.now().plusDays(1))
+//                .items(items)
+//                .build();
+//
+//    }
+
+    //        guestReq = OrderRequestDto.builder()
 //                .orderType("guest")
 //                .guestId(1L)
 //                .items(List.of(
-//                        OrderItemDto.builder()
+//                        OrderItemRequestDto.builder()
 //                                .bookId(100L)
 //                                .quantity(2)
 //                                .giftWrapped(false)
@@ -69,7 +87,7 @@
 //                .userId("member42")
 //                .requestedDeliveryDate(LocalDate.of(2025, 6, 20))
 //                .items(List.of(
-//                        OrderItemDto.builder()
+//                        OrderItemRequestDto.builder()
 //                                .bookId(200L)
 //                                .quantity(3)
 //                                .giftWrapped(true)
@@ -82,43 +100,43 @@
 //                .name("프리미엄")
 //                .price(3_000)
 //                .build();
-//    }
 //
-//    // 주문 생성
 //
-//    @Test
-//    void createOrder_guest_succeeds() {
-//        ArgumentCaptor<Order> captor = ArgumentCaptor.forClass(Order.class);
-//
-//        when(orderRepository.save(any())).thenAnswer(inv -> {
-//            Order o = inv.getArgument(0);
-//            o.setId(5L);
-//            return o;
-//        });
-//
-//        OrderResponseDto resp = orderService.createOrder(guestReq);
-//
-//        assertThat(resp.getOrderId()).isEqualTo(5L);
-//        assertThat(resp.getTotalPrice()).isEqualTo(2 * 10_000);
-//        assertThat(resp.getDeliveryFee()).isEqualTo(Order.DEFAULT_DELIVERY_FEE); // 5 000
-//    }
-//
-//    @Test
-//    void createOrder_memberWithWrapping_succeeds() {
-//        when(wrappingRepository.findById(1L)).thenReturn(Optional.of(wrap));
-//        when(orderRepository.save(any())).thenAnswer(inv -> {
-//            Order o = inv.getArgument(0);
-//            o.setId(6L);
-//            return o;
-//        });
-//
-//        OrderResponseDto resp = orderService.createOrder(memberReq);
-//
-//        // 3 × 10 000 + 3 × 3 000 = 39 000  (회원 무료 배송)
-//        assertThat(resp.getTotalPrice()).isEqualTo(39_000);
-//        assertThat(resp.getDeliveryFee()).isZero();
-//        assertThat(resp.getOrderId()).isEqualTo(6L);
-//    }
+    @Test
+    @DisplayName("회원/비회원 주문 생성에 성공한다")
+    void createOrder_guest_succeeds() {
+
+        // 포장지 생성
+        Wrapping wrap1 = new Wrapping();
+        wrap1.setId(1L);
+
+        // 주문 요청 생성
+        List<OrderItemRequest> items = List.of(new OrderItemRequest(1L, 1, 1L));
+        OrderRequest orderRequest = new OrderRequest("받는사람", "광주광역시", "010-1111-2222", LocalDate.now().plusDays(1), items);
+
+        // 회원/비회원 주문 생성
+        Long memberId = 1L;
+        Long guestId = null;
+
+        // 도서 도메인으로부터의 응답
+        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1)));
+
+        given(orderRepository.save(any(Order.class))).willReturn(null);
+        given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+        given(wrappingRepository.findAllById(anyList())).willReturn(List.of(wrap1));
+        given(wrappingRepository.saveAll(any())).willReturn(List.of(wrap1));
+        given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getBody().getFirst(), 1)));
+
+        // when
+        orderService.createOrder(orderRequest, memberId);
+        orderService.createOrder(orderRequest, guestId);
+
+        then(orderRepository).should(times(2)).save(any(Order.class));
+        then(bookServiceClient).should(times(2)).getBookOrderResponse(anyList());
+        then(wrappingRepository).should(times(2)).findAllById(anyList());
+        then(wrappingRepository).should(times(2)).saveAll(any());
+        then(orderItemRepository).should(times(2)).saveAll(anyList());
+    }
 //
 //    @Test
 //    void createOrder_invalidWrapping_throwsBadRequest() {
@@ -255,4 +273,5 @@
 //
 //        assertThat(testOrder.getStatus()).isEqualTo(OrderStatus.COMPLETED);
 //    }
-//}
+//    }
+}

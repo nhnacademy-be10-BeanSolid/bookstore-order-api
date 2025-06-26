@@ -1,10 +1,11 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderItemDto;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
 import jakarta.persistence.*;
 import lombok.*;
+
 @Entity
-@Table(name = "order_item")
+@Table(name = "order_items")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -13,42 +14,31 @@ public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_item_id")
-    private Long orderItemId;
-
-    @Column(name = "order_id", insertable = false, updatable = false)
-    private Long orderId;
+    private Long id;
 
     @Column(name = "book_id")
     private Long bookId;
 
     @Column(name = "unit_price")
-    private int unitPrice;
+    private int unitPrice; //
 
     @Column(name = "quantity")
     private int quantity;
 
-    @Column(name = "is_gift_wrapped")
-    private Boolean isGiftWrapped;
-
-    @Column(name = "wrapping_id", insertable = false, updatable = false)
-    private Long wrappingId;
-
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "order_id")
     private Order order;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "wrapping_id")
     private Wrapping wrapping;
 
-    public static OrderItem createFrom(OrderItemDto dto, Wrapping wrap, int unitPrice) {
+    public static OrderItem of(BookOrderResponse book, int quantity) {
 
         return OrderItem.builder()
-                .bookId(dto.getBookId())
-                .quantity(dto.getQuantity())
-                .isGiftWrapped(dto.getGiftWrapped())
-                .unitPrice(unitPrice)
-                .wrapping(wrap)
+                .bookId(book.id())
+                .unitPrice(book.unitPrice())
+                .quantity(quantity)
                 .build();
     }
 }
