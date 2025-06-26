@@ -44,11 +44,11 @@ public class OrderServiceImpl implements OrderService {
     public void createOrder(OrderRequest orderRequest, Long userId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
 
         Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
-        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.getItems().size(), userId);
+        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userId);
 
         Order order = Order.of(orderRequest, userId);
 
-        List<OrderItemRequest> itemRequests = orderRequest.getItems();
+        List<OrderItemRequest> itemRequests = orderRequest.items();
         Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
         Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
 
@@ -104,11 +104,11 @@ public class OrderServiceImpl implements OrderService {
     {
         List<OrderItem> items = new ArrayList<>();
         for (OrderItemRequest req : itemRequests) {
-            BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.getBookId()),
-                    "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getBookId());
-            Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.getWrappingId()),
-                    "wrapping을 찾을 수 없습니다. 찾을 수 없는 id: " + req.getWrappingId());
-            OrderItem item = OrderItem.of(book, req.getQuantity());
+            BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.bookId()),
+                    "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.bookId());
+            Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.wrappingId()),
+                    "wrapping을 찾을 수 없습니다. 찾을 수 없는 id: " + req.wrappingId());
+            OrderItem item = OrderItem.of(book, req.quantity());
 
             order.addItem(item);
             wrapping.addItem(item);
@@ -125,7 +125,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
 
-        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getWrappingId).toList();
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::wrappingId).toList();
         List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
         if (wrappings.size() != new HashSet<>(ids).size())
             throw new WrappingNotFoundException("wrapping의 개수가 일치하지 않습니다: " + ids);
@@ -135,7 +135,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
 
-        List<Long> ids = itemRequests.stream().map(OrderItemRequest::getBookId).toList();
+        List<Long> ids = itemRequests.stream().map(OrderItemRequest::bookId).toList();
         List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
         if (books == null || books.isEmpty())
             throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);

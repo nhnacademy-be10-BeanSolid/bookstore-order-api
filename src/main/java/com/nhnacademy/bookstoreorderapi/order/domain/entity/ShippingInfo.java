@@ -15,14 +15,14 @@ public record ShippingInfo(
 ) {
     public static ShippingInfo of(OrderRequest req, int deliveryFee) {
 
-        LocalDate requestedDeliveryDate = req.getRequestedDeliveryDate() != null
-                ? req.getRequestedDeliveryDate()
+        LocalDate requestedDeliveryDate = req.requestedDeliveryDate() != null
+                ? req.requestedDeliveryDate()
                 : LocalDate.now().plusDays(1);
 
         return new ShippingInfo(requestedDeliveryDate,
-                req.getAddress(),
-                req.getReceiverName(),
-                req.getReceiverPhoneNumber(),
+                req.address(),
+                req.receiverName(),
+                req.receiverPhoneNumber(),
                 deliveryFee);
     }
 }
