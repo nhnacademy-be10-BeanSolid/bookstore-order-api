@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderIdGenerator;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,50 +10,37 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+//TODO 주문: 주문인!=받을사람 인 경우가 있을 수 있으니 '수령인' 고려해서 리팩토링 하기.
 @Entity
 @Table(name = "orders")
 @Getter @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 public class Order {
-    public static final int DEFAULT_DELIVERY_FEE = 5000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long id; // 내부 PK
 
-    @Column(name = "order_id", length = 64, nullable = false, unique = true)
-    private String orderId;
+    private String orderId; // 식별 가능한 주문 번호
 
-    @Column(name = "user_id")
-    private String userId;
+    private Long userId; //TODO 회원: 회원 도메인 API로 xUserId -> userId 변환 예정.
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    @Column(name = "order_date", columnDefinition = "DATE")
-    private LocalDate orderDate;
+    @Column(name = "order_date"/*, columnDefinition = "DATE"*/) // 테스트 환경(h2 database)에서 "DATE"를 인식하지 못해서 임시 조치
+    private LocalDate orderDate; // 주문한 날
 
-    @Column(name = "requested_delivery_date", columnDefinition = "DATE")
-    private LocalDate requestedDeliveryDate; // 배송 요청일
-
-    @Column(name = "created_at")
     private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
 
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
-    @Column(name = "total_price")
     private int totalPrice; // 총 상품 금액
 
-    @Column(name = "delivery_fee")
-    private int deliveryFee; // 배송비
-
-    @Column(name = "guest_id")
-    private Long guestId;
-
-    @Column(name = "order_address")
-    private String orderAddress; //회원: 장소테이블에서 참조
+    @Embedded
+    private ShippingInfo shippingInfo; // 배송 관련 정보
 
     @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -64,21 +51,16 @@ public class Order {
         this.items.add(item);
     }
 
-    public static Order createFrom(OrderRequestDto req) {
+    public static Order of(OrderRequest req, Long userId) {
 
-        LocalDate requestDeliveryDate = req.getRequestedDeliveryDate() != null
-                ? req.getRequestedDeliveryDate()
-                : LocalDate.now();
+        ShippingInfo shippingInfo = ShippingInfo.of(req, 0);
 
         return Order.builder()
-                .userId(req.getUserId())
-                .status(OrderStatus.PENDING)
+                .userId(userId)
                 .orderDate(LocalDate.now())
-                .requestedDeliveryDate(requestDeliveryDate)
                 .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .totalPrice(0)
-                .deliveryFee(DEFAULT_DELIVERY_FEE)
+                .updatedAt(LocalDateTime.now()) //TODO 주문: Auditing 기능 사용해서 구현하기
+                .shippingInfo(shippingInfo)
                 .build();
     }
 

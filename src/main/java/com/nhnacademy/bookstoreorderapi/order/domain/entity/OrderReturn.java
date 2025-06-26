@@ -25,7 +25,8 @@ public class OrderReturn {
     @JoinColumn(name = "order_id", nullable = false)
     private Order order;
 
-    @Column(name = "reason", columnDefinition = "TEXT", nullable = false)
+//    @Column(name = "reason", columnDefinition = "TEXT", nullable = false)
+    @Lob // 테스트 환경(h2 database)에서 "TEXT"라는 타입이 없기 때문에 임시로 설정해줌.
     private String reason;
 
     @Column(name = "requested_at", nullable = false)

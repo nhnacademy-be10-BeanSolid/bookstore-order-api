@@ -1,11 +1,13 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
-@Table(name = "wrapping")
+@Table(name = "wrappings")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -15,15 +17,24 @@ public class Wrapping {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "wrapping_id")
-    private Long wrappingId;
+    private Long id;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    // 반드시 price 필드명을 사용해야 getPrice() 가 자동 생성됩니다.
     @Column(name = "price", nullable = false)
     private Integer price;
 
     @Column(name = "is_active", nullable = false)
     private Boolean isActive;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "wrapping")
+    private List<OrderItem> items = new ArrayList<>();
+
+    public void addItem(OrderItem item) {
+        items.add(item);
+        item.setWrapping(this);
+    }
+
 }

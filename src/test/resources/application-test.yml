@@ -1,0 +1,32 @@
+spring:
+  config:
+    activate:
+      on-profile: test  # application-test.yml을 'test' 프로필에서만 활성화
+
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false;MODE=MySQL
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop       # 테스트 종료 시 스키마를 드롭
+    show-sql: true                # SQL 출력
+    properties:
+      hibernate:
+        format_sql: true          # 보기 좋은 형태로 포맷
+        auto_quote_keyword: true  # 예약어를 인식하여 자동으로 인용 부호 추가
+        highlight_sql: true       # Hibernate에서 SQL 로깅을 할 때 SQL 문을 강조(색상 추가)
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  h2:
+    console:
+      enabled: true               # 웹 콘솔 활성화
+      path: /h2-console
+
+logging:
+  level:
+    com.nhnacademy.bookstoreorderapi.order: debug
+    org.springframework: info
+    org.hibernate: info

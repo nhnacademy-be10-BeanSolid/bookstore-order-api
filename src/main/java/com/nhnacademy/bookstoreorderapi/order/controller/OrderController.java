@@ -1,9 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,15 +18,20 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
-    @GetMapping
-    public List<OrderResponseDto> listMyOrders(@RequestParam String userId) {
-        return orderService.listByUser(userId);
+    // 주문 생성(회원, 비회원 둘 다 가능)
+    //TODO 주문: @ControllerAdvice로 값검증 400에러로 전역 처리하기.
+    @PostMapping
+    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-User-Id") String xUserId){
+        //TODO 회원: 회원 도메인 API 받아오면 코드 고치기.
+        Long userId = Long.parseLong(xUserId);
+        orderService.createOrder(orderRequest, userId);
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
-    @PostMapping//수정 - 각 API가 자신의 구체적인 DTO만 책임지도록!
-    public OrderResponseDto createOrder(@Valid @RequestBody OrderRequestDto req) {
-        validateOrderType(req);
-        return orderService.createOrder(req);
+    // 회원 주문 전체 조회
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> getAllByUserId(@RequestHeader("X-User-Id") String xUserId) {
+        return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId));
     }
 
     @PatchMapping("/{orderId}/status")
@@ -59,17 +67,5 @@ public class OrderController {
 
         int returnsAmount = orderService.requestReturn(orderId, dto);
         return ResponseEntity.ok(returnsAmount);
-    }
-
-    private void validateOrderType(OrderRequestDto req) {
-        switch (req.getOrderType().toLowerCase()) {
-            case "guest" -> {
-                if (req.getGuestId() == null) throw new IllegalArgumentException("guestId 필요");
-            }
-            case "member" -> {
-                if (req.getUserId() == null) throw new IllegalArgumentException("userId 필요");
-            }
-            default -> throw new IllegalArgumentException("orderType 은 member | guest 만 허용");
-        }
     }
 }
