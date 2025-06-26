@@ -23,7 +23,6 @@ class OrderRepositoryTest {
     void saveAndFindById() {
 
         Order order = Order.builder()
-                .orderId("testNumber")
                 .totalPrice(10_000)
                 .build();
 
@@ -31,7 +30,8 @@ class OrderRepositoryTest {
         Optional<Order> found = orderRepository.findById(saved.getId());
 
         assertThat(found).isPresent();
-        assertThat(found.get().getOrderId()).isEqualTo("testNumber");
+        assertThat(found.get().getId()).isEqualTo(1L);
+        assertThat(found.get().getOrderId()).containsPattern("^[0-9]{6}-[A-Za-z0-9]{6}-[A-Za-z0-9]{6}$");
         assertThat(found.get().getTotalPrice()).isEqualTo(10_000);
     }
 }

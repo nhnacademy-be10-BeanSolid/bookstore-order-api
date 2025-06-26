@@ -112,11 +112,11 @@ class OrderServiceImplTest {
 
         // 주문 요청 생성
         List<OrderItemRequest> items = List.of(new OrderItemRequest(1L, 1, 1L));
-        OrderRequest orderRequest = new OrderRequest("광주광역시", LocalDate.now().plusDays(1), items);
+        OrderRequest orderRequest = new OrderRequest("받는사람", "광주광역시", "010-1111-2222", LocalDate.now().plusDays(1), items);
 
         // 회원/비회원 주문 생성
-        String memberId = "x-user-id";
-        String guestId = null;
+        Long memberId = 1L;
+        Long guestId = null;
 
         // 도서 도메인으로부터의 응답
         ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1)));

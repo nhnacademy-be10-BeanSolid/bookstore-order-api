@@ -14,8 +14,14 @@ import java.util.List;
 @Builder
 public class OrderRequest {
 
+    @NotBlank
+    private String receiverName;
+
     @NotBlank(message = "배송지는 빈 문자열 혹은 공백이면 안됩니다")
     private String address;
+
+    @NotBlank
+    private String receiverPhoneNumber;
 
     @Future(message = "배송 요청일은 내일 이후여야 합니다.")
     private LocalDate requestedDeliveryDate;

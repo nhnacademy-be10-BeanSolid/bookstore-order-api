@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderResponseDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.WrappingService;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ public class WrappingServiceImpl implements WrappingService {
     private final WrappingRepository wrappingRepository;
 
     @Override
-    public List<OrderResponseDto> listByUser(String userId) {
+    public List<OrderResponse> listByUser(String userId) {
         return List.of();
     }
 

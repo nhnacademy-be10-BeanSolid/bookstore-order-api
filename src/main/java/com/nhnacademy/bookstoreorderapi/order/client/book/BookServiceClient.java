@@ -13,9 +13,11 @@ import java.util.List;
 @FeignClient(name = "BOOK-API")
 public interface BookServiceClient {
 
-    //TODO 99: Book 도메인과 통신하기(책 여러 권 주문 요청에 대한 검증 목적) - ex: (GET /books/ids?ids=...)
+    //TODO 도서: Book 도메인과 통신하기(책 여러 권 주문 요청에 대한 검증 목적) - ex: (GET /books/ids?ids=...)
     @GetMapping("/books/ids")
     ResponseEntity<List<BookOrderResponse>> getBookOrderResponse(@RequestParam("ids") List<Long> ids);
+
+    //TODO 도서: 재고 차감 API 들어갈 예정.
 
 //    @GetMapping("/books")
 //    ResponseEntity<BookOrderListResponse> getBookOrderList(BookIdListRequest bookIdListRequest);

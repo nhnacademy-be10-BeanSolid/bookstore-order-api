@@ -7,6 +7,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +41,7 @@ public class OrderServiceImpl implements OrderService {
     // 주문 생성
     @Override
     @Transactional
-    public void createOrder(OrderRequest orderRequest, String userId) {
+    public void createOrder(OrderRequest orderRequest, Long userId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
 
         Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
         log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.getItems().size(), userId);
@@ -55,17 +56,37 @@ public class OrderServiceImpl implements OrderService {
 
         int totalPrice = calculateTotal(items);
         order.setTotalPrice(totalPrice);
-        order.setDeliveryFee(determineFee(totalPrice, userId));
+        ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userId));
+        order.setShippingInfo(shippingInfo);
 
         orderRepository.save(order);
-        log.info("주문 완료: orderId={}, userId={}, totalPrice={}, deliveryFee={}",
+        log.info("주문 완료: id={}, orderId={}, userId={}, totalPrice={}, deliveryFee={}, address={}",
                 order.getId(),
+                order.getOrderId(),
                 userId,
                 order.getTotalPrice(),
-                order.getDeliveryFee());
+                shippingInfo.deliveryFee(),
+                shippingInfo.address());
     }
 
-    private int determineFee(int totalPrice, String userId) {
+    // 회원 주문 전체 조회
+    @Override
+    public List<OrderResponse> findAllByUserId(String xUserId) {
+
+        //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
+        Long userId = Long.parseLong(xUserId); // 임시
+
+        List<Order> orders = orderRepository.findAllByUserId(userId);
+        if (orders.isEmpty()) {
+            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
+        }
+
+        return orders.stream()
+                .map(OrderResponse::createFrom)
+                .toList();
+    }
+
+    private int determineFee(int totalPrice, Long userId) {
         final int THRESHOLD = 30_000;
         final int FEE = 5_000;
 
@@ -94,7 +115,7 @@ public class OrderServiceImpl implements OrderService {
             items.add(item);
         }
 
-        //TODO 99: 영속성 전파(cascade)가 설정이 되어 있다면 saveAll을 생략할 수 있다고 함. 되어 있다면 지우기.
+        //TODO 주문: 영속성 전파(cascade)가 설정이 되어 있다면 saveAll을 생략할 수 있다고 함. 되어 있다면 지우기.
         wrappingRepository.saveAll(wrappingMap.values());
         orderItemRepository.saveAll(items);
         log.debug("wrapping & orderItem 저장 완료, item's size={}", items.size());
@@ -120,20 +141,6 @@ public class OrderServiceImpl implements OrderService {
             throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
         log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
         return books.stream().collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
-    }
-
-    // 주문 조회
-    @Override
-    public List<OrderResponseDto> listByUser(String userId) {
-
-        List<Order> orders = orderRepository.findByUserId(userId);
-        if (orders.isEmpty()) {
-            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
-        }
-
-        return orders.stream()
-                .map(OrderResponseDto::createFrom)
-                .toList();
     }
 
     /*───────────────────────────────────────────────────────

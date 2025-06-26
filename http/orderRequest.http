@@ -1,0 +1,28 @@
+### GET request to example server
+GET https://examples.http-client.intellij.net/get
+    ?generated-in=IntelliJ IDEA
+
+###
+
+### 주문 생성하기
+POST localhost:10350/orders HTTP/1.1
+Accept: application/json
+Content-Type: application/json
+X-User-Id: testUser
+
+{
+    "address": "광주광역시",
+    "requestedDeliveryDate": "2025-12-31",
+    "items": [
+      {
+        "bookId": 1,
+        "quantity": 1,
+        "wrappingId": 1
+      },
+      {
+        "bookId": 2,
+        "quantity": 1,
+        "wrappingId": 1
+      }
+    ]
+}

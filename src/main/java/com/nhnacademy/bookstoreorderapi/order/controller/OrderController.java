@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,16 +18,20 @@ import java.util.List;
 public class OrderController {
     private final OrderService orderService;
 
-    @GetMapping
-    public List<OrderResponseDto> listMyOrders(@RequestParam String userId) {
-        return orderService.listByUser(userId);
-    }
-
-    //TODO 99: @ControllerAdvice로 값검증 400에러로 전역 처리하기.
+    // 주문 생성(회원, 비회원 둘 다 가능)
+    //TODO 주문: @ControllerAdvice로 값검증 400에러로 전역 처리하기.
     @PostMapping
-    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-User-Id") String userId){
+    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-User-Id") String xUserId){
+        //TODO 회원: 회원 도메인 API 받아오면 코드 고치기.
+        Long userId = Long.parseLong(xUserId);
         orderService.createOrder(orderRequest, userId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
+
+    // 회원 주문 전체 조회
+    @GetMapping
+    public ResponseEntity<List<OrderResponse>> getAllByUserId(@RequestHeader("X-User-Id") String xUserId) {
+        return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId));
     }
 
     @PatchMapping("/{orderId}/status")
