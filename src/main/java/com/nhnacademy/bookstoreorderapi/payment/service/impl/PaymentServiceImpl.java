@@ -20,6 +20,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -81,8 +82,10 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
 
         /* 1) 주문 존재 확인 */
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+        if(!orderRepo.existsByOrderId(orderId)){
+            throw new IllegalArgumentException("주문 없음:" + orderId);
+        }
+//                .(() -> new IllegalArgumentException("주문 없음: " + orderId)); //
 
         /* 2) 이미 결제 완료 여부 체크 */
         payRepo.findByOrderId(orderId)
