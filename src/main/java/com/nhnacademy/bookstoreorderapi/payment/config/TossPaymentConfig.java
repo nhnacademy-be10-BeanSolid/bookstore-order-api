@@ -11,13 +11,13 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class TossPaymentConfig {
 
-    /* ---- 필드 ---- */
+    //- 필드
     private String secretApiKey;
     private String clientApiKey;
     private String successUrl;
     private String failUrl;
 
-    /* ---- PaymentServiceImpl 이 사용하게 될 메서드 ---- */
+    //PaymentServiceImpl 이 사용하게 될 메서드
     public String getSecretKey() {
         return secretApiKey;
     }

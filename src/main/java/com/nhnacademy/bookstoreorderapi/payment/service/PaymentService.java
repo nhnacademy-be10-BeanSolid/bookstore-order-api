@@ -1,4 +1,3 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/payment/service/PaymentService.java
 package com.nhnacademy.bookstoreorderapi.payment.service;
 
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;

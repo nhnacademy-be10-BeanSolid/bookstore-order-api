@@ -1,7 +1,8 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/payment/domain/entity/Payment.java
 package com.nhnacademy.bookstoreorderapi.payment.domain.entity;
 
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
+import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -20,8 +21,9 @@ public class Payment {
     private Long paymentId;
 
     //FK: 주문 번호
-    @Column(name = "order_id", nullable = false, length = 20)
-    private String orderId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
+    private Order order;
 
     // 결제 수단
     @Enumerated(EnumType.STRING)
@@ -38,8 +40,9 @@ public class Payment {
     private String payName;
 
     //결제 상태
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_status", length = 20)
-    private String paymentStatus;
+    private PaymentStatus paymentStatus;
 
 
     //Toss 결제 키
