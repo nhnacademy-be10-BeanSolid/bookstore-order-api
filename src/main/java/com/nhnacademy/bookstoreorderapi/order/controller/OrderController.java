@@ -3,6 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ import java.util.List;
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 public class OrderController {
+
     private final OrderService orderService;
 
     // 주문 생성(회원, 비회원 둘 다 가능)
@@ -30,7 +32,7 @@ public class OrderController {
 
     // 회원 주문 전체 조회
     @GetMapping
-    public ResponseEntity<List<OrderResponse>> getAllByUserId(@RequestHeader("X-User-Id") String xUserId) {
+    public ResponseEntity<List<OrderSummaryResponse>> getAllByUserId(@RequestHeader("X-User-Id") String xUserId) {
         return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId));
     }
 

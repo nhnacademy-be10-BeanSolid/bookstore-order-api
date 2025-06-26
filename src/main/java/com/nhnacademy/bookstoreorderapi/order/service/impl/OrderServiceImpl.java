@@ -8,6 +8,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,7 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderItem> items = buildOrderItems(order, itemRequests, bookMap, wrappingMap);
 
-        int totalPrice = calculateTotal(items);
+        long totalPrice = calculateTotal(items);
         order.setTotalPrice(totalPrice);
         ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userId));
         order.setShippingInfo(shippingInfo);
@@ -71,7 +72,8 @@ public class OrderServiceImpl implements OrderService {
 
     // 회원 주문 전체 조회
     @Override
-    public List<OrderResponse> findAllByUserId(String xUserId) {
+    @Transactional
+    public List<OrderSummaryResponse> findAllByUserId(String xUserId) {
 
         //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
         Long userId = Long.parseLong(xUserId); // 임시
@@ -81,20 +83,31 @@ public class OrderServiceImpl implements OrderService {
             throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
         }
 
-        return orders.stream()
-                .map(OrderResponse::createFrom)
-                .toList();
+        return getOrderSummaryResponses(orders);
     }
 
-    private int determineFee(int totalPrice, Long userId) {
+    private List<OrderSummaryResponse> getOrderSummaryResponses(List<Order> orders) {
+
+        List<OrderSummaryResponse> orderList = new ArrayList<>();
+        for (Order o : orders) {
+            Long bookId = o.getItems().getFirst().getBookId();
+            String bookTitle = bookServiceClient.getBookOrderResponse(List.of(bookId)).getBody().getFirst().title();
+
+            OrderSummaryResponse orderSummaryResponse = OrderSummaryResponse.of(o, bookTitle);
+            orderList.add(orderSummaryResponse);
+        }
+        return orderList;
+    }
+
+    private int determineFee(long totalPrice, Long userId) {
         final int THRESHOLD = 30_000;
         final int FEE = 5_000;
 
         return totalPrice >= THRESHOLD && Objects.nonNull(userId) ? 0 : FEE;
     }
 
-    private int calculateTotal(List<OrderItem> items) {
-        return items.stream().mapToInt(i -> i.getUnitPrice() * i.getQuantity()).sum();
+    private long calculateTotal(List<OrderItem> items) {
+        return items.stream().mapToLong(i -> (long) i.getUnitPrice() * i.getQuantity()).sum();
     }
 
     private List<OrderItem> buildOrderItems(Order order,
@@ -250,7 +263,7 @@ public class OrderServiceImpl implements OrderService {
         OrderReturn orderReturn = OrderReturn.createFrom(order, dto);
         returnRepository.save(orderReturn);
 
-        return order.getTotalPrice() - OrderReturn.RETURNS_FEE;
+        return (int) (order.getTotalPrice() - OrderReturn.RETURNS_FEE);
     }
 
     /*───────────────────────────────────────────────────────

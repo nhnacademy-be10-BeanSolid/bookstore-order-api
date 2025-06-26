@@ -13,9 +13,9 @@ import lombok.*;
 public class OrderResponse {
 
     private Long orderId;       // 주문 ID
-    private int totalPrice;    // 상품 총액
+    private long totalPrice;    // 상품 총액
     private int deliveryFee;   // 배송비
-    private int finalPrice;    // 결제 금액
+    private long finalPrice;    // 결제 금액
     private String message;       // 인포 메시지
     private OrderStatus orderStatus;   // 현재 상태
 
@@ -27,7 +27,7 @@ public class OrderResponse {
                 : String.format("비회원(guestId=%d)", order./*getGuestId()*/getUserId());
 
         // ② 결제 금액 계산(필요 시 엔티티에 getFinalPrice()가 있으면 그대로 사용)
-        int finalPrice = order.getTotalPrice() + order.getShippingInfo().deliveryFee();
+        long finalPrice = order.getTotalPrice() + order.getShippingInfo().deliveryFee();
 
         // ③ 안내 메시지
         String msg = String.format("[%s] 주문 생성 / 총액 %d원 + 배송비 %d원 → 결제 %d원",

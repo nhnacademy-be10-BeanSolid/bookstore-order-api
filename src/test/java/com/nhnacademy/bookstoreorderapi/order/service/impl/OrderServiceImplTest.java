@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
@@ -22,6 +23,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 //import static org.mockito.Mockito.*;
@@ -104,7 +106,7 @@ class OrderServiceImplTest {
 //
     @Test
     @DisplayName("회원/비회원 주문 생성에 성공한다")
-    void createOrder_guest_succeeds() {
+    void createOrder_success() {
 
         // 포장지 생성
         Wrapping wrap1 = new Wrapping();
@@ -119,7 +121,7 @@ class OrderServiceImplTest {
         Long guestId = null;
 
         // 도서 도메인으로부터의 응답
-        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1)));
+        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1, "title")));
 
         given(orderRepository.save(any(Order.class))).willReturn(null);
         given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
@@ -136,6 +138,34 @@ class OrderServiceImplTest {
         then(wrappingRepository).should(times(2)).findAllById(anyList());
         then(wrappingRepository).should(times(2)).saveAll(any());
         then(orderItemRepository).should(times(2)).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("회원 주문 전체 조회에 성공한다")
+    void findAllByUserId_success() {
+
+        //TODO 회원: xUserId -> userId API 사용해서 변환하기
+        String xUserId = "1"; // 임시
+        Long userId = Long.parseLong(xUserId);
+
+        BookOrderResponse book = new BookOrderResponse(1L, 1_000, 100, "title1");
+        List<OrderItem> items = List.of(OrderItem.of(book, 1));
+
+        ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
+
+        Order order1 = Order.builder().userId(userId).items(items).shippingInfo(shippingInfo).build();
+        Order order2 = Order.builder().userId(userId).items(items).shippingInfo(shippingInfo).build();
+
+        List<Order> orders = new ArrayList<>(List.of(order1, order2));
+        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(book, book));
+
+        given(orderRepository.findAllByUserId(anyLong())).willReturn(orders);
+        given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+
+        orderService.findAllByUserId(xUserId);
+
+        then(orderRepository).should(times(1)).findAllByUserId(userId);
+        then(bookServiceClient).should(times(2)).getBookOrderResponse(List.of(1L));
     }
 //
 //    @Test

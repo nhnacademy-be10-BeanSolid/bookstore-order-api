@@ -37,7 +37,7 @@ public class Order {
 
     private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
 
-    private int totalPrice; // 총 상품 금액
+    private Long totalPrice; // 총 상품 금액
 
     @Embedded
     private ShippingInfo shippingInfo; // 배송 관련 정보

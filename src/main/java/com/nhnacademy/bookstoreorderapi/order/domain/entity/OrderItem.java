@@ -7,7 +7,7 @@ import lombok.*;
 @Entity
 @Table(name = "order_items")
 @Getter @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 public class OrderItem {
@@ -20,7 +20,7 @@ public class OrderItem {
     private Long bookId;
 
     @Column(name = "unit_price")
-    private int unitPrice; //
+    private int unitPrice;
 
     @Column(name = "quantity")
     private int quantity;
