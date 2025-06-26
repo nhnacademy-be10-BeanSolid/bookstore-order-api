@@ -8,37 +8,51 @@ import lombok.*;
 @Entity
 @Table(name = "payment")
 @Getter @Setter
-@NoArgsConstructor @AllArgsConstructor @Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Payment {
 
-    /* PK */
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    //pk
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "payment_id")
     private Long paymentId;
 
-    /* 총 결제 금액 (Long) */
-    @Column(nullable = false)
-    private Long payAmount;
-
-    /* 결제 수단 (CARD, ACCOUNT …) */
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private PayType payType;
-
-    /* “도서 4권” 등 */
-    @Column(nullable = false, length = 100)
-    private String payName;
-
-    /* ───── FK: 주문 번호 (varchar 64) ───── */
-    @Column(name = "order_id", nullable = false,  unique = true,length = 64)
+    //FK: 주문 번호
+    @Column(name = "order_id", nullable = false, length = 20)
     private String orderId;
 
-    /* 결제 성공 여부 및 부가정보 */
-    @Column(name = "pay_success_yn")
-    private Boolean paySuccessYn;
+    // 결제 수단
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pay_type", nullable = false, length = 50)
+    private PayType payType;
 
-    @Column(length = 255)
+    //결제 금액
+    @Column(name = "pay_amount", nullable = false)
+    private long payAmount;
+
+
+    //주문 결제 제목  */
+    @Column(name = "pay_name", nullable = false, length = 50)
+    private String payName;
+
+    //결제 상태
+    @Column(name = "payment_status", length = 20)
+    private String paymentStatus;
+
+
+    //Toss 결제 키
+    @Column(name = "payment_key", nullable = false, length = 200)
     private String paymentKey;
 
-    @Column(length = 255)
-    private String payFailReason;
+
+
+    // 기본값 “도서 구매” 자동 입력
+    @PrePersist
+    private void setDefaultPayName() {
+        if (this.payName == null || this.payName.isBlank()) {
+            this.payName = "도서 구매";
+        }
+    }
 }

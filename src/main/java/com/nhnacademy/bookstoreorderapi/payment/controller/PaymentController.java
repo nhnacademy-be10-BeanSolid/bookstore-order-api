@@ -1,4 +1,3 @@
-// PaymentController.java
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
