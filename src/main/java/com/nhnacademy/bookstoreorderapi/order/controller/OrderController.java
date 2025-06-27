@@ -23,17 +23,21 @@ public class OrderController {
     // 주문 생성(회원, 비회원 둘 다 가능)
     //TODO 주문: @ControllerAdvice로 값검증 400에러로 전역 처리하기.
     @PostMapping
-    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-User-Id") String xUserId){
-        //TODO 회원: 회원 도메인 API 받아오면 코드 고치기.
-        Long userId = Long.parseLong(xUserId);
-        orderService.createOrder(orderRequest, userId);
+    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-USER-ID") String xUserId){
+        orderService.createOrder(orderRequest, xUserId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     // 회원 주문 전체 조회
     @GetMapping
-    public ResponseEntity<List<OrderSummaryResponse>> getAllByUserId(@RequestHeader("X-User-Id") String xUserId) {
+    public ResponseEntity<List<OrderSummaryResponse>> getAllOrdersByUserId(@RequestHeader("X-USER-ID") String xUserId) {
         return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId));
+    }
+
+    // 회원 주문 상세 조회
+    @GetMapping("/{orderId}")
+    public ResponseEntity<OrderResponse> getOrder(@RequestHeader("X-USER-ID") String xUserId, @PathVariable String orderId) {
+        return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
     }
 
     @PatchMapping("/{orderId}/status")

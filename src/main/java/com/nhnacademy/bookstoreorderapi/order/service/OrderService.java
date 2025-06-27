@@ -9,8 +9,9 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import java.util.List;
 
 public interface OrderService {
-    void createOrder(OrderRequest orderRequest, Long userId);
+    void createOrder(OrderRequest orderRequest, String xUserId);
     List<OrderSummaryResponse> findAllByUserId(String xUserId);
+    OrderResponse findByOrderId(String orderId, String xUserId);
     void cancelOrder(Long orderId, String reason);
     StatusChangeResponseDto changeStatus(Long orderId,
                                          OrderStatus newStatus,
@@ -18,4 +19,5 @@ public interface OrderService {
                                          String memo);
     int requestReturn(Long orderId, ReturnRequestDto req);
     List<OrderStatusLogDto> getStatusLog(Long orderId);
+
 }

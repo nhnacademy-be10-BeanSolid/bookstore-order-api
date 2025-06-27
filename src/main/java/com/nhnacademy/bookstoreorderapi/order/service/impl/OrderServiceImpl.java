@@ -42,7 +42,10 @@ public class OrderServiceImpl implements OrderService {
     // 주문 생성
     @Override
     @Transactional
-    public void createOrder(OrderRequest orderRequest, Long userId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
+    public void createOrder(OrderRequest orderRequest, String xUserId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
+
+        //TODO 회원: 회원 도메인 API 받아오면 코드 고치기.
+        Long userId = Long.parseLong(xUserId);
 
         Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
         log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userId);
@@ -84,6 +87,19 @@ public class OrderServiceImpl implements OrderService {
         }
 
         return getOrderSummaryResponses(orders);
+    }
+
+    // 회원 주문 상세 조회
+    @Override
+    public OrderResponse findByOrderId(String orderId, String xUserId) {
+
+        //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
+        Long userId = Long.parseLong(xUserId);
+
+        Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다. 주문번호: " + orderId));
+
+        return OrderResponse.from(order);
     }
 
     private List<OrderSummaryResponse> getOrderSummaryResponses(List<Order> orders) {
