@@ -8,6 +8,7 @@ GET https://examples.http-client.intellij.net/get
 POST http://s1.java21.net:10350/orders HTTP/1.1
 Accept: application/json
 Content-Type: application/json
+X-USER-ID: test
 
 {
     "receiverName": "홍길동",
