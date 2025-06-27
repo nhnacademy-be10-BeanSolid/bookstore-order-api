@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user.dto;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 
 import java.time.LocalDate;
@@ -17,6 +18,7 @@ public record UserOrderResponse(
     int userPoint,
     boolean isAuth,
     String userStatus,
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime lastLoginAt,
     String userGradeName
 ) {}
