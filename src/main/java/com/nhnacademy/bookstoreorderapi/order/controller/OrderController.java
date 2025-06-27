@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,7 +22,6 @@ public class OrderController {
     private final OrderService orderService;
 
     // 주문 생성(회원, 비회원 둘 다 가능)
-    //TODO 주문: @ControllerAdvice로 값검증 400에러로 전역 처리하기.
     @PostMapping
     public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-USER-ID") String xUserId){
         orderService.createOrder(orderRequest, xUserId);

@@ -37,7 +37,7 @@ public class OrderItem {
 
         return OrderItem.builder()
                 .bookId(book.id())
-                .unitPrice(book.unitPrice())
+                .unitPrice(book.salePrice())
                 .quantity(quantity)
                 .build();
     }

@@ -2,6 +2,8 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
@@ -13,6 +15,7 @@ import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,13 +31,16 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+
+    private final BookServiceClient bookServiceClient;
+    private final UserServiceClient userServiceClient;
+
     private final OrderRepository orderRepository;
     private final WrappingRepository wrappingRepository;
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
-    private final BookServiceClient bookServiceClient;
     private final OrderItemRepository orderItemRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
@@ -44,13 +50,13 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void createOrder(OrderRequest orderRequest, String xUserId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
 
-        //TODO 회원: 회원 도메인 API 받아오면 코드 고치기.
-        Long userId = Long.parseLong(xUserId);
+        // parameters validation
+        ResponseEntity<UserOrderResponse> userInfo = userServiceClient.getUserInfo(xUserId);
+        Long userNo = userInfo != null ? validFeignClientResponse(userInfo).userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
+        validParameters(orderRequest);
+        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userNo);
 
-        Objects.requireNonNull(orderRequest, "orderRequest는 null일 수 없습니다.");
-        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userId);
-
-        Order order = Order.of(orderRequest, userId);
+        Order order = Order.of(orderRequest, userNo);
 
         List<OrderItemRequest> itemRequests = orderRequest.items();
         Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
@@ -60,14 +66,14 @@ public class OrderServiceImpl implements OrderService {
 
         long totalPrice = calculateTotal(items);
         order.setTotalPrice(totalPrice);
-        ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userId));
+        ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userNo));
         order.setShippingInfo(shippingInfo);
 
         orderRepository.save(order);
-        log.info("주문 완료: id={}, orderId={}, userId={}, totalPrice={}, deliveryFee={}, address={}",
+        log.info("주문 완료: id={}, orderId={}, userNo={}, totalPrice={}, deliveryFee={}, address={}",
                 order.getId(),
                 order.getOrderId(),
-                userId,
+                userNo,
                 order.getTotalPrice(),
                 shippingInfo.deliveryFee(),
                 shippingInfo.address());
@@ -296,5 +302,31 @@ public class OrderServiceImpl implements OrderService {
         return statusLogRepository.findByOrderId(orderId).stream()
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
+    }
+
+
+    private <T> T validFeignClientResponse(ResponseEntity<T> resp) {
+
+        if (resp == null) {
+            return null;
+        } else if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
+            throw new RuntimeException();
+        }
+
+        return resp.getBody();
+    }
+
+    private void validParameters(Object... parameters) {
+
+        for (int i = 0; i < parameters.length; i++) {
+
+            Object param = parameters[i];
+            if (param == null) {
+                throw new IllegalArgumentException(String.format("parameter is null: index[%d]", i));
+            }
+            if (param instanceof String && ((String) param).isBlank()) {
+                throw new IllegalArgumentException(String.format("String parameter is blank: index[%d]", i));
+            }
+        }
     }
 }

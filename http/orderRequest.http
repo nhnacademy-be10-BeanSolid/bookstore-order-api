@@ -5,10 +5,10 @@ GET https://examples.http-client.intellij.net/get
 ###
 
 ### 주문 생성하기
-POST localhost:10350/orders HTTP/1.1
+POST https://s1.java21.net:10350/orders HTTP/1.1
 Accept: application/json
 Content-Type: application/json
-X-User-Id: testUser
+X-User-Id:
 
 {
     "address": "광주광역시",

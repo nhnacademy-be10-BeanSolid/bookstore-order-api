@@ -4,6 +4,8 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 //
 import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
@@ -13,7 +15,6 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,10 +26,10 @@ import org.springframework.http.ResponseEntity;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 //import static org.mockito.Mockito.*;
 import static org.mockito.BDDMockito.*;
-import static org.assertj.core.api.Assertions.*;
 
 //
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +39,8 @@ class OrderServiceImplTest {
     OrderRepository orderRepository;
     @Mock
     BookServiceClient bookServiceClient;
+    @Mock
+    UserServiceClient userServiceClient;
     @Mock
     WrappingRepository wrappingRepository;
     @Mock
@@ -117,17 +120,20 @@ class OrderServiceImplTest {
         OrderRequest orderRequest = new OrderRequest("받는사람", "광주광역시", "010-1111-2222", LocalDate.now().plusDays(1), items);
 
         // 회원/비회원 주문 생성
-        Long memberId = 1L;
-        Long guestId = null;
+        String memberId = "1";
+        String guestId = null;
+        UserOrderResponse member = UserOrderResponse.builder().userNo(1L).build();
 
         // 도서 도메인으로부터의 응답
-        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1, "title")));
+        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(BookOrderResponse.builder().id(1L).salePrice(10_000).stock(1).title("title").build()));
 
         given(orderRepository.save(any(Order.class))).willReturn(null);
         given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
         given(wrappingRepository.findAllById(anyList())).willReturn(List.of(wrap1));
         given(wrappingRepository.saveAll(any())).willReturn(List.of(wrap1));
         given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getBody().getFirst(), 1)));
+        given(userServiceClient.getUserInfo(memberId)).willReturn(ResponseEntity.ok(member));
+        given(userServiceClient.getUserInfo(guestId)).willReturn(null);
 
         // when
         orderService.createOrder(orderRequest, memberId);
@@ -148,7 +154,7 @@ class OrderServiceImplTest {
         String xUserId = "1"; // 임시
         Long userId = Long.parseLong(xUserId);
 
-        BookOrderResponse book = new BookOrderResponse(1L, 1_000, 100, "title1");
+        BookOrderResponse book = BookOrderResponse.builder().id(1L).salePrice(1_000).stock(100).title("title1").build();
         List<OrderItem> items = List.of(OrderItem.of(book, 1));
 
         ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
@@ -167,6 +173,23 @@ class OrderServiceImplTest {
         then(orderRepository).should(times(1)).findAllByUserId(userId);
         then(bookServiceClient).should(times(2)).getBookOrderResponse(List.of(1L));
     }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회에 성공한다")
+    void findByOrderIdAndUserId_success() {
+
+        String xUserId = "1";
+        Long userId = 1L;
+        ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
+        Order order = Order.builder().userId(userId).totalPrice(10_000L).shippingInfo(shippingInfo).build();
+
+        given(orderRepository.findByOrderIdAndUserId(anyString(), anyLong())).willReturn(Optional.ofNullable(order));
+
+        orderService.findByOrderId("orderId", xUserId);
+
+        then(orderRepository).should(times(1)).findByOrderIdAndUserId(anyString(), anyLong());
+    }
+
 //
 //    @Test
 //    void createOrder_invalidWrapping_throwsBadRequest() {
