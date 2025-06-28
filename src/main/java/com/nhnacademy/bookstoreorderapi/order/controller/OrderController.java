@@ -9,7 +9,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,7 +22,7 @@ public class OrderController {
 
     // 주문 생성(회원, 비회원 둘 다 가능)
     @PostMapping
-    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-USER-ID") String xUserId){
+    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-USER-ID") String xUserId) {
         orderService.createOrder(orderRequest, xUserId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }

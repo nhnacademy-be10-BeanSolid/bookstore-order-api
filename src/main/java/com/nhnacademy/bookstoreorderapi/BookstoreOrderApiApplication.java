@@ -11,6 +11,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @ConfigurationPropertiesScan
 @EnableFeignClients(basePackages = "com.nhnacademy.bookstoreorderapi.order.client")
 public class BookstoreOrderApiApplication {
+
     public static void main(String[] args) {
         SpringApplication.run(BookstoreOrderApiApplication.class, args);
     }
