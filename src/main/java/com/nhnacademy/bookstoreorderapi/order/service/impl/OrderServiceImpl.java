@@ -1,12 +1,14 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
-import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
@@ -15,7 +17,6 @@ import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,8 +33,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-    private final BookServiceClient bookServiceClient;
-    private final UserServiceClient userServiceClient;
+    private final BookOrderService bookOrderService;
+    private final UserOrderService userOrderService;
 
     private final OrderRepository orderRepository;
     private final WrappingRepository wrappingRepository;
@@ -49,10 +50,9 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public void createOrder(OrderRequest orderRequest, String xUserId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
-
         // parameters validation
-        ResponseEntity<UserOrderResponse> userInfo = userServiceClient.getUserInfo(xUserId);
-        Long userNo = userInfo != null ? validFeignClientResponse(userInfo).userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
+        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
+        Long userNo = userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
         validParameters(orderRequest);
         log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userNo);
 
@@ -83,11 +83,10 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public List<OrderSummaryResponse> findAllByUserId(String xUserId) {
+        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
+        Long userNo = userInfo != null ? userInfo.userNo() : null;
 
-        //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
-        Long userId = Long.parseLong(xUserId); // 임시
-
-        List<Order> orders = orderRepository.findAllByUserId(userId);
+        List<Order> orders = orderRepository.findAllByUserId(userNo);
         if (orders.isEmpty()) {
             throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
         }
@@ -113,7 +112,7 @@ public class OrderServiceImpl implements OrderService {
         List<OrderSummaryResponse> orderList = new ArrayList<>();
         for (Order o : orders) {
             Long bookId = o.getItems().getFirst().getBookId();
-            String bookTitle = bookServiceClient.getBookOrderResponse(List.of(bookId)).getBody().getFirst().title();
+            String bookTitle = bookOrderService.getBookOrderResponse(List.of(bookId)).getFirst().title();
 
             OrderSummaryResponse orderSummaryResponse = OrderSummaryResponse.of(o, bookTitle);
             orderList.add(orderSummaryResponse);
@@ -171,7 +170,8 @@ public class OrderServiceImpl implements OrderService {
     private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
 
         List<Long> ids = itemRequests.stream().map(OrderItemRequest::bookId).toList();
-        List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
+        List<BookOrderResponse> books = bookOrderService.getBookOrderResponse(ids);
+//        List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
         if (books == null || books.isEmpty())
             throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
         log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
@@ -304,22 +304,8 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toList());
     }
 
-
-    private <T> T validFeignClientResponse(ResponseEntity<T> resp) {
-
-        if (resp == null) {
-            return null;
-        } else if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-            throw new RuntimeException();
-        }
-
-        return resp.getBody();
-    }
-
     private void validParameters(Object... parameters) {
-
         for (int i = 0; i < parameters.length; i++) {
-
             Object param = parameters[i];
             if (param == null) {
                 throw new IllegalArgumentException(String.format("parameter is null: index[%d]", i));

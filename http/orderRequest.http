@@ -5,7 +5,7 @@ GET https://examples.http-client.intellij.net/get
 ###
 
 ### 주문 생성하기
-POST http://s1.java21.net:10350/orders HTTP/1.1
+POST s1.java21.net:10350/orders HTTP/1.1
 Accept: application/json
 Content-Type: application/json
 X-USER-ID: test

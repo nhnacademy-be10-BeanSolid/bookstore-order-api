@@ -17,6 +17,20 @@ spring:
         enabled: true
         service-id: config-server
       name: mysql           # config-server 에 올라간 yml 이름
+    openfeign:
+      circuitbreaker:
+        enabled: true       # Feign에 서킷 브레이커 적용 활성화
+      client:
+        config:
+          default:
+            connect-timeout: 3000
+            read-timeout: 3000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      bookService:
+      userService:          # 모두 기본값으로 설정.
 
 server:
   port: 10350

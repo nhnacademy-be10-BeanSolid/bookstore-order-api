@@ -2,10 +2,11 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 //import static org.assertj.core.api.Assertions.assertThatThrownBy;
 //
-import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
+
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
@@ -21,14 +22,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-//import static org.mockito.Mockito.*;
 import static org.mockito.BDDMockito.*;
 
 //
@@ -38,9 +37,9 @@ class OrderServiceImplTest {
     @Mock
     OrderRepository orderRepository;
     @Mock
-    BookServiceClient bookServiceClient;
+    BookOrderService bookOrderService;
     @Mock
-    UserServiceClient userServiceClient;
+    UserOrderService userOrderService;
     @Mock
     WrappingRepository wrappingRepository;
     @Mock
@@ -125,22 +124,22 @@ class OrderServiceImplTest {
         UserOrderResponse member = UserOrderResponse.builder().userNo(1L).build();
 
         // 도서 도메인으로부터의 응답
-        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(BookOrderResponse.builder().id(1L).salePrice(10_000).stock(1).title("title").build()));
+        List<BookOrderResponse> bookOrderResponses = List.of(BookOrderResponse.builder().id(1L).salePrice(10_000).stock(1).title("title").build());
 
         given(orderRepository.save(any(Order.class))).willReturn(null);
-        given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+        given(bookOrderService.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
         given(wrappingRepository.findAllById(anyList())).willReturn(List.of(wrap1));
         given(wrappingRepository.saveAll(any())).willReturn(List.of(wrap1));
-        given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getBody().getFirst(), 1)));
-        given(userServiceClient.getUserInfo(memberId)).willReturn(ResponseEntity.ok(member));
-        given(userServiceClient.getUserInfo(guestId)).willReturn(null);
+        given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getFirst(), 1)));
+        given(userOrderService.getUserInfo(memberId)).willReturn(member);
+        given(userOrderService.getUserInfo(guestId)).willReturn(null);
 
         // when
         orderService.createOrder(orderRequest, memberId);
         orderService.createOrder(orderRequest, guestId);
 
         then(orderRepository).should(times(2)).save(any(Order.class));
-        then(bookServiceClient).should(times(2)).getBookOrderResponse(anyList());
+        then(bookOrderService).should(times(2)).getBookOrderResponse(anyList());
         then(wrappingRepository).should(times(2)).findAllById(anyList());
         then(wrappingRepository).should(times(2)).saveAll(any());
         then(orderItemRepository).should(times(2)).saveAll(anyList());
@@ -149,6 +148,8 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("회원 주문 전체 조회에 성공한다")
     void findAllByUserId_success() {
+        UserOrderResponse user = UserOrderResponse.builder().userNo(1L).build();
+        given(userOrderService.getUserInfo(anyString())).willReturn(user);
 
         //TODO 회원: xUserId -> userId API 사용해서 변환하기
         String xUserId = "1"; // 임시
@@ -163,15 +164,15 @@ class OrderServiceImplTest {
         Order order2 = Order.builder().userId(userId).items(items).shippingInfo(shippingInfo).build();
 
         List<Order> orders = new ArrayList<>(List.of(order1, order2));
-        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(book, book));
+        List<BookOrderResponse> bookOrderResponses = List.of(book, book);
 
         given(orderRepository.findAllByUserId(anyLong())).willReturn(orders);
-        given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+        given(bookOrderService.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
 
         orderService.findAllByUserId(xUserId);
 
         then(orderRepository).should(times(1)).findAllByUserId(userId);
-        then(bookServiceClient).should(times(2)).getBookOrderResponse(List.of(1L));
+        then(bookOrderService).should(times(2)).getBookOrderResponse(List.of(1L));
     }
 
     @Test

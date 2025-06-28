@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "user-api")
+@FeignClient(name = "USER-API")
 public interface UserServiceClient {
 
     @GetMapping("/users/me")
