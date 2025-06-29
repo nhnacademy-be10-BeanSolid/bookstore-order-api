@@ -1,6 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
+import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
@@ -49,7 +51,7 @@ public class OrderServiceImpl implements OrderService {
     // 주문 생성
     @Override
     @Transactional
-    public void createOrder(OrderRequest orderRequest, String xUserId) { //TODO 주문: 도서 재고 확인해서 주문량보다 적으면 오류 발생시키기
+    public void createOrder(OrderRequest orderRequest, String xUserId) {
         // parameters validation
         UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
         Long userNo = userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
@@ -58,9 +60,11 @@ public class OrderServiceImpl implements OrderService {
 
         Order order = Order.of(orderRequest, userNo);
 
+        // 요청데이터 대신 DB에서 조회된 값을 사용 + 주문수량이 재고보다 많은지 검증.
         List<OrderItemRequest> itemRequests = orderRequest.items();
         Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
         Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
+        reduceStock(itemRequests, bookMap);
 
         List<OrderItem> items = buildOrderItems(order, itemRequests, bookMap, wrappingMap);
 
@@ -134,8 +138,7 @@ public class OrderServiceImpl implements OrderService {
     private List<OrderItem> buildOrderItems(Order order,
                                             List<OrderItemRequest> itemRequests,
                                             Map<Long, BookOrderResponse> bookMap,
-                                            Map<Long, Wrapping> wrappingMap)
-    {
+                                            Map<Long, Wrapping> wrappingMap) {
         List<OrderItem> items = new ArrayList<>();
         for (OrderItemRequest req : itemRequests) {
             BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.bookId()),
@@ -158,24 +161,33 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
-
-        List<Long> ids = itemRequests.stream().map(OrderItemRequest::wrappingId).toList();
+        List<Long> ids = itemRequests.stream()
+                .map(OrderItemRequest::wrappingId)
+                .toList();
         List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
-        if (wrappings.size() != new HashSet<>(ids).size())
+
+        if (wrappings.size() != new HashSet<>(ids).size()) {
             throw new WrappingNotFoundException("wrapping의 개수가 일치하지 않습니다: " + ids);
+        }
         log.debug("{}개의 포장지를 가져옵니다. ids={}", wrappings.size(), ids);
-        return wrappings.stream().collect(Collectors.toMap(Wrapping::getId, Function.identity()));
+
+        return wrappings.stream()
+                .collect(Collectors.toMap(Wrapping::getId, Function.identity()));
     }
 
     private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
-
-        List<Long> ids = itemRequests.stream().map(OrderItemRequest::bookId).toList();
+        List<Long> ids = itemRequests.stream()
+                .map(OrderItemRequest::bookId)
+                .toList();
         List<BookOrderResponse> books = bookOrderService.getBookOrderResponse(ids);
-//        List<BookOrderResponse> books = bookServiceClient.getBookOrderResponse(ids).getBody();
-        if (books == null || books.isEmpty())
+
+        if (books == null || books.isEmpty()) {
             throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
+        }
         log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
-        return books.stream().collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
+
+        return books.stream()
+                .collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
     }
 
     /*───────────────────────────────────────────────────────
@@ -313,6 +325,40 @@ public class OrderServiceImpl implements OrderService {
             if (param instanceof String && ((String) param).isBlank()) {
                 throw new IllegalArgumentException(String.format("String parameter is blank: index[%d]", i));
             }
+        }
+    }
+
+    private void reduceStock(List<OrderItemRequest> itemRequests,
+                            Map<Long, BookOrderResponse> bookMap) {
+        Map<Long, Integer> quantityMap = itemRequests.stream()
+                .collect(Collectors.groupingBy(
+                        OrderItemRequest::bookId,
+                        Collectors.summingInt(OrderItemRequest::quantity)
+                ));
+
+        List<BookStockReduceRequest> stockReduceRequests = new ArrayList<>(quantityMap.size());
+        for (Map.Entry<Long, Integer> entry : quantityMap.entrySet()) {
+            Long bookId = entry.getKey();
+            Integer requestedQuantity = entry.getValue();
+            BookOrderResponse book = bookMap.get(bookId);
+
+            int available = book.stock();
+            validStock(book, bookId, available, requestedQuantity);
+            stockReduceRequests.add(new BookStockReduceRequest(bookId, available - requestedQuantity));
+        }
+        bookOrderService.stockUpdate(stockReduceRequests);
+    }
+
+    private void validStock(BookOrderResponse book, Long bookId, Integer available, Integer requestedQuantity) {
+        if (book == null) {
+            throw new BookNotFoundException("책을 찾을 수 없습니다. id=" + bookId);
+        }
+
+        if (requestedQuantity > available) {
+            throw new InsufficientStockException(
+                    String.format("재고가 부족합니다. bookId=%d, 주문수량=%d, 재고=%d",
+                            bookId, requestedQuantity, available)
+            );
         }
     }
 }
