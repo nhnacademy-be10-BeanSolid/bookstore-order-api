@@ -153,25 +153,25 @@ class OrderServiceImplTest {
 
         //TODO 회원: xUserId -> userId API 사용해서 변환하기
         String xUserId = "1"; // 임시
-        Long userId = Long.parseLong(xUserId);
+        Long userNo = Long.parseLong(xUserId);
 
         BookOrderResponse book = BookOrderResponse.builder().id(1L).salePrice(1_000).stock(100).title("title1").build();
         List<OrderItem> items = List.of(OrderItem.of(book, 1));
 
         ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
 
-        Order order1 = Order.builder().userId(userId).items(items).shippingInfo(shippingInfo).build();
-        Order order2 = Order.builder().userId(userId).items(items).shippingInfo(shippingInfo).build();
+        Order order1 = Order.builder().userNo(userNo).items(items).shippingInfo(shippingInfo).build();
+        Order order2 = Order.builder().userNo(userNo).items(items).shippingInfo(shippingInfo).build();
 
         List<Order> orders = new ArrayList<>(List.of(order1, order2));
         List<BookOrderResponse> bookOrderResponses = List.of(book, book);
 
-        given(orderRepository.findAllByUserId(anyLong())).willReturn(orders);
+        given(orderRepository.findAllByUserNo(anyLong())).willReturn(orders);
         given(bookOrderService.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
 
         orderService.findAllByUserId(xUserId);
 
-        then(orderRepository).should(times(1)).findAllByUserId(userId);
+        then(orderRepository).should(times(1)).findAllByUserNo(userNo);
         then(bookOrderService).should(times(2)).getBookOrderResponse(List.of(1L));
     }
 
@@ -180,15 +180,15 @@ class OrderServiceImplTest {
     void findByOrderIdAndUserId_success() {
 
         String xUserId = "1";
-        Long userId = 1L;
+        Long userNo = 1L;
         ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
-        Order order = Order.builder().userId(userId).totalPrice(10_000L).shippingInfo(shippingInfo).build();
+        Order order = Order.builder().userNo(userNo).totalPrice(10_000L).shippingInfo(shippingInfo).build();
 
-        given(orderRepository.findByOrderIdAndUserId(anyString(), anyLong())).willReturn(Optional.ofNullable(order));
+        given(orderRepository.findByOrderIdAndUserNo(anyString(), anyLong())).willReturn(Optional.ofNullable(order));
 
         orderService.findByOrderId("orderId", xUserId);
 
-        then(orderRepository).should(times(1)).findByOrderIdAndUserId(anyString(), anyLong());
+        then(orderRepository).should(times(1)).findByOrderIdAndUserNo(anyString(), anyLong());
     }
 
 //

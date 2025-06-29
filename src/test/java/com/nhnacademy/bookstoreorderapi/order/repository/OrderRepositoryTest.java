@@ -1,15 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,8 +26,8 @@ class OrderRepositoryTest {
     @BeforeEach
     void setUp() {
 
-        Order memberOrder1 = Order.builder().userId(1L).totalPrice(10_000L).build();
-        Order memberOrder2 = Order.builder().userId(1L).totalPrice(5_000L).build();
+        Order memberOrder1 = Order.builder().userNo(1L).totalPrice(10_000L).build();
+        Order memberOrder2 = Order.builder().userNo(1L).totalPrice(5_000L).build();
         Order guestOrder1 = Order.builder().totalPrice(7_000L).build();
         Order guestOrder2 = Order.builder().totalPrice(3_000L).build();
 
@@ -51,13 +48,13 @@ class OrderRepositoryTest {
 
     @Test
     @DisplayName("회원의 전체 주문 조회 테스트")
-    void findAllByUserId() {
+    void findAllByUserNo() {
 
         orderRepository.saveAll(orders);
-        List<Order> orderList = orderRepository.findAllByUserId(1L);
+        List<Order> orderList = orderRepository.findAllByUserNo(1L);
 
         assertThat(orderList).isNotEmpty();
-        assertThat(orderList).allMatch(order -> order.getUserId() == 1L);
+        assertThat(orderList).allMatch(order -> order.getUserNo() == 1L);
         assertThat(orderList).extracting(Order::getTotalPrice)
                         .containsExactlyInAnyOrder(10_000L, 5_000L);
     }

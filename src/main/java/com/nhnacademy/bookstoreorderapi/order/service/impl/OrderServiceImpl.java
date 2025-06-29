@@ -86,7 +86,7 @@ public class OrderServiceImpl implements OrderService {
         UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
         Long userNo = userInfo != null ? userInfo.userNo() : null;
 
-        List<Order> orders = orderRepository.findAllByUserId(userNo);
+        List<Order> orders = orderRepository.findAllByUserNo(userNo);
         if (orders.isEmpty()) {
             throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
         }
@@ -99,9 +99,9 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse findByOrderId(String orderId, String xUserId) {
 
         //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
-        Long userId = Long.parseLong(xUserId);
+        Long userNo = Long.parseLong(xUserId);
 
-        Order order = orderRepository.findByOrderIdAndUserId(orderId, userId)
+        Order order = orderRepository.findByOrderIdAndUserNo(orderId, userNo)
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다. 주문번호: " + orderId));
 
         return OrderResponse.from(order);
