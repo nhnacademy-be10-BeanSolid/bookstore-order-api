@@ -22,7 +22,8 @@ public class OrderController {
 
     // 주문 생성(회원, 비회원 둘 다 가능)
     @PostMapping
-    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest, @RequestHeader("X-USER-ID") String xUserId) {
+    public ResponseEntity<Void> createOrder(@Valid @RequestBody OrderRequest orderRequest,
+                                            @RequestHeader("X-USER-ID") String xUserId) {
         orderService.createOrder(orderRequest, xUserId);
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
