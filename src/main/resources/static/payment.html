@@ -50,8 +50,15 @@
             const res = await fetch(`/api/v1/payments/toss/${orderId}`, {
                 method : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body   : JSON.stringify({ payAmount, payType, payName })
+                body   : JSON.stringify({
+                    payAmount:  payAmount,
+                    payType:    payType,
+                    payName:    payName,
+                    successUrl: `${window.location.origin}/api/v1/payments/toss/success`,
+                    failUrl:    `${window.location.origin}/api/v1/payments/toss/fail`
+                })
             });
+
             if (!res.ok) {
                 alert('결제 요청 실패 :\n' + await res.text());
                 return;
@@ -66,15 +73,14 @@
                 data.nextRedirectAppUrl ||
                 data.checkoutUrl ||
                 data.paymentUrl ||
-                data.checkoutPageUrl ||
-                data.successUrl ||
-                data.failUrl;
+                data.checkoutPageUrl;
 
             if (!payPageUrl) {
                 alert('결제 페이지 URL을 찾을 수 없습니다. 콘솔을 확인하세요.');
                 return;
             }
 
+            // 실제 결제 페이지로 이동
             window.location.href = payPageUrl;
 
         } catch (err) {

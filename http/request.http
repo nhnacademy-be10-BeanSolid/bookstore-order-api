@@ -53,19 +53,23 @@ Accept:       {{ct}}
 
 
 ### 3) 결제창(인증) 요청
-POST http://s1.java21.net:10350/api/v1/payments/toss/202506-gJBCs2-3oHoaZ HTTP/1.1
+POST {{host}}/api/v1/payments/toss/202506-cZQVJ8-GpZW1w HTTP/1.1
 Host: s1.java21.net:10350
-Content-Type: application/json
-Accept: application/json
+Content-Type: {{ct}}
+Accept:       {{ct}}
 
 {
   "payAmount": 19000,
   "payType":   "CARD",
-  "payName":   "도서 4권"
+  "payName":   "도서 4권",
+  "successUrl": "http://s1.java21.net:10350/api/v1/payments/toss/success",
+  "failUrl":    "http://s1.java21.net:10350/api/v1/payments/toss/fail"
 }
+> {% client.global.set("paymentKey", response.body.paymentKey); %}
+
 
 ### 4) Toss 결제 확정 (confirm)
-POST https://sandbox.tosspayments.com/v1/payments/202506-gJBCs2-3oHoaZ/confirm HTTP/1.1
+POST https://sandbox.tosspayments.com/v1/payments/{{paymentKey}}/confirm HTTP/1.1
 Authorization: {{basicAuth}}
 X-Client-Api-Key: {{clientKey}}
 Content-Type: {{ct}}
