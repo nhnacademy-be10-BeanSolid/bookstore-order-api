@@ -53,10 +53,9 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-        Order order = orderRepo.findByOrderId(orderId);
-        if (order == null) {
-            throw new IllegalArgumentException("주문 없음: " + orderId);
-        }
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
@@ -104,10 +103,8 @@ public class PaymentServiceImpl implements PaymentService {
                 Map.of("orderId", orderId, "amount", amount)
         );
 
-        Order order = orderRepo.findByOrderId(orderId);
-        if (order == null) {
-            throw new IllegalArgumentException("주문 없음: " + orderId);
-        }
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
         Payment payment = payRepo.findByOrder(order)
                 .orElseGet(() -> Payment.builder()

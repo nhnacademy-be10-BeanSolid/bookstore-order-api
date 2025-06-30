@@ -20,11 +20,8 @@ public class PaymentViewController {
      */
     @GetMapping("/payments/toss/{orderId}")
     public String paymentPage(@PathVariable String orderId, Model model) {
-        Order order = orderRepo.findByOrderId(orderId);
-        if (order == null) {
-            // 없으면 404 페이지로 넘기거나
-            throw new IllegalArgumentException("주문을 찾을 수 없습니다: " + orderId);
-        }
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
         model.addAttribute("orderId",    orderId);
         model.addAttribute("totalPrice", order.getTotalPrice());
