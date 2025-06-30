@@ -8,28 +8,38 @@ import org.springframework.context.annotation.Configuration;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+/**
+ * application.yml 의 payment.toss.* 설정을 바인딩
+ * - baseUrl        : https://sandbox.tosspayments.com/v1  (샌드박스)
+ * - clientApiKey   : test_ck_...
+ * - secretApiKey   : test_sk_...
+ * - successUrl, failUrl : 콜백 URL
+ */
 @Configuration
 @ConfigurationProperties(prefix = "payment.toss")
 @Getter
 @Setter
 public class TossPaymentConfig {
 
-    // application.yml의 payment.toss.base-url
+    /** 샌드박스 또는 프로덕션 API 엔드포인트 */
     private String baseUrl;
 
-    // application.yml의 payment.toss.client-api-key
+    /** 샌드박스 클라이언트 키 */
     private String clientApiKey;
 
-    // application.yml의 payment.toss.secret-api-key
+    /** 샌드박스 시크릿 키 */
     private String secretApiKey;
 
-    // 결제 성공 콜백 URL
+    /** 결제 성공 콜백 URL */
     private String successUrl;
 
-    // 결제 실패 콜백 URL
+    /** 결제 실패 콜백 URL */
     private String failUrl;
 
-    // Toss API 호출 시 사용할 Basic 인증 헤더 값 생성
+    /**
+     * Basic 인증 헤더 생성 (secretApiKey: 로 구성)
+     * @return "Basic {base64(secretApiKey + ':')}"
+     */
     public String getBasicAuthHeader() {
         String creds = secretApiKey + ":";
         String encoded = Base64
