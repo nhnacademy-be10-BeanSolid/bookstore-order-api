@@ -11,6 +11,7 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -76,10 +77,17 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // Map 리턴으로 변경
-        Map<String, Object> resp = tossClient.createPayment(body);
+        Map<String, Object> resp;
+        try {
+            resp = tossClient.createPayment(body);
+        } catch (FeignException e) {
+            log.error("[TOSS CREATE][ERROR] status={} body={}", e.status(), e.contentUTF8());
+            throw new IllegalStateException("결제 요청 실패: " + e.contentUTF8());
+        }
 
-        if (resp == null || resp.get("paymentKey") == null) {
+        Object key = resp.get("paymentKey");
+        if (key == null) {
+            log.error("[TOSS CREATE][ERROR] no paymentKey in {}", resp);
             throw new IllegalStateException("Toss 생성 오류: " + resp);
         }
 
@@ -88,7 +96,7 @@ public class PaymentServiceImpl implements PaymentService {
                 .payType(dto.getPayType().name())
                 .payAmount(dto.getPayAmount())
                 .payName(dto.getPayName())
-                .paymentKey(resp.get("paymentKey").toString())
+                .paymentKey(key.toString())
                 .redirectUrl(extractRedirectUrl(resp))
                 .successUrl(tossProps.getSuccessUrl())
                 .failUrl(tossProps.getFailUrl())
@@ -98,11 +106,15 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // void 리턴으로 변경
-        tossClient.confirmPayment(paymentKey, Map.of(
-                "orderId", orderId,
-                "amount",  amount
-        ));
+        try {
+            tossClient.confirmPayment(paymentKey, Map.of(
+                    "orderId", orderId,
+                    "amount",  amount
+            ));
+        } catch (FeignException e) {
+            log.error("[TOSS CONFIRM][ERROR] status={} body={}", e.status(), e.contentUTF8());
+            throw new IllegalStateException("결제 확인 실패: " + e.contentUTF8());
+        }
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
@@ -137,15 +149,16 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        // Map 리턴으로 변경
-        Map<String, Object> resp = tossClient.cancelPayment(
-                paymentKey,
-                Map.of("cancelReason", reason)
-        );
+        Map<String, Object> resp;
+        try {
+            resp = tossClient.cancelPayment(paymentKey, Map.of("cancelReason", reason));
+        } catch (FeignException e) {
+            log.error("[TOSS CANCEL][ERROR] status={} body={}", e.status(), e.contentUTF8());
+            throw new IllegalStateException("결제 취소 실패: " + e.contentUTF8());
+        }
 
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
-
         return resp;
     }
 }

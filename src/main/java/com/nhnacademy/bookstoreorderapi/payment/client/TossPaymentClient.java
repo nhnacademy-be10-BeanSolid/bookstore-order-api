@@ -1,13 +1,10 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/payment/client/TossPaymentClient.java
 package com.nhnacademy.bookstoreorderapi.payment.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
-/**
- * FeignClient 를 통해 Toss 샌드박스 API 호출
- * 헤더는 TossFeignConfig 에서 자동 주입됩니다.
- */
 @FeignClient(
         name          = "toss-payment",
         url           = "${payment.toss.base-url}",
