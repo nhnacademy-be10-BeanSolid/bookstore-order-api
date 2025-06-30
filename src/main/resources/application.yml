@@ -11,7 +11,7 @@ spring:
   cloud:
     config:
       discovery:
-        enabled: true
+        enabled: false
         service-id: config-server
       name: mysql           # config-server 에 올라간 yml 이름
     openfeign:
