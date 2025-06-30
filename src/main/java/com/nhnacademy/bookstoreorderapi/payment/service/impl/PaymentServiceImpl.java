@@ -30,7 +30,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository   orderRepo;
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
-    private final TossPaymentClient tossClient;
+    private final TossPaymentClient tossClient;    // ← RestTemplate 대신
 
     private String basicAuthHeader() {
         String creds = tossProps.getSecretApiKey() + ":";
@@ -53,18 +53,14 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-        // ── 주문 조회 & 중복 결제 방지 ─────────────────────────────
         Order order = orderRepo.findByOrderId(orderId);
         if (order == null) {
             throw new IllegalArgumentException("주문 없음: " + orderId);
         }
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
-                .ifPresent(p -> {
-                    throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId);
-                });
+                .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
 
-        // ── Toss API 호출용 파라미터 ─────────────────────────────
         String method = dto.getPayType() == PayType.ACCOUNT
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
@@ -78,7 +74,7 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // ── Feign Client 호출 & 응답 바디 추출 ────────────────────
+        // RestTemplate 대신 Feign client 호출
         ResponseEntity<Map<String, Object>> createResp =
                 tossClient.createPayment(basicAuthHeader(), body);
         Map<String, Object> resp = createResp.getBody();
@@ -87,7 +83,6 @@ public class PaymentServiceImpl implements PaymentService {
             throw new IllegalStateException("Toss 결제 생성 응답 오류: " + resp);
         }
 
-        // ── DTO 변환 후 반환 ────────────────────────────────────
         return PaymentResDto.builder()
                 .orderId(orderId)
                 .payType(dto.getPayType().name())
@@ -103,14 +98,12 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // ── Toss 확정 API 호출 ────────────────────────────────────
         tossClient.confirmPayment(
                 basicAuthHeader(),
                 paymentKey,
                 Map.of("orderId", orderId, "amount", amount)
         );
 
-        // ── 주문 & 결제 엔티티 upsert ─────────────────────────────
         Order order = orderRepo.findByOrderId(orderId);
         if (order == null) {
             throw new IllegalArgumentException("주문 없음: " + orderId);
@@ -133,7 +126,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markFail(String paymentKey, String reason) {
-        // ── 실패 상태 저장 ───────────────────────────────────────
         payRepo.findByPaymentKey(paymentKey).ifPresent(p -> {
             p.setPaymentStatus(PaymentStatus.FAIL);
             payRepo.save(p);
@@ -144,16 +136,13 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public Map<String, Object> cancelPaymentPoint(String paymentKey, String reason) {
-        // ── 기존 결제 조회 ───────────────────────────────────────
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        // ── 취소 API 호출 & 응답 바디 추출 ─────────────────────────
         ResponseEntity<Map<String, Object>> cancelResp =
                 tossClient.cancelPayment(basicAuthHeader(), paymentKey, Map.of("cancelReason", reason));
         Map<String, Object> resp = cancelResp.getBody();
 
-        // ── DB 상태 업데이트 ─────────────────────────────────────
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
 

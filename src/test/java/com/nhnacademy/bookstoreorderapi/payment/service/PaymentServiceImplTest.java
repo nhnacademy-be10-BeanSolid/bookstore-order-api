@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.payment.service;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
@@ -15,90 +16,95 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.http.ResponseEntity;
 
 import java.util.Map;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class PaymentServiceImplTest {
 
-    RestTemplate      restTemplate = mock(RestTemplate.class);
-    OrderRepository   orderRepo    = mock(OrderRepository.class);
-    PaymentRepository payRepo      = mock(PaymentRepository.class);
-    TossPaymentConfig tossProps    = new TossPaymentConfig();
+    OrderRepository   orderRepo;
+    PaymentRepository payRepo;
+    TossPaymentConfig tossProps;
+    TossPaymentClient tossClient;     // ← RestTemplate 대신
 
     PaymentServiceImpl sut;
 
     @BeforeEach
     void setUp() {
-        // dummy config
-        tossProps.setSecretApiKey("dummy");
-        tossProps.setSuccessUrl("http://suc");
+        orderRepo  = mock(OrderRepository.class);
+        payRepo    = mock(PaymentRepository.class);
+        tossClient = mock(TossPaymentClient.class);
+        tossProps  = new TossPaymentConfig();
+        // 테스트용 dummy 설정
+        tossProps.setSecretApiKey("dummy-sk");
+        tossProps.setSuccessUrl("http://success");
         tossProps.setFailUrl("http://fail");
-        sut = new PaymentServiceImpl(orderRepo, payRepo, tossProps, restTemplate);
+
+        sut = new PaymentServiceImpl(orderRepo, payRepo, tossProps, tossClient);
     }
 
     @Test
-    @DisplayName("requestTossPayment 성공 플로우")
+    @DisplayName("requestTossPayment: 정상 생성 플로우")
     void requestTossPayment_ok() {
         String orderId = "ORD-100";
         Order dummyOrder = mock(Order.class);
+
+        // given
         when(orderRepo.findByOrderId(orderId)).thenReturn(dummyOrder);
         when(payRepo.findByOrder(dummyOrder)).thenReturn(Optional.empty());
 
+        // Toss API 가 반환할 body
         Map<String,Object> fakeResp = Map.of(
                 "paymentKey",  "payKey-abc",
                 "checkoutUrl", "https://toss.test"
         );
-        when(restTemplate.exchange(
-                eq(TossPaymentConfig.PAYMENTS_URL),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                ArgumentMatchers.<ParameterizedTypeReference<Map<String,Object>>>any()
-        )).thenReturn(new ResponseEntity<>(fakeResp, HttpStatus.OK));
+        // Feign client 모킹
+        when(tossClient.createPayment(anyString(), anyMap()))
+                .thenReturn(ResponseEntity.ok(fakeResp));
 
         PaymentReqDto req = PaymentReqDto.builder()
                 .payAmount(10_000L)
                 .payType(PayType.CARD)
-                .payName("테스트")
+                .payName("테스트 결제")
                 .build();
 
         PaymentResDto res = sut.requestTossPayment(orderId, req);
 
         Assertions.assertThat(res.getPaymentKey()).isEqualTo("payKey-abc");
+        Assertions.assertThat(res.getRedirectUrl()).isEqualTo("https://toss.test");
+
         verify(orderRepo).findByOrderId(orderId);
         verify(payRepo).findByOrder(dummyOrder);
+        verify(tossClient).createPayment(anyString(), anyMap());
     }
 
     @Test
     @DisplayName("markSuccess: 성공 콜백 후 저장로직 호출")
     void markSuccess_ok() {
         String orderId = "O-1";
-        String payKey = "p-1";
-        long amount = 5_000L;
+        String payKey  = "p-1";
+        long   amount  = 5_000L;
+
         Order o = mock(Order.class);
         when(orderRepo.findByOrderId(orderId)).thenReturn(o);
         when(payRepo.findByOrder(o)).thenReturn(Optional.empty());
 
-        // mocking Toss confirm API (void)
-        when(restTemplate.exchange(
-                eq(TossPaymentConfig.PAYMENTS_URL + "/" + payKey + "/confirm"),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                eq(Void.class)
-        )).thenReturn(new ResponseEntity<>(HttpStatus.OK));
+        // confirmPayment 는 void 반환이지만 FeignClient signature 가 ResponseEntity<Void>
+        when(tossClient.confirmPayment(anyString(), eq(payKey), anyMap()))
+                .thenReturn(ResponseEntity.ok().build());
 
+        // when
         sut.markSuccess(payKey, orderId, amount);
 
-        // 캡쳐해서 저장된 Payment 확인
+        // then: 저장된 Payment 캡쳐
         ArgumentCaptor<Payment> captor = ArgumentCaptor.forClass(Payment.class);
         verify(payRepo).save(captor.capture());
         Payment saved = captor.getValue();
+
         Assertions.assertThat(saved.getPaymentKey()).isEqualTo(payKey);
         Assertions.assertThat(saved.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
         Assertions.assertThat(saved.getPayAmount()).isEqualTo(amount);
@@ -111,7 +117,7 @@ class PaymentServiceImplTest {
         Payment existent = Payment.builder().paymentKey(payKey).build();
         when(payRepo.findByPaymentKey(payKey)).thenReturn(Optional.of(existent));
 
-        sut.markFail(payKey, "err");
+        sut.markFail(payKey, "error-msg");
 
         Assertions.assertThat(existent.getPaymentStatus())
                 .isEqualTo(PaymentStatus.FAIL);
@@ -126,16 +132,11 @@ class PaymentServiceImplTest {
         when(payRepo.findByPaymentKey(payKey)).thenReturn(Optional.of(existent));
 
         Map<String,Object> cancelResp = Map.of("cancelled", true);
-        when(restTemplate.exchange(
-                eq(TossPaymentConfig.PAYMENTS_URL + "/" + payKey + "/cancel"),
-                eq(HttpMethod.POST),
-                any(HttpEntity.class),
-                ArgumentMatchers.<ParameterizedTypeReference<Map<String,Object>>>any()
-        )).thenReturn(new ResponseEntity<>(cancelResp, HttpStatus.OK));
+        when(tossClient.cancelPayment(anyString(), eq(payKey), anyMap()))
+                .thenReturn(ResponseEntity.ok(cancelResp));
 
-        Map<String,Object> result = sut.cancelPaymentPoint(payKey, "reason");
+        Map<String,Object> result = sut.cancelPaymentPoint(payKey, "사유");
 
-        // 반환값 확인 + 상태 저장 확인
         Assertions.assertThat(result).containsEntry("cancelled", true);
         Assertions.assertThat(existent.getPaymentStatus())
                 .isEqualTo(PaymentStatus.CANCEL);

@@ -7,7 +7,7 @@ import java.util.Map;
 
 @FeignClient(
         name = "toss-payment",
-        url  = "${payment.toss.base-url}"   // ← 여기만 바꿔주세요!
+        url  = "${payment.toss.base-url}"   // ← application.yml 의 payment.toss.base-url 을 읽어온다
 )
 public interface TossPaymentClient {
 
