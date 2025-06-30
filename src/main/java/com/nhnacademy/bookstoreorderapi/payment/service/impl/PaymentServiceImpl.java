@@ -31,13 +31,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
-    private String basicAuth() {
-        return tossProps.getBasicAuthHeader();
-    }
-
-
     private String extractRedirectUrl(Map<String, Object> r) {
-        // 1) top-level URL 필드 우선
         return Stream.of(
                         r.get("checkoutUrl"),
                         r.get("checkoutPageUrl"),
@@ -47,7 +41,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .filter(Objects::nonNull)
                 .map(Object::toString)
                 .findFirst()
-                // 2) top-level 없으면 nested 'checkout.url' 확인
                 .orElseGet(() -> {
                     Object checkout = r.get("checkout");
                     if (checkout instanceof Map<?, ?>) {
@@ -84,11 +77,8 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        ResponseEntity<Map<String, Object>> respEnt = tossClient.createPayment(
-                basicAuth(),
-                tossProps.getClientApiKey(),
-                body
-        );
+        // ★ 헤더 파라미터 없이 단일 body 호출
+        ResponseEntity<Map<String, Object>> respEnt = tossClient.createPayment(body);
         Map<String, Object> resp = respEnt.getBody();
 
         if (resp == null || resp.get("paymentKey") == null) {
@@ -110,12 +100,11 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        tossClient.confirmPayment(
-                basicAuth(),
-                tossProps.getClientApiKey(),
-                paymentKey,
-                Map.of("orderId", orderId, "amount", amount)
-        );
+        // ★ confirmPayment 호출부도 헤더 없이 두 번째 인자로만 body 전달
+        tossClient.confirmPayment(paymentKey, Map.of(
+                "orderId", orderId,
+                "amount",  amount
+        ));
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
@@ -150,10 +139,8 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(
-                basicAuth(),
-                tossProps.getClientApiKey(),
-                paymentKey,
+        // ★ cancelPayment 역시 두 번째 인자로만 body 전달
+        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(paymentKey,
                 Map.of("cancelReason", reason)
         );
 
