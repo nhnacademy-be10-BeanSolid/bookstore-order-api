@@ -15,14 +15,14 @@ import java.util.Map;
 )
 public interface TossPaymentClient {
 
-    @PostMapping("/payments")
+    @PostMapping("/v1/payments")
     ResponseEntity<Map<String, Object>> createPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
             @RequestBody                       Map<String, Object> body
     );
 
-    @PostMapping("/payments/{paymentKey}/confirm")
+    @PostMapping("/v1/payments/{paymentKey}/confirm")
     ResponseEntity<Void> confirmPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
@@ -30,7 +30,7 @@ public interface TossPaymentClient {
             @RequestBody                       Map<String, Object> body
     );
 
-    @PostMapping("/payments/{paymentKey}/cancel")
+    @PostMapping("/v1/payments/{paymentKey}/cancel")
     ResponseEntity<Map<String, Object>> cancelPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
