@@ -62,10 +62,8 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
 
         // 1 주문 엔티티 확보 & 존재 체크
-        Order order = orderRepo.findByOrderId(orderId);
-        if (order == null) {
-            throw new IllegalArgumentException("주문 없음: " + orderId);
-        }
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
         // 2 이미 ‘SUCCESS’ 결제
         payRepo.findByOrder(order)
@@ -132,10 +130,8 @@ public class PaymentServiceImpl implements PaymentService {
                 Void.class);
 
         //2 주문 확보
-        Order order = orderRepo.findByOrderId(orderId);
-        if (order == null) {
-            throw new IllegalArgumentException("주문 없음: " + orderId);
-        }
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
         // 3 결제 upsert
         Payment payment = payRepo.findByOrder(order)

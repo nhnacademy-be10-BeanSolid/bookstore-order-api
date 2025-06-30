@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.order.client.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
@@ -9,7 +10,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderServi
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
@@ -53,8 +54,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public void createOrder(OrderRequest orderRequest, String xUserId) {
         // parameters validation
-        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
-        Long userNo = userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
+        Long userNo = getUserNo(xUserId);
         validParameters(orderRequest);
         log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userNo);
 
@@ -87,8 +87,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public List<OrderSummaryResponse> findAllByUserId(String xUserId) {
-        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
-        Long userNo = userInfo != null ? userInfo.userNo() : null;
+        Long userNo = getUserNo(xUserId);
 
         List<Order> orders = orderRepository.findAllByUserNo(userNo);
         if (orders.isEmpty()) {
@@ -101,10 +100,7 @@ public class OrderServiceImpl implements OrderService {
     // 회원 주문 상세 조회
     @Override
     public OrderResponse findByOrderId(String orderId, String xUserId) {
-
-        //TODO 회원: xUserId 값으로 userId(내부 PK) 받아오는 API로 변환하기
-        Long userNo = Long.parseLong(xUserId);
-
+        Long userNo = getUserNo(xUserId);
         Order order = orderRepository.findByOrderIdAndUserNo(orderId, userNo)
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다. 주문번호: " + orderId));
 
@@ -216,19 +212,20 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
-    /*───────────────────────────────────────────────────────
-     * 4. 주문 상태 변경
-     *──────────────────────────────────────────────────────*/
+    // 주문 상태 변경
     @Override
     @Transactional
-    public StatusChangeResponseDto changeStatus(
-            Long orderId,
-            OrderStatus newStatus,
-            Long changedBy,
-            String memo
-    ) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+    public StatusChangeResponseDto changeStatus(String orderId,
+                                                OrderStatus newStatus,
+                                                String memo,
+                                                String xUserId) {
+        if (!userOrderService.getUserInfo(xUserId).isAuth()) {
+            throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
+        }
+        Long changedBy = getUserNo(xUserId);
+
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
 
         OrderStatus oldStatus = order.getStatus();
         if (!oldStatus.canTransitionTo(newStatus)) {
@@ -236,14 +233,14 @@ public class OrderServiceImpl implements OrderService {
                     String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
         }
 
-        OrderStatusLog log = OrderStatusLog.createFrom(orderId, oldStatus, newStatus, changedBy, memo);
+        OrderStatusLog log = OrderStatusLog.createFrom(order.getId(), oldStatus, newStatus, changedBy, memo);
         statusLogRepository.save(log);
 
         order.setStatus(newStatus);
         orderRepository.save(order);
 
         if (newStatus == OrderStatus.SHIPPING) {
-            scheduleAutoDeliveryComplete(orderId);
+            scheduleAutoDeliveryComplete(order.getId()); //TODO 주문: 자동으로 배송 완료 처리 되는 것도 로그 변경 이력을 남겨야하는데...
         }
 
         return StatusChangeResponseDto.createFrom(log);
@@ -278,14 +275,12 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
-    /*───────────────────────────────────────────────────────
-     * 5. 반품 요청
-     *──────────────────────────────────────────────────────*/
+    // 반품 요청
     @Override
     @Transactional
-    public int requestReturn(Long orderId, ReturnRequestDto dto) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+    public int requestReturn(String orderId, ReturnRequest dto) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
 
         if (order.getStatus() == OrderStatus.RETURNED) {
             throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
@@ -300,18 +295,15 @@ public class OrderServiceImpl implements OrderService {
         return (int) (order.getTotalPrice() - OrderReturn.RETURNS_FEE);
     }
 
-    /*───────────────────────────────────────────────────────
-     * 6. 상태 변경 이력 조회
-     *──────────────────────────────────────────────────────*/
+    // 상태 변경 이력 조회
     @Override
     @Transactional(readOnly = true)
-    public List<OrderStatusLogDto> getStatusLog(Long orderId) {
+    public List<OrderStatusLogDto> getStatusLog(String orderId, String xUserId) {
 
-        if (!orderRepository.existsById(orderId)) {
-            throw new ResourceNotFoundException("주문을 찾을 수 없습니다.");
-        }
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
 
-        return statusLogRepository.findByOrderId(orderId).stream()
+        return statusLogRepository.findByOrderId(order.getId()).stream() //TODO 주문: 다른 엔티티에 주문ID가 orderid로 들어가 있어서 주문번호와 헷갈림.
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
     }
@@ -360,5 +352,10 @@ public class OrderServiceImpl implements OrderService {
                             bookId, requestedQuantity, available)
             );
         }
+    }
+
+    private Long getUserNo(String xUserId) {
+        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
+        return userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
     }
 }

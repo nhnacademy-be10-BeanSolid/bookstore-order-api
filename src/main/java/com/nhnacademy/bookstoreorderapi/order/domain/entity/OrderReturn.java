@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.ReturnRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -38,13 +38,13 @@ public class OrderReturn {
     @Column(name = "refunded_as_points", nullable = false)
     private Boolean refundedAsPoints;
 
-    public static OrderReturn createFrom(Order order, ReturnRequestDto dto) {
+    public static OrderReturn createFrom(Order order, ReturnRequest dto) {
 
         return OrderReturn.builder()
                 .order(order)
-                .reason(dto.getReason())
-                .damaged(dto.getDamaged())
-                .requestedAt(dto.getRequestedAt())
+                .reason(dto.reason())
+                .damaged(dto.damaged())
+                .requestedAt(dto.requestedAt())
                 .build();
     }
 }

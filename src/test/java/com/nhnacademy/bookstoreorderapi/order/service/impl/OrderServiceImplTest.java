@@ -182,13 +182,21 @@ class OrderServiceImplTest {
         String xUserId = "1";
         Long userNo = 1L;
         ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
-        Order order = Order.builder().userNo(userNo).totalPrice(10_000L).shippingInfo(shippingInfo).build();
+        BookOrderResponse book = BookOrderResponse.builder()
+                .id(1L)
+                .salePrice(10_000)
+                .stock(100)
+                .title("테스트 도서")
+                .build();
+        OrderItem item = OrderItem.of(book, 2);
+        List<OrderItem> items = List.of(item);
+        Order order = Order.builder().userNo(userNo).totalPrice(10_000L).shippingInfo(shippingInfo).items(items).build();
 
-        given(orderRepository.findByOrderIdAndUserNo(anyString(), anyLong())).willReturn(Optional.ofNullable(order));
+        given(orderRepository.findByOrderIdAndUserNo(anyString(), any())).willReturn(Optional.of(order));
 
         orderService.findByOrderId("orderId", xUserId);
 
-        then(orderRepository).should(times(1)).findByOrderIdAndUserNo(anyString(), anyLong());
+        then(orderRepository).should(times(1)).findByOrderIdAndUserNo(anyString(), any());
     }
 
 //

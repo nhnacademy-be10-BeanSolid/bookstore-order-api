@@ -2,6 +2,8 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
@@ -40,16 +42,16 @@ public class OrderController {
         return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
     }
 
+    // 주문 상태 변경
     @PatchMapping("/{orderId}/status")
-    public StatusChangeResponseDto changeStatus(
-            @PathVariable Long orderId,
-            @Valid @RequestBody StatusChangeRequestDto dto
-    ) {
+    public StatusChangeResponseDto changeStatus(@PathVariable String orderId,
+                                                @Valid @RequestBody StatusChangeRequest dto,
+                                                @RequestHeader("X-USER-ID") String xUserId) {
         return orderService.changeStatus(
                 orderId,
-                dto.getNewStatus(),
-                dto.getChangedBy(),
-                dto.getMemo()
+                dto.newStatus(),
+                dto.memo(),
+                xUserId
         );
     }
 
@@ -64,12 +66,13 @@ public class OrderController {
     }
 
     @GetMapping("/{orderId}/status-log")
-    public List<OrderStatusLogDto> getStatusLog(@PathVariable Long orderId) {
-        return orderService.getStatusLog(orderId);
+    public List<OrderStatusLogDto> getStatusLog(@PathVariable String orderId,
+                                                @RequestHeader("X-USER-ID") String xUserId) {
+        return orderService.getStatusLog(orderId, xUserId);
     }
 
     @PostMapping("/{orderId}/returns")
-    public ResponseEntity<Integer> requestReturn(@PathVariable Long orderId, @RequestBody ReturnRequestDto dto) {
+    public ResponseEntity<Integer> requestReturn(@PathVariable String orderId, @RequestBody ReturnRequest dto) {
 
         int returnsAmount = orderService.requestReturn(orderId, dto);
         return ResponseEntity.ok(returnsAmount);
