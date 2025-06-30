@@ -29,8 +29,8 @@ spring:
 resilience4j:
   circuitbreaker:
     instances:
-      bookService:
-      userService:          # 모두 기본값으로 설정.
+      bookService: {}
+      userService: {}         # 모두 기본값으로 설정.
 
 server:
   port: 10350
