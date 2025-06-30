@@ -17,12 +17,7 @@ X-USER-ID: test
     "requestedDeliveryDate": "2025-12-31",
     "items": [
       {
-        "bookId": 1,
-        "quantity": 1,
-        "wrappingId": 1
-      },
-      {
-        "bookId": 2,
+        "bookId": 77,
         "quantity": 1,
         "wrappingId": 1
       }

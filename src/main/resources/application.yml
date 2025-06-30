@@ -22,6 +22,8 @@ spring:
           default:
             connect-timeout: 3000
             read-timeout: 3000
+      okhttp:
+        enabled: true
 
 resilience4j:
   circuitbreaker:
