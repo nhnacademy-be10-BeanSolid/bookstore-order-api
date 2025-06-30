@@ -69,7 +69,7 @@ Accept:       {{ct}}
 
 
 ### 4) Toss 결제 확정 (confirm)
-POST https://sandbox.tosspayments.com/v1/payments/{{paymentKey}}/confirm HTTP/1.1
+POST https://sandbox.tosspayments.com/v1/payments/202506-gJBCs2-3oHoaZ/confirm HTTP/1.1
 Authorization: {{basicAuth}}
 X-Client-Api-Key: {{clientKey}}
 Content-Type: {{ct}}
