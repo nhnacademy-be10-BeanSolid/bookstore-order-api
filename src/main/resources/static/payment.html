@@ -51,11 +51,9 @@
                 method : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body   : JSON.stringify({
-                    payAmount:  payAmount,
-                    payType:    payType,
-                    payName:    payName,
-                    successUrl: `${window.location.origin}/api/v1/payments/toss/success`,
-                    failUrl:    `${window.location.origin}/api/v1/payments/toss/fail`
+                    payAmount,
+                    payType,
+                    payName
                 })
             });
 
@@ -67,20 +65,13 @@
             const data = await res.json();
             console.log('[결제 응답 데이터]', data);
 
-            const payPageUrl =
-                data.redirectUrl ||
-                data.nextRedirectPcUrl ||
-                data.nextRedirectAppUrl ||
-                data.checkoutUrl ||
-                data.paymentUrl ||
-                data.checkoutPageUrl;
-
+            // 서버가 반환하는 redirectUrl 필드(혹은 대체 필드)를 사용
+            const payPageUrl = data.redirectUrl || data.checkoutUrl || data.paymentUrl || data.checkoutPageUrl;
             if (!payPageUrl) {
                 alert('결제 페이지 URL을 찾을 수 없습니다. 콘솔을 확인하세요.');
                 return;
             }
 
-            // 실제 결제 페이지로 이동
             window.location.href = payPageUrl;
 
         } catch (err) {
