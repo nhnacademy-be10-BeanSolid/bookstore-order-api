@@ -1,22 +1,18 @@
 package com.nhnacademy.bookstoreorderapi.order.dto.request;
 
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import lombok.*;
 
-@Getter @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-public class OrderItemRequest {
+public record OrderItemRequest(
+
     @NotNull
     @Positive
-    private Long bookId;
+    Long bookId,
 
-    @NotNull @Min(1)
-    private Integer quantity;
+    @NotNull
+    @Positive
+    Integer quantity,
 
     @Positive
-    private Long wrappingId;
-}
+    Long wrappingId
+) {}

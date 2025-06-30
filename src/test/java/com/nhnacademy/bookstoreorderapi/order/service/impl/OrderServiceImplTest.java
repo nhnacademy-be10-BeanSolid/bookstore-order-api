@@ -2,31 +2,33 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 //import static org.assertj.core.api.Assertions.assertThatThrownBy;
 //
-import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
+
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.ResponseEntity;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-//import static org.mockito.Mockito.*;
 import static org.mockito.BDDMockito.*;
-import static org.assertj.core.api.Assertions.*;
 
 //
 @ExtendWith(MockitoExtension.class)
@@ -35,7 +37,9 @@ class OrderServiceImplTest {
     @Mock
     OrderRepository orderRepository;
     @Mock
-    BookServiceClient bookServiceClient;
+    BookOrderService bookOrderService;
+    @Mock
+    UserOrderService userOrderService;
     @Mock
     WrappingRepository wrappingRepository;
     @Mock
@@ -104,7 +108,7 @@ class OrderServiceImplTest {
 //
     @Test
     @DisplayName("회원/비회원 주문 생성에 성공한다")
-    void createOrder_guest_succeeds() {
+    void createOrder_success() {
 
         // 포장지 생성
         Wrapping wrap1 = new Wrapping();
@@ -115,28 +119,86 @@ class OrderServiceImplTest {
         OrderRequest orderRequest = new OrderRequest("받는사람", "광주광역시", "010-1111-2222", LocalDate.now().plusDays(1), items);
 
         // 회원/비회원 주문 생성
-        Long memberId = 1L;
-        Long guestId = null;
+        String memberId = "1";
+        String guestId = null;
+        UserOrderResponse member = UserOrderResponse.builder().userNo(1L).build();
 
         // 도서 도메인으로부터의 응답
-        ResponseEntity<List<BookOrderResponse>> bookOrderResponses = ResponseEntity.ok(List.of(new BookOrderResponse(1L, 10_000, 1)));
+        List<BookOrderResponse> bookOrderResponses = List.of(BookOrderResponse.builder().id(1L).salePrice(10_000).stock(1).title("title").build());
 
         given(orderRepository.save(any(Order.class))).willReturn(null);
-        given(bookServiceClient.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+        given(bookOrderService.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
         given(wrappingRepository.findAllById(anyList())).willReturn(List.of(wrap1));
         given(wrappingRepository.saveAll(any())).willReturn(List.of(wrap1));
-        given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getBody().getFirst(), 1)));
+        given(orderItemRepository.saveAll(any())).willReturn(List.of(OrderItem.of(bookOrderResponses.getFirst(), 1)));
+        given(userOrderService.getUserInfo(memberId)).willReturn(member);
+        given(userOrderService.getUserInfo(guestId)).willReturn(null);
 
         // when
         orderService.createOrder(orderRequest, memberId);
         orderService.createOrder(orderRequest, guestId);
 
         then(orderRepository).should(times(2)).save(any(Order.class));
-        then(bookServiceClient).should(times(2)).getBookOrderResponse(anyList());
+        then(bookOrderService).should(times(2)).getBookOrderResponse(anyList());
         then(wrappingRepository).should(times(2)).findAllById(anyList());
         then(wrappingRepository).should(times(2)).saveAll(any());
         then(orderItemRepository).should(times(2)).saveAll(anyList());
     }
+
+    @Test
+    @DisplayName("회원 주문 전체 조회에 성공한다")
+    void findAllByUserId_success() {
+        UserOrderResponse user = UserOrderResponse.builder().userNo(1L).build();
+        given(userOrderService.getUserInfo(anyString())).willReturn(user);
+
+        //TODO 회원: xUserId -> userId API 사용해서 변환하기
+        String xUserId = "1"; // 임시
+        Long userNo = Long.parseLong(xUserId);
+
+        BookOrderResponse book = BookOrderResponse.builder().id(1L).salePrice(1_000).stock(100).title("title1").build();
+        List<OrderItem> items = List.of(OrderItem.of(book, 1));
+
+        ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
+
+        Order order1 = Order.builder().userNo(userNo).items(items).shippingInfo(shippingInfo).build();
+        Order order2 = Order.builder().userNo(userNo).items(items).shippingInfo(shippingInfo).build();
+
+        List<Order> orders = new ArrayList<>(List.of(order1, order2));
+        List<BookOrderResponse> bookOrderResponses = List.of(book, book);
+
+        given(orderRepository.findAllByUserNo(anyLong())).willReturn(orders);
+        given(bookOrderService.getBookOrderResponse(anyList())).willReturn(bookOrderResponses);
+
+        orderService.findAllByUserId(xUserId);
+
+        then(orderRepository).should(times(1)).findAllByUserNo(userNo);
+        then(bookOrderService).should(times(2)).getBookOrderResponse(List.of(1L));
+    }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회에 성공한다")
+    void findByOrderIdAndUserId_success() {
+
+        String xUserId = "1";
+        Long userNo = 1L;
+        ShippingInfo shippingInfo = new ShippingInfo(null, "광주광역시", "수령인", "수령인전화번호", 0);
+        BookOrderResponse book = BookOrderResponse.builder()
+                .id(1L)
+                .salePrice(10_000)
+                .stock(100)
+                .title("테스트 도서")
+                .build();
+        OrderItem item = OrderItem.of(book, 2);
+        List<OrderItem> items = List.of(item);
+        Order order = Order.builder().userNo(userNo).totalPrice(10_000L).shippingInfo(shippingInfo).items(items).build();
+
+        given(orderRepository.findByOrderIdAndUserNo(anyString(), any())).willReturn(Optional.of(order));
+
+        orderService.findByOrderId("orderId", xUserId);
+
+        then(orderRepository).should(times(1)).findByOrderIdAndUserNo(anyString(), any());
+    }
+
 //
 //    @Test
 //    void createOrder_invalidWrapping_throwsBadRequest() {

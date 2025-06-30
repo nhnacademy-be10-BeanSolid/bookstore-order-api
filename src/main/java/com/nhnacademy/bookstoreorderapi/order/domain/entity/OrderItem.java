@@ -7,10 +7,11 @@ import lombok.*;
 @Entity
 @Table(name = "order_items")
 @Getter @Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
 public class OrderItem {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "order_item_id")
@@ -20,7 +21,7 @@ public class OrderItem {
     private Long bookId;
 
     @Column(name = "unit_price")
-    private int unitPrice; //
+    private int unitPrice;
 
     @Column(name = "quantity")
     private int quantity;
@@ -37,7 +38,7 @@ public class OrderItem {
 
         return OrderItem.builder()
                 .bookId(book.id())
-                .unitPrice(book.unitPrice())
+                .unitPrice(book.salePrice())
                 .quantity(quantity)
                 .build();
     }
