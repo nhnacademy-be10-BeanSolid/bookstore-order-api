@@ -1,15 +1,18 @@
 ### ────────── 공통 변수 ──────────
-@host       = http://localhost:10350
+@host       = http://s1.java21.net:10350
 @ct         = application/json
-@memberId   = 42
+@memberId   = 4
 
-### Toss 테스트 Key
+### Toss 테스트 Key
 @clientKey  = test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
 @secretKey  = test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
 @basicAuth  = Basic dGVzdF9za19HdjZMamVLRDhhOTUxMms5dmFteDh3WXhBZFh5Og==
 
-### ────────── 1) 비회원 주문 생성 ──────────
-POST {{host}}/api/v1/orders
+---
+
+### 1) 비회원 주문 생성
+POST {{host}}/api/v1/orders HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
@@ -26,8 +29,11 @@ Accept:       {{ct}}
 }
 > {% client.global.set("orderIdGuest", response.body.orderId); %}
 
-### ────────── 2) 회원 주문 생성 ──────────
-POST {{host}}/api/v1/orders
+
+
+### 2) 회원 주문 생성
+POST {{host}}/api/v1/orders HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
@@ -44,183 +50,94 @@ Accept:       {{ct}}
 }
 > {% client.global.set("orderIdMember", response.body.orderId); %}
 
-### ────────── 3) 결제창(인증) 요청 ──────────
-POST {{host}}/api/v1/payments/toss/d6e2b904-5237-4d4c-8414-9d093a4e0261
+
+
+### 3) 결제창(인증) 요청
+POST {{host}}/api/v1/payments/toss/202506-c8ta0p-2A4Xtm HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
 {
-  "payAmount": 32000,
+  "payAmount": 19000,
   "payType":   "CARD",
   "payName":   "도서 4권",
-  "successUrl": "http://localhost:10350/api/v1/payments/toss/success",
-  "failUrl":    "http://localhost:10350/api/v1/payments/toss/fail"
+  "successUrl": "http://s1.java21.net:10350/api/v1/payments/toss/success",
+  "failUrl":    "http://s1.java21.net:10350/api/v1/payments/toss/fail"
 }
-> {% client.global.set("paymentKey",  response.body.paymentKey); %}
+> {% client.global.set("paymentKey", response.body.paymentKey); %}
 
-### ────────── 4) Toss 결제 확정(confirm) ──────────
-POST https://api.tosspayments.com/v1/payments/confirm
+
+### 4) Toss 결제 확정 (confirm)
+POST https://sandbox.tosspayments.com/v1/payments/{{paymentKey}}/confirm HTTP/1.1
 Authorization: {{basicAuth}}
+X-Client-Api-Key: {{clientKey}}
 Content-Type: {{ct}}
 
 {
-  "orderId":    "96926700-d686-4d7d-a11c-9307a5303803",
-  "paymentKey": "tviva20250625171612ON7e4",
+  "orderId":    "{{orderIdMember}}",
   "amount":     32000
 }
 
-### ────────── 5) 성공 콜백 시뮬레이션 ──────────
-GET {{host}}/api/v1/payments/toss/success?paymentKey=tviva20250625160439Kzu88&orderId=96926700-d686-4d7d-a11c-9307a5303803&amount=32000&paymentType=CARD
+
+### 5) 성공 콜백 시뮬레이션
+GET {{host}}/api/v1/payments/toss/success?paymentKey={{paymentKey}}&orderId={{orderIdMember}}&amount=32000&paymentType=CARD HTTP/1.1
+Host: s1.java21.net:10350
 Accept: {{ct}}
 
-### ────────── 6) PENDING → SHIPPING ──────────
-PATCH {{host}}/api/v1/orders/1/status
+
+
+### 6) PENDING → SHIPPING
+PATCH {{host}}/api/v1/orders/{{orderIdGuest}}/status HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
 { "newStatus": "SHIPPING", "changedBy": {{memberId}}, "memo": "배송 시작" }
 
-### ────────── 7) SHIPPING → COMPLETED ──────────
-PATCH {{host}}/api/v1/orders/{{orderIdMember}}/status
+---
+
+### 7) SHIPPING → COMPLETED
+PATCH {{host}}/api/v1/orders/{{orderIdMember}}/status HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
 { "newStatus": "COMPLETED", "changedBy": {{memberId}}, "memo": "배송 완료" }
 
-### ────────── 8) 비회원 주문 취소 ──────────
-POST {{host}}/api/v1/orders/{{orderIdGuest}}/cancel
+---
+
+### 8) 비회원 주문 취소
+POST {{host}}/api/v1/orders/{{orderIdGuest}}/cancel HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
 { "reason": "단순 변심", "changedBy": "guest-101" }
 
-### ────────── 9) 반품 요청(회원) ──────────
-POST {{host}}/api/v1/orders/{{orderIdMember}}/orderReturn
+---
+
+### 9) 반품 요청 (회원)
+POST {{host}}/api/v1/orders/{{orderIdMember}}/orderReturn HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}
 
 { "reason": "파본 발견", "changedBy": {{memberId}} }
 
-### ────────── 10) 상태 로그 조회 ──────────
-GET {{host}}/api/v1/orders/{{orderIdMember}}/status-log
+---
+
+### 10) 상태 로그 조회
+GET {{host}}/api/v1/orders/{{orderIdMember}}/status-log HTTP/1.1
+Host: s1.java21.net:10350
 Accept: {{ct}}
 
-### ────────── 11) 결제 취소(선택) ──────────
-POST {{host}}/api/v1/payments/toss/cancel/point
+---
+
+### 11) 결제 취소 (선택)
+POST {{host}}/api/v1/payments/toss/cancel/point HTTP/1.1
+Host: s1.java21.net:10350
 Content-Type: application/x-www-form-urlencoded
 Accept:       {{ct}}
 
 paymentKey={{paymentKey}}&cancelReason=구매자%20변심
-
-
-
-
-
-
-
-
-
-
-
-##############
-
-
-### ────────── 1) 비회원 주문 생성 ──────────
-POST http://localhost:10350/orders
-Content-Type: application/json
-X-User-Id: 42              # 로그인 사용자 PK
-
-{
-  "orderType": "member",
-  "userId": 42,
-
-  "receiverName": "김개발",
-  "receiverPhoneNumber": "010-9876-5432",
-  "address": "서울특별시 강남구 테헤란로 123",
-
-  "requestedDeliveryDate": "2025-07-01",
-
-  "payMethod": "ACCOUNT",
-  "orderName": "개발서적 세트",
-
-  "items": [
-    {
-      "bookId": 7,
-      "quantity": 2,
-      "unitPrice": 20000,
-      "giftWrapped": true,
-      "wrappingId": 3
-    }
-  ]
-}
-
-### ────────── 2) 회원 주문 생성 ──────────
-POST http://localhost:10350/orders
-Content-Type: application/json
-X-User-Id: 101             # 게스트라도 헤더는 필요
-
-{
-  "orderType": "guest",
-  "guestId": 101,
-
-  "receiverName": "홍길동",
-  "receiverPhoneNumber": "010-1234-5678",
-  "address": "서울특별시 마포구 양화로 45",
-
-  "requestedDeliveryDate": "2025-06-30",
-
-  "payMethod": "CARD",
-  "orderName": "도서 1권",
-
-  "items": [
-    {
-      "bookId": 1,
-      "quantity": 1,
-      "unitPrice": 15000,
-      "giftWrapped": false
-    }
-  ]
-}
-
-
-
-### ────────── 3) 회원 주문 전체 조회 ──────────
-GET {{host}}/orders
-X-User-Id: {{memberId}}
-
-
-
-### ────────── 4) 주문 상태 수동 변경 (예: PENDING → SHIPPING) ──────────
-PATCH {{host}}/orders/{{orderIdMember}}/status
-Content-Type: {{ct}}
-
-{
-  "newStatus": "SHIPPING",
-  "changedBy": 999,
-  "memo": "CJ택배 집하 완료"
-}
-
-
-
-### ────────── 5) 주문 취소 (PENDING 상태에서만 가능) ──────────
-POST {{host}}/orders/{{orderIdGuest}}/cancel
-Content-Type: {{ct}}
-
-{ "reason": "단순 변심" }
-
-
-
-### ────────── 6) 주문 상태 변경 이력 조회 ──────────
-GET {{host}}/orders/{{orderIdMember}}/status-log
-
-
-
-### ────────── 7) 반품(환불) 요청 ──────────
-POST {{host}}/orders/{{orderIdMember}}/returns
-Content-Type: {{ct}}
-
-{
-  "reason": "파손 배송",
-  "isDamaged": true,
-  "refundedAsPoints": false
-}

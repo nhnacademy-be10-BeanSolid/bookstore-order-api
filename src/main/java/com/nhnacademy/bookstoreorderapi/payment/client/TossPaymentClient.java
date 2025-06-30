@@ -7,27 +7,30 @@ import java.util.Map;
 
 @FeignClient(
         name = "toss-payment",
-        url  = "${payment.toss.base-url}"   // ← application.yml 의 payment.toss.base-url 을 읽어온다
+        url  = "${payment.toss.base-url}"
 )
 public interface TossPaymentClient {
 
     @PostMapping("/payments")
     ResponseEntity<Map<String, Object>> createPayment(
-            @RequestHeader("Authorization") String basicAuth,
-            @RequestBody Map<String, Object> body
+            @RequestHeader("Authorization")    String basicAuth,
+            @RequestHeader("X-Client-Api-Key") String clientApiKey,
+            @RequestBody                       Map<String, Object> body
     );
 
     @PostMapping("/payments/{paymentKey}/confirm")
     ResponseEntity<Void> confirmPayment(
-            @RequestHeader("Authorization") String basicAuth,
-            @PathVariable String paymentKey,
-            @RequestBody Map<String, Object> body
+            @RequestHeader("Authorization")    String basicAuth,
+            @RequestHeader("X-Client-Api-Key") String clientApiKey,
+            @PathVariable                      String paymentKey,
+            @RequestBody                       Map<String, Object> body
     );
 
     @PostMapping("/payments/{paymentKey}/cancel")
     ResponseEntity<Map<String, Object>> cancelPayment(
-            @RequestHeader("Authorization") String basicAuth,
-            @PathVariable String paymentKey,
-            @RequestBody Map<String, Object> body
+            @RequestHeader("Authorization")    String basicAuth,
+            @RequestHeader("X-Client-Api-Key") String clientApiKey,
+            @PathVariable                      String paymentKey,
+            @RequestBody                       Map<String, Object> body
     );
 }
