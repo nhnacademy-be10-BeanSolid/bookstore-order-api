@@ -19,12 +19,12 @@ public class BookOrderService {
 
     private final BookServiceClient bookServiceClient;
 
-    @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackGetBook")
+    @CircuitBreaker(name = "book-service", fallbackMethod = "fallbackGetBook")
     public List<BookOrderResponse> getBookOrderResponse(List<Long> ids) {
         return bookServiceClient.getBookOrderResponse(ids).getBody();
     }
 
-    @CircuitBreaker(name = "bookService", fallbackMethod = "fallbackStockUpdate")
+    @CircuitBreaker(name = "book-service", fallbackMethod = "fallbackStockUpdate")
     public void stockUpdate(List<BookStockReduceRequest> requests) {
         bookServiceClient.stockUpdate(requests);
     }

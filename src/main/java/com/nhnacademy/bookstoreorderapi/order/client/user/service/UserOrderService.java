@@ -15,7 +15,7 @@ public class UserOrderService {
 
     private final UserServiceClient userServiceClient;
 
-    @CircuitBreaker(name = "userService", fallbackMethod = "fallbackUserOrders")
+    @CircuitBreaker(name = "user-service", fallbackMethod = "fallbackUserOrders")
     public UserOrderResponse getUserInfo(String userId) {
         return userServiceClient.getUserInfo(userId).getBody();
     }
