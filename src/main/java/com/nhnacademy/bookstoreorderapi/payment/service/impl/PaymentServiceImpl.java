@@ -35,16 +35,29 @@ public class PaymentServiceImpl implements PaymentService {
         return tossProps.getBasicAuthHeader();
     }
 
-    private String extractRedirectUrl(Map<String,Object> r) {
+
+    private String extractRedirectUrl(Map<String, Object> r) {
+        // 1) top-level URL 필드 우선
         return Stream.of(
-                        r.get("checkoutUrl"), r.get("checkoutPageUrl"),
-                        r.get("paymentUrl"), r.get("nextRedirectPcUrl")
+                        r.get("checkoutUrl"),
+                        r.get("checkoutPageUrl"),
+                        r.get("paymentUrl"),
+                        r.get("nextRedirectPcUrl")
                 )
                 .filter(Objects::nonNull)
                 .map(Object::toString)
                 .findFirst()
-                .orElseThrow(() ->
-                        new IllegalStateException("리다이렉트 URL 없음: " + r));
+                // 2) top-level 없으면 nested 'checkout.url' 확인
+                .orElseGet(() -> {
+                    Object checkout = r.get("checkout");
+                    if (checkout instanceof Map<?, ?>) {
+                        Object nested = ((Map<?, ?>) checkout).get("url");
+                        if (nested != null) {
+                            return nested.toString();
+                        }
+                    }
+                    throw new IllegalStateException("리다이렉트 URL 없음: " + r);
+                });
     }
 
     @Override
@@ -62,7 +75,7 @@ public class PaymentServiceImpl implements PaymentService {
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
 
-        Map<String,Object> body = Map.of(
+        Map<String, Object> body = Map.of(
                 "method",     method,
                 "orderId",    orderId,
                 "orderName",  dto.getPayName(),
@@ -71,12 +84,12 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        ResponseEntity<Map<String,Object>> respEnt = tossClient.createPayment(
+        ResponseEntity<Map<String, Object>> respEnt = tossClient.createPayment(
                 basicAuth(),
                 tossProps.getClientApiKey(),
                 body
         );
-        Map<String,Object> resp = respEnt.getBody();
+        Map<String, Object> resp = respEnt.getBody();
 
         if (resp == null || resp.get("paymentKey") == null) {
             throw new IllegalStateException("Toss 생성 오류: " + resp);
@@ -127,17 +140,17 @@ public class PaymentServiceImpl implements PaymentService {
         payRepo.findByPaymentKey(paymentKey).ifPresent(p -> {
             p.setPaymentStatus(PaymentStatus.FAIL);
             payRepo.save(p);
-            log.warn("[PAYMENT-FAIL] {} ▶ {}", paymentKey, reason);
+            log.warn("[PAYMENT-FAIL] {} -> {}", paymentKey, reason);
         });
     }
 
     @Override
     @Transactional
-    public Map<String,Object> cancelPaymentPoint(String paymentKey, String reason) {
+    public Map<String, Object> cancelPaymentPoint(String paymentKey, String reason) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        ResponseEntity<Map<String,Object>> respEnt = tossClient.cancelPayment(
+        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(
                 basicAuth(),
                 tossProps.getClientApiKey(),
                 paymentKey,
