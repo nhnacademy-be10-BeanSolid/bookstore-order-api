@@ -1,3 +1,4 @@
+// src/main/java/com/nhnacademy/bookstoreorderapi/payment/service/impl/PaymentServiceImpl.java
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
@@ -77,7 +78,6 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // ★ 헤더 파라미터 없이 단일 body 호출
         ResponseEntity<Map<String, Object>> respEnt = tossClient.createPayment(body);
         Map<String, Object> resp = respEnt.getBody();
 
@@ -100,7 +100,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // ★ confirmPayment 호출부도 헤더 없이 두 번째 인자로만 body 전달
         tossClient.confirmPayment(paymentKey, Map.of(
                 "orderId", orderId,
                 "amount",  amount
@@ -139,8 +138,8 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        // ★ cancelPayment 역시 두 번째 인자로만 body 전달
-        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(paymentKey,
+        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(
+                paymentKey,
                 Map.of("cancelReason", reason)
         );
 
