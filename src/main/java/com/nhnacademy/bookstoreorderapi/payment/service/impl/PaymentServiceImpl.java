@@ -1,4 +1,3 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/payment/service/impl/PaymentServiceImpl.java
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
@@ -14,7 +13,6 @@ import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,8 +76,8 @@ public class PaymentServiceImpl implements PaymentService {
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        ResponseEntity<Map<String, Object>> respEnt = tossClient.createPayment(body);
-        Map<String, Object> resp = respEnt.getBody();
+        // Map 리턴으로 변경
+        Map<String, Object> resp = tossClient.createPayment(body);
 
         if (resp == null || resp.get("paymentKey") == null) {
             throw new IllegalStateException("Toss 생성 오류: " + resp);
@@ -100,6 +98,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
+        // void 리턴으로 변경
         tossClient.confirmPayment(paymentKey, Map.of(
                 "orderId", orderId,
                 "amount",  amount
@@ -138,7 +137,8 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        ResponseEntity<Map<String, Object>> respEnt = tossClient.cancelPayment(
+        // Map 리턴으로 변경
+        Map<String, Object> resp = tossClient.cancelPayment(
                 paymentKey,
                 Map.of("cancelReason", reason)
         );
@@ -146,6 +146,6 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
 
-        return respEnt.getBody();
+        return resp;
     }
 }
