@@ -3,7 +3,6 @@ package com.nhnacademy.bookstoreorderapi.order.domain;
 import java.security.SecureRandom;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Random;
 
 /**
  * 주문번호 생성 클래스.
@@ -14,7 +13,11 @@ import java.util.Random;
  */
 public class OrderIdGenerator {
 
-    private static final SecureRandom random = new SecureRandom();
+    private OrderIdGenerator() {
+        throw new RuntimeException("생성자로 생성할 수 없는 클래스입니다.");
+    }
+
+    private static final SecureRandom RANDOM = new SecureRandom(); // 보안을 위해 SecureRandom을 사용.
     private static final int SEGMENT_LENGTH = 6;
     private static final String CHAR_POOL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                             + "abcdefghijklmnopqrstuvwxyz"
@@ -32,9 +35,8 @@ public class OrderIdGenerator {
     private static String randomSegment() {
 
         StringBuilder sb = new StringBuilder();
-        Random random = new SecureRandom(); // 보안을 위해 SecureRandom을 사용.
-        for (int i = 0; i < 6; i++) {
-            sb.append(CHAR_POOL.charAt(random.nextInt(CHAR_POOL.length())));
+        for (int i = 0; i < SEGMENT_LENGTH; i++) {
+            sb.append(CHAR_POOL.charAt(RANDOM.nextInt(CHAR_POOL.length())));
         }
 
         return sb.toString();

@@ -6,7 +6,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,7 +16,7 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
-public class Order {
+public class Order extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,19 +24,14 @@ public class Order {
 
     private String orderId; // 식별 가능한 주문 번호
 
-    private Long userId; //TODO 회원: 회원 도메인 API로 xUserId -> userId 변환 예정.
+    private Long userNo;
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;
 
-    @Column(name = "order_date"/*, columnDefinition = "DATE"*/) // 테스트 환경(h2 database)에서 "DATE"를 인식하지 못해서 임시 조치
     private LocalDate orderDate; // 주문한 날
 
-    private LocalDateTime createdAt; // 주문 데이터가 처음 생성된 시각
-
-    private LocalDateTime updatedAt; // 주문 데이터가 마지막으로 변경된 시각
-
-    private int totalPrice; // 총 상품 금액
+    private Long totalPrice; // 총 상품 금액
 
     @Embedded
     private ShippingInfo shippingInfo; // 배송 관련 정보
@@ -51,15 +45,13 @@ public class Order {
         this.items.add(item);
     }
 
-    public static Order of(OrderRequest req, Long userId) {
+    public static Order of(OrderRequest req, Long userNo) {
 
         ShippingInfo shippingInfo = ShippingInfo.of(req, 0);
 
         return Order.builder()
-                .userId(userId)
+                .userNo(userNo)
                 .orderDate(LocalDate.now())
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now()) //TODO 주문: Auditing 기능 사용해서 구현하기
                 .shippingInfo(shippingInfo)
                 .build();
     }

@@ -1,4 +1,28 @@
 package com.nhnacademy.bookstoreorderapi.order.client.book.dto;
 
-//TODO 도서: 필요한 필드 다시 생각해보고 최종 결정하기
-public record BookOrderResponse(Long id, int unitPrice, int stock) {}
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Builder;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Builder
+public record BookOrderResponse (
+        Long id,
+        String title,
+        String description,
+        String toc,
+        String author,
+        String publisher,
+        LocalDate publishedDate,
+        String isbn,
+        int originalPrice,
+        int salePrice,
+        boolean wrappable,
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        LocalDateTime createAt,
+        @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+        LocalDateTime updateAt,
+        String status,
+        int stock
+) {}
