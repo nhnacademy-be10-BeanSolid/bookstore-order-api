@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
@@ -12,14 +13,11 @@ import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -32,24 +30,20 @@ public class PaymentServiceImpl implements PaymentService {
     private final OrderRepository   orderRepo;
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
-    private final RestTemplate      restTemplate;
+    private final TossPaymentClient tossClient;    // ← RestTemplate 대신
 
-    private static final ParameterizedTypeReference<Map<String, Object>> MAP_REF =
-            new ParameterizedTypeReference<>() {};
-
-    //공통 헤더
-    private HttpHeaders authHeaders() {
-        HttpHeaders h = new HttpHeaders();
-        h.setBasicAuth(tossProps.getSecretApiKey(), "");
-        h.setContentType(MediaType.APPLICATION_JSON);
-        return h;
+    private String basicAuthHeader() {
+        String creds = tossProps.getSecretApiKey() + ":";
+        return "Basic " + Base64.getEncoder().encodeToString(creds.getBytes());
     }
 
-    // redirect URL 추출
     private String extractRedirectUrl(Map<String, Object> r) {
-        return Stream.of(r.get("checkoutUrl"), r.get("checkoutPageUrl"),
-                        r.get("paymentUrl"), r.get("nextRedirectPcUrl"),
-                        r.get("next_redirect_pc_url"))
+        return Stream.of(
+                        r.get("checkoutUrl"),
+                        r.get("checkoutPageUrl"),
+                        r.get("paymentUrl"),
+                        r.get("nextRedirectPcUrl")
+                )
                 .filter(Objects::nonNull)
                 .map(Object::toString)
                 .findFirst()
@@ -57,23 +51,16 @@ public class PaymentServiceImpl implements PaymentService {
                         new IllegalStateException("리다이렉트 URL 없음: " + r));
     }
 
-// 1. 결제 생성
     @Override
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-
-        // 1 주문 엔티티 확보 & 존재 체크
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
-        // 2 이미 ‘SUCCESS’ 결제
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
-                .ifPresent(p -> {
-                    throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId);
-                });
+                .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
 
-        // 3 Toss 결제 생성
-        String method = (dto.getPayType() == PayType.ACCOUNT)
+        String method = dto.getPayType() == PayType.ACCOUNT
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
 
@@ -83,30 +70,22 @@ public class PaymentServiceImpl implements PaymentService {
                 "orderName",  dto.getPayName(),
                 "amount",     dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
-                "failUrl",    tossProps.getFailUrl());
+                "failUrl",    tossProps.getFailUrl()
+        );
 
-        Map<String, Object> resp;
-        try {
-            resp = restTemplate.exchange(
-                    TossPaymentConfig.PAYMENTS_URL,
-                    HttpMethod.POST,
-                    new HttpEntity<>(body, authHeaders()),
-                    MAP_REF).getBody();
-        } catch (HttpStatusCodeException ex) {
-            log.error("[TOSS] 요청 실패 ▶ {} / {}", ex.getStatusCode(),
-                    ex.getResponseBodyAsString());
-            throw new ResponseStatusException(ex.getStatusCode(),
-                    "Toss 결제 요청 실패", ex);
-        }
+        // RestTemplate 대신 Feign client 호출
+        ResponseEntity<Map<String, Object>> createResp =
+                tossClient.createPayment(basicAuthHeader(), body);
+        Map<String, Object> resp = createResp.getBody();
 
         if (resp == null || resp.get("paymentKey") == null) {
-            throw new IllegalStateException("Toss 응답 오류: " + resp);
+            throw new IllegalStateException("Toss 결제 생성 응답 오류: " + resp);
         }
 
         return PaymentResDto.builder()
                 .orderId(orderId)
-                .payAmount(dto.getPayAmount())
                 .payType(dto.getPayType().name())
+                .payAmount(dto.getPayAmount())
                 .payName(dto.getPayName())
                 .paymentKey(resp.get("paymentKey").toString())
                 .redirectUrl(extractRedirectUrl(resp))
@@ -115,25 +94,18 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    //2. 결제 성공
-
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
+        tossClient.confirmPayment(
+                basicAuthHeader(),
+                paymentKey,
+                Map.of("orderId", orderId, "amount", amount)
+        );
 
-        // 1 Toss 확정
-        restTemplate.exchange(
-                TossPaymentConfig.PAYMENTS_URL + "/" + paymentKey + "/confirm",
-                HttpMethod.POST,
-                new HttpEntity<>(Map.of("orderId", orderId, "amount", amount),
-                        authHeaders()),
-                Void.class);
-
-        //2 주문 확보
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
 
-        // 3 결제 upsert
         Payment payment = payRepo.findByOrder(order)
                 .orElseGet(() -> Payment.builder()
                         .order(order)
@@ -148,8 +120,6 @@ public class PaymentServiceImpl implements PaymentService {
         payRepo.save(payment);
     }
 
-    // 3. 결제 실패
-
     @Override
     @Transactional
     public void markFail(String paymentKey, String reason) {
@@ -160,25 +130,19 @@ public class PaymentServiceImpl implements PaymentService {
         });
     }
 
-    // 4. 결제 취소
-
     @Override
     @Transactional
-    public Map<String, Object> cancelPaymentPoint(String paymentKey,
-                                                  String reason) {
-
+    public Map<String, Object> cancelPaymentPoint(String paymentKey, String reason) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
-                .orElseThrow(() ->
-                        new IllegalArgumentException("결제 없음: " + paymentKey));
+                .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        Map<String, Object> resp = restTemplate.exchange(
-                TossPaymentConfig.PAYMENTS_URL + "/" + paymentKey + "/cancel",
-                HttpMethod.POST,
-                new HttpEntity<>(Map.of("cancelReason", reason), authHeaders()),
-                MAP_REF).getBody();
+        ResponseEntity<Map<String, Object>> cancelResp =
+                tossClient.cancelPayment(basicAuthHeader(), paymentKey, Map.of("cancelReason", reason));
+        Map<String, Object> resp = cancelResp.getBody();
 
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
+
         return resp;
     }
 }
