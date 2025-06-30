@@ -23,6 +23,6 @@ public record OrderRequest(
     LocalDate requestedDeliveryDate,
 
     @NotEmpty(message = "주문할 상품이 없습니다")
-    @Valid // @Valid가 있어야 OrderItemDto에 대한 값 검증이 이루어짐.(컬렉션 타입에 대한 재귀적 검증)
+    @Valid // @Valid가 있어야 OrderItemRequest에 대한 값 검증이 이루어짐.(컬렉션 타입에 대한 재귀적 검증)
     List<OrderItemRequest> items
 ) {}

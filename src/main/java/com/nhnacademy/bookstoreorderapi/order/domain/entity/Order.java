@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-//TODO 주문: 주문인!=받을사람 인 경우가 있을 수 있으니 '수령인' 고려해서 리팩토링 하기.
 @Entity
 @Table(name = "orders")
 @Getter @Setter
@@ -41,12 +40,11 @@ public class Order extends BaseTimeEntity {
     private List<OrderItem> items = new ArrayList<>();
 
     public void addItem(OrderItem item) {
-        item.setOrder(this);
         this.items.add(item);
+        item.setOrder(this);
     }
 
     public static Order of(OrderRequest req, Long userNo) {
-
         ShippingInfo shippingInfo = ShippingInfo.of(req, 0);
 
         return Order.builder()
@@ -58,7 +56,6 @@ public class Order extends BaseTimeEntity {
 
     @PrePersist
     private void ensureOrderId() {
-
         if (this.orderId == null) {
             this.orderId = OrderIdGenerator.generate();
         }

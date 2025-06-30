@@ -14,7 +14,6 @@ public record ShippingInfo(
     int deliveryFee
 ) {
     public static ShippingInfo of(OrderRequest req, int deliveryFee) {
-
         LocalDate requestedDeliveryDate = req.requestedDeliveryDate() != null
                 ? req.requestedDeliveryDate()
                 : LocalDate.now().plusDays(1);

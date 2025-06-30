@@ -186,15 +186,13 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
     }
 
-    /*───────────────────────────────────────────────────────
-     * 3. 주문 취소
-     *──────────────────────────────────────────────────────*/
+    // 주문 취소
     @Override
     @Transactional
-    public void cancelOrder(Long orderId, String reason) {
+    public void cancelOrder(String orderId, String reason) {
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
@@ -204,7 +202,7 @@ public class OrderServiceImpl implements OrderService {
 
         canceledOrderRepository.save(
                 CanceledOrder.builder()
-                        .orderId(orderId)
+                        .orderId(order.getId())
                         .canceledAt(LocalDateTime.now())
                         .reason(reason)
                         .build());

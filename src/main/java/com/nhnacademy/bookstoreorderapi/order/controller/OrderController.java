@@ -57,7 +57,7 @@ public class OrderController {
 
     @PostMapping("/{orderId}/cancel")
     public SuccessResponseDto cancelOrder(
-            @PathVariable Long orderId,
+            @PathVariable String orderId,
             @RequestBody(required = false) CancelOrderRequestDto dto
     ) {
         String reason = (dto != null ? dto.getReason() : null);

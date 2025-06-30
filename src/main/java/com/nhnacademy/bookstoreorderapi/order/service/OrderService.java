@@ -14,7 +14,7 @@ public interface OrderService {
     void createOrder(OrderRequest orderRequest, String xUserId);
     List<OrderSummaryResponse> findAllByUserId(String xUserId);
     OrderResponse findByOrderId(String orderId, String xUserId);
-    void cancelOrder(Long orderId, String reason);
+    void cancelOrder(String orderId, String reason);
     StatusChangeResponseDto changeStatus(String orderId,
                                          OrderStatus newStatus,
                                          String memo,
