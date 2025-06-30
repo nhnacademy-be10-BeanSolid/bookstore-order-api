@@ -11,18 +11,19 @@ import java.util.Map;
  */
 @FeignClient(
         name = "toss-payment",
-        url  = "${payment.toss.base-url}"    // ex) https://sandbox.tosspayments.com
+        url  = "${payment.toss.base-url}"    // application.yml 에 https://sandbox.tosspayments.com/v1 으로 두는 게 편합니다.
 )
 public interface TossPaymentClient {
 
-    @PostMapping("/v1/payments")
+    // ↓ 여기에서 "/v1/payments" 가 아니라 "/payments" 로만 남겨야
+    @PostMapping("/payments")
     ResponseEntity<Map<String, Object>> createPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
             @RequestBody                       Map<String, Object> body
     );
 
-    @PostMapping("/v1/payments/{paymentKey}/confirm")
+    @PostMapping("/payments/{paymentKey}/confirm")
     ResponseEntity<Void> confirmPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
@@ -30,7 +31,7 @@ public interface TossPaymentClient {
             @RequestBody                       Map<String, Object> body
     );
 
-    @PostMapping("/v1/payments/{paymentKey}/cancel")
+    @PostMapping("/payments/{paymentKey}/cancel")
     ResponseEntity<Map<String, Object>> cancelPayment(
             @RequestHeader("Authorization")    String basicAuth,
             @RequestHeader("X-Client-Api-Key") String clientApiKey,
