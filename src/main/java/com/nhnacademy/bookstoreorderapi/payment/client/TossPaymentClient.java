@@ -11,7 +11,7 @@ import java.util.Map;
  */
 @FeignClient(
         name = "toss-payment",
-        url  = "${payment.toss.base-url}"    // ex) https://sandbox.tosspayments.com/v1
+        url  = "${payment.toss.base-url}"    // ex) https://sandbox.tosspayments.com
 )
 public interface TossPaymentClient {
 
