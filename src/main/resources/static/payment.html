@@ -6,11 +6,10 @@
     <style>
         body   { font-family: sans-serif; margin: 40px; }
         label  { display: block; margin: 8px 0 4px; }
-        input,
-        select,
-        button { padding: 6px; font-size: 1rem; }
+        input, select, button { padding: 6px; font-size: 1rem; }
         input  { width: 240px; }
         select { width: 254px; }
+        #loading { margin-top: 16px; color: #555; display: none; }
     </style>
 </head>
 <body>
@@ -33,9 +32,13 @@
 
 <br><br>
 <button id="payBtn">결제하기</button>
+<div id="loading">결제 페이지를 생성 중입니다… 잠시만 기다려주세요.</div>
 
 <script>
-    document.getElementById('payBtn').addEventListener('click', async () => {
+    const btn   = document.getElementById('payBtn');
+    const load  = document.getElementById('loading');
+
+    btn.addEventListener('click', async () => {
         const orderId   = document.getElementById('orderId').value.trim();
         const payAmount = +document.getElementById('amount').value;
         const payName   = document.getElementById('orderName').value.trim();
@@ -46,37 +49,56 @@
             return;
         }
 
+        // 중복 클릭 방지
+        btn.disabled = true;
+        load.style.display = 'block';
+
         try {
             const res = await fetch(`/api/v1/payments/toss/${orderId}`, {
                 method : 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body   : JSON.stringify({
-                    payAmount,
-                    payType,
-                    payName
-                })
+                body   : JSON.stringify({ payAmount, payType, payName })
             });
 
             if (!res.ok) {
-                alert('결제 요청 실패 :\n' + await res.text());
+                const errText = await res.text();
+                alert('결제 요청 실패:\n' + errText);
                 return;
             }
 
             const data = await res.json();
             console.log('[결제 응답 데이터]', data);
 
-            // 서버가 반환하는 redirectUrl 필드(혹은 대체 필드)를 사용
-            const payPageUrl = data.redirectUrl || data.checkoutUrl || data.paymentUrl || data.checkoutPageUrl;
+            // 가능한 모든 필드를 순서대로 체크
+            const possibleKeys = [
+                'redirectUrl',
+                'checkoutUrl',
+                'checkoutPageUrl',
+                'paymentUrl',
+                'nextRedirectAppUrl',
+                'nextRedirectPcUrl'
+            ];
+
+            const payPageUrl = possibleKeys
+                .map(k => data[k])
+                .find(v => v);
+
             if (!payPageUrl) {
                 alert('결제 페이지 URL을 찾을 수 없습니다. 콘솔을 확인하세요.');
+                console.error('응답 전체:', data);
                 return;
             }
 
+            // 실제 결제 페이지로 이동
             window.location.href = payPageUrl;
 
         } catch (err) {
             console.error('결제 요청 중 오류', err);
             alert('결제 요청 중 오류가 발생했습니다.');
+        } finally {
+            // 재활성화
+            btn.disabled = false;
+            load.style.display = 'none';
         }
     });
 </script>
