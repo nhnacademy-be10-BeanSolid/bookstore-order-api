@@ -47,7 +47,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
                         resp.get("paymentUrl"),
-                        resp.get("nextRedirectPcUrl")
+                        resp.get("nextRedirectPcUrl") //결제 페이지로 바로 이동할수 있는 URL이 담겨있음
                 )
                 .filter(Objects::nonNull)
                 .map(Object::toString)

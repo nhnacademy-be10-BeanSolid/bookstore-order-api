@@ -31,12 +31,6 @@ spring:
       httpclient:
         enabled: true
 
-logging:
-  level:
-    feign:
-      Logger: DEBUG
-    com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient: DEBUG
-    com.nhnacademy.bookstoreorderapi.payment.service.impl.PaymentServiceImpl: DEBUG
 
 resilience4j:
   circuitbreaker:
