@@ -53,7 +53,7 @@ Accept:       {{ct}}
 
 
 ### 3) 결제창(인증) 요청
-POST {{host}}/api/v1/payments/toss/202506-ptKU5U-E4BuAP HTTP/1.1
+POST {{host}}/api/v1/payments/toss/202506-cZQVJ8-GpZW1w HTTP/1.1
 Host: s1.java21.net:10350
 Content-Type: {{ct}}
 Accept:       {{ct}}

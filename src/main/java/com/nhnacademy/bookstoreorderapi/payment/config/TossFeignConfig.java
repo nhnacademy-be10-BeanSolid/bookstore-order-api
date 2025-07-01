@@ -1,4 +1,3 @@
-// src/main/java/com/nhnacademy/bookstoreorderapi/payment/config/TossFeignConfig.java
 package com.nhnacademy.bookstoreorderapi.payment.config;
 
 import feign.RequestInterceptor;
@@ -17,7 +16,6 @@ public class TossFeignConfig {
     public TossFeignConfig(TossPaymentConfig props) {
         this.props = props;
     }
-
 
     @Bean
     public RequestInterceptor tossAuthInterceptor() {
