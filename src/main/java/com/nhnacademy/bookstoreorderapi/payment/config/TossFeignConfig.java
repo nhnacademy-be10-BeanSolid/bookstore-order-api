@@ -23,6 +23,7 @@ public class TossFeignConfig {
             template.header("Authorization", props.getBasicAuthHeader());
             template.header("X-Client-Api-Key", props.getClientApiKey());
             template.header("Content-Type", "application/json");
+            template.header("Accept", "application/json");
         };
     }
 
