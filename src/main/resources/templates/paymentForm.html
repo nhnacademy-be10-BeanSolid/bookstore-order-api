@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8" />
     <title>Toss Payments 테스트</title>
@@ -16,10 +16,10 @@
 <h1>결제 테스트 (단독 호출용)</h1>
 
 <label for="orderId">Order&nbsp;ID</label>
-<input id="orderId" placeholder="주문 ID (orders.order_id)" />
+<input id="orderId" th:value="${orderId}" placeholder="주문 ID (orders.order_id)" />
 
 <label for="amount">Amount (원)</label>
-<input id="amount" type="number" min="100" placeholder="결제 금액" />
+<input id="amount" type="number" min="100" th:value="${totalPrice}" placeholder="결제 금액" />
 
 <label for="orderName">Order&nbsp;Name</label>
 <input id="orderName" placeholder="주문명 (예: 도서 3권)" />

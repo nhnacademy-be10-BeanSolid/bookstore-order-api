@@ -25,6 +25,6 @@ public class PaymentViewController {
 
         model.addAttribute("orderId",    orderId);
         model.addAttribute("totalPrice", order.getTotalPrice());
-        return "payment.html";   // → src/main/resources/templates/payment.html
+        return "paymentForm";   // → src/main/resources/templates/payment.html
     }
 }
