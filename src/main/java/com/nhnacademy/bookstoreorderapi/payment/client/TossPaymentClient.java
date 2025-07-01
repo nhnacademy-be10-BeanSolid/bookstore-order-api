@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @FeignClient(
-        name          = "toss-payment",
+        name          = "toss",
         url           = "${payment.toss.base-url}",
         configuration = TossFeignConfig.class
 )

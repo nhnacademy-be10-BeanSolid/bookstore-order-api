@@ -16,17 +16,27 @@ spring:
       discovery:
         enabled: true
         service-id: config-server
-      name: mysql           # config-server 에 올라간 yml 이름
+      name: mysql
     openfeign:
       circuitbreaker:
-        enabled: true       # Feign에 서킷 브레이커 적용 활성화
+        enabled: true
       client:
         config:
           default:
             connect-timeout: 3000
             read-timeout: 3000
+            loggerLevel: FULL
       okhttp:
+        enabled: false
+      httpclient:
         enabled: true
+
+logging:
+  level:
+    feign:
+      Logger: DEBUG
+    com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient: DEBUG
+    com.nhnacademy.bookstoreorderapi.payment.service.impl.PaymentServiceImpl: DEBUG
 
 resilience4j:
   circuitbreaker:
@@ -47,7 +57,6 @@ eureka:
 payment:
   toss:
     base-url:  https://sandbox.tosspayments.com/v1
-    ## https://api.tosspayments.com/v1
     client-api-key: test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
     secret-api-key: test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
     success-url: http://s1.java21.net:10350/api/v1/payments/toss/success

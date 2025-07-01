@@ -1,9 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.config;
 
 import feign.RequestInterceptor;
-import feign.okhttp.OkHttpClient;
-import okhttp3.Protocol;
-import okhttp3.OkHttpClient.Builder;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,11 +25,11 @@ public class TossFeignConfig {
         };
     }
 
-    @Bean
-    public OkHttpClient feignOkHttpClient() {
-        okhttp3.OkHttpClient client = new Builder()
-                .protocols(Collections.singletonList(Protocol.HTTP_1_1))
-                .build();
-        return new OkHttpClient(client);
-    }
+//    @Bean
+//    public OkHttpClient feignOkHttpClient() {
+//        okhttp3.OkHttpClient client = new Builder()
+//                .protocols(Collections.singletonList(Protocol.HTTP_1_1))
+//                .build();
+//        return new OkHttpClient(client);
+//    }
 }
