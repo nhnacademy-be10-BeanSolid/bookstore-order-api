@@ -29,7 +29,22 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
+    /**
+     * 응답 맵에서 redirect URL을 추출.
+     * ① checkout.url 우선 확인
+     * ② 그 외 필드를 순차 탐색
+     */
     private String extractRedirectUrl(Map<String, Object> resp) {
+        // ① checkout.url 우선 처리
+        Object checkout = resp.get("checkout");
+        if (checkout instanceof Map<?, ?> nested) {
+            Object url = nested.get("url");
+            if (url != null) {
+                return url.toString();
+            }
+        }
+
+        // ② 기존 키 순차 탐색
         return Stream.of(
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
@@ -60,15 +75,15 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 : dto.getPayType().name();
 
         Map<String, Object> body = Map.of(
-                "method",    method,
-                "orderId",   orderId,
-                "orderName", dto.getPayName(),
-                "amount",    dto.getPayAmount(),
+                "method",     method,
+                "orderId",    orderId,
+                "orderName",  dto.getPayName(),
+                "amount",     dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // 단일 엔드포인트 호출
+        // 단일 엔드포인트 호출 (sandbox 혹은 production 설정에 따라)
         Map<String, Object> resp = tossClient.createPayment(body);
 
         Object key = resp.get("paymentKey");
