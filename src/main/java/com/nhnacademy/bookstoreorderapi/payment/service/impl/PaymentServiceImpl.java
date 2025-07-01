@@ -10,6 +10,7 @@ import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
+import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +36,6 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
      * ② 그 외 키 순차 탐색
      */
     private String extractRedirectUrl(Map<String, Object> resp) {
-        // ① checkout.url 우선 처리
         Object checkout = resp.get("checkout");
         if (checkout instanceof Map<?, ?> nested) {
             Object url = nested.get("url");
@@ -43,7 +43,6 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 return url.toString();
             }
         }
-        // ② 나머지 키 순차 탐색
         return Stream.of(
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
@@ -81,7 +80,6 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // 샌드박스 단일 호출
         Map<String, Object> resp = tossClient.createPayment(body);
 
         Object key = resp.get("paymentKey");
@@ -105,8 +103,13 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // 샌드박스 단일 호출
-        tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
+        try {
+            // CARD 결제의 경우 confirmPayment 엔드포인트가 없으므로,
+            // 404(Not Found)만 무시하고 넘어갑니다.
+            tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
+        } catch (FeignException.NotFound nf) {
+            log.info("[TOSS CONFIRM] CARD 결제 – Confirm 호출 불필요({})", nf.status());
+        }
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
@@ -140,7 +143,6 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        // 샌드박스 단일 호출
         Map<String, Object> resp = tossClient.cancelPayment(paymentKey, Map.of("cancelReason", reason));
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
