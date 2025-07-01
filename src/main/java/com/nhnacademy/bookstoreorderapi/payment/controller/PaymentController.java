@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
+import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;               // ← 추가
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;  // ← 이미 있으나 위치 재확인
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import jakarta.validation.Valid;
@@ -21,7 +22,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /** 1) 결제 요청 */
+    /** 1) 기존 POST 결제 요청 */
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}",
             consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -30,6 +31,30 @@ public class PaymentController {
             @RequestBody @Valid PaymentReqDto dto) {
 
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
+        return ResponseEntity
+                .created(URI.create("/api/v1/payments/" + res.getPaymentId()))
+                .body(res);
+    }
+
+    /** ● 추가: GET 기반 결제 요청 (CloudFront 우회용) */
+    @CrossOrigin(origins = "*")
+    @GetMapping(path = "/toss/{orderId}/create")
+    public ResponseEntity<PaymentResDto> requestPaymentViaGet(
+            @PathVariable String orderId,
+            @RequestParam("payType")   PayType    payType,
+            @RequestParam("payName")   String     payName,
+            @RequestParam("payAmount") Long       payAmount) {
+
+        // 1) DTO로 변환
+        PaymentReqDto dto = new PaymentReqDto();
+        dto.setPayType(payType);
+        dto.setPayName(payName);
+        dto.setPayAmount(payAmount);
+
+        // 2) 기존 POST 로직 재사용
+        PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
+
+        // 3) Location 헤더 설정 + body 반환
         return ResponseEntity
                 .created(URI.create("/api/v1/payments/" + res.getPaymentId()))
                 .body(res);
