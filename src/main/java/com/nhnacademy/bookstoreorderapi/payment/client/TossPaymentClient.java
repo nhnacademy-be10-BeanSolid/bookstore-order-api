@@ -1,6 +1,7 @@
 // src/main/java/com/nhnacademy/bookstoreorderapi/payment/client/TossPaymentClient.java
 package com.nhnacademy.bookstoreorderapi.payment.client;
 
+import com.nhnacademy.bookstoreorderapi.payment.config.TossFeignConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -8,7 +9,7 @@ import java.util.Map;
 @FeignClient(
         name          = "toss-payment",
         url           = "${payment.toss.base-url}",
-        configuration = com.nhnacademy.bookstoreorderapi.payment.config.TossFeignConfig.class
+        configuration = TossFeignConfig.class
 )
 public interface TossPaymentClient {
 

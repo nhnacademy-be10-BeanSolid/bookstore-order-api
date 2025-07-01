@@ -24,39 +24,41 @@ import java.util.stream.Stream;
 @Slf4j
 public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.payment.service.PaymentService {
 
-    private final OrderRepository   orderRepo;
+    private final OrderRepository orderRepo;
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
-    private String extractRedirectUrl(Map<String, Object> response) {
+    private String extractRedirectUrl(Map<String, Object> r) {
         return Stream.of(
-                        response.get("checkoutUrl"),
-                        response.get("checkoutPageUrl"),
-                        response.get("paymentUrl"),
-                        response.get("nextRedirectPcUrl")
+                        r.get("checkoutUrl"),
+                        r.get("checkoutPageUrl"),
+                        r.get("paymentUrl"),
+                        r.get("nextRedirectPcUrl")
                 )
                 .filter(Objects::nonNull)
                 .map(Object::toString)
                 .findFirst()
-                .orElseThrow(() ->
-                        new IllegalStateException("리다이렉트 URL 없음: " + response)
-                );
+                .orElseGet(() -> {
+                    Object checkout = r.get("checkout");
+                    if (checkout instanceof Map<?, ?> nested) {
+                        Object url = nested.get("url");
+                        if (url != null) return url.toString();
+                    }
+                    throw new IllegalStateException("리다이렉트 URL 없음: " + r);
+                });
     }
 
     @Override
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-        // 주문 조회 & 중복 결제 방지
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
 
-        // 요청 바디 조립
-        String method = dto.getPayType() == PayType.ACCOUNT
-                ? "VIRTUAL_ACCOUNT"
-                : dto.getPayType().name();
+        String method = dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name();
         Map<String, Object> body = Map.of(
                 "method",     method,
                 "orderId",    orderId,
@@ -66,23 +68,21 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // **샌드박스 전용 호출** (프로덕션 재시도 로직은 삭제)
+        // 샌드박스 전용 호출만
         Map<String, Object> resp = tossClient.createPayment(body);
 
-        // paymentKey 확인
-        Object paymentKey = resp.get("paymentKey");
-        if (paymentKey == null) {
+        Object key = resp.get("paymentKey");
+        if (key == null) {
             log.error("[TOSS CREATE][ERROR] no paymentKey in {}", resp);
             throw new IllegalStateException("Toss 생성 오류: " + resp);
         }
 
-        // 응답 DTO 생성
         return PaymentResDto.builder()
                 .orderId(orderId)
                 .payType(dto.getPayType().name())
                 .payAmount(dto.getPayAmount())
                 .payName(dto.getPayName())
-                .paymentKey(paymentKey.toString())
+                .paymentKey(key.toString())
                 .redirectUrl(extractRedirectUrl(resp))
                 .successUrl(tossProps.getSuccessUrl())
                 .failUrl(tossProps.getFailUrl())
@@ -92,12 +92,12 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // **샌드박스 전용 확인 호출**
+        // 샌드박스 전용 확인 호출
         tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
 
-        // DB에 결제 성공 저장
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+
         Payment payment = payRepo.findByOrder(order)
                 .orElseGet(() -> Payment.builder()
                         .order(order)
@@ -105,6 +105,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                         .payAmount(amount)
                         .payName("도서 구매")
                         .build());
+
         payment.setPaymentKey(paymentKey);
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(amount);
@@ -114,24 +115,22 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     @Override
     @Transactional
     public void markFail(String paymentKey, String reason) {
-        // DB에 결제 실패 저장
-        payRepo.findByPaymentKey(paymentKey)
-                .ifPresent(p -> {
-                    p.setPaymentStatus(PaymentStatus.FAIL);
-                    payRepo.save(p);
-                    log.warn("[PAYMENT-FAIL] {} -> {}", paymentKey, reason);
-                });
+        payRepo.findByPaymentKey(paymentKey).ifPresent(p -> {
+            p.setPaymentStatus(PaymentStatus.FAIL);
+            payRepo.save(p);
+            log.warn("[PAYMENT-FAIL] {} -> {}", paymentKey, reason);
+        });
     }
 
     @Override
     @Transactional
     public Map<String, Object> cancelPaymentPoint(String paymentKey, String reason) {
+        Payment payment = payRepo.findByPaymentKey(paymentKey)
+                .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
+
         // 샌드박스 전용 취소 호출
         Map<String, Object> resp = tossClient.cancelPayment(paymentKey, Map.of("cancelReason", reason));
 
-        // DB에 취소 상태 저장
-        Payment payment = payRepo.findByPaymentKey(paymentKey)
-                .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
         return resp;
