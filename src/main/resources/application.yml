@@ -9,6 +9,9 @@ spring:
   config:
     import: "optional:configserver:"
   cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
     config:
       discovery:
         enabled: true
