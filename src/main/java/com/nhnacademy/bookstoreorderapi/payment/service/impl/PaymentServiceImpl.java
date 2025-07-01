@@ -32,7 +32,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     /**
      * 응답 맵에서 redirect URL을 추출.
      * ① checkout.url 우선 확인
-     * ② 그 외 필드를 순차 탐색
+     * ② 그 외 키 순차 탐색
      */
     private String extractRedirectUrl(Map<String, Object> resp) {
         // ① checkout.url 우선 처리
@@ -43,8 +43,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 return url.toString();
             }
         }
-
-        // ② 기존 키 순차 탐색
+        // ② 나머지 키 순차 탐색
         return Stream.of(
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
@@ -63,7 +62,6 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
-
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> {
@@ -83,7 +81,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        // 단일 엔드포인트 호출 (sandbox 혹은 production 설정에 따라)
+        // 샌드박스 단일 호출
         Map<String, Object> resp = tossClient.createPayment(body);
 
         Object key = resp.get("paymentKey");
@@ -107,12 +105,11 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-        // 단일 엔드포인트 호출
+        // 샌드박스 단일 호출
         tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
-
         Payment payment = payRepo.findByOrder(order)
                 .orElseGet(() -> Payment.builder()
                         .order(order)
@@ -143,9 +140,8 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        // 단일 엔드포인트 호출
+        // 샌드박스 단일 호출
         Map<String, Object> resp = tossClient.cancelPayment(paymentKey, Map.of("cancelReason", reason));
-
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
         return resp;
