@@ -1,71 +1,106 @@
-<!-- src/main/resources/templates/payment.html -->
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>결제 페이지</title>
+    <meta charset="UTF-8" />
+    <title>Toss Payments 테스트</title>
+    <style>
+        body   { font-family: sans-serif; margin: 40px; }
+        label  { display: block; margin: 8px 0 4px; }
+        input, select, button { padding: 6px; font-size: 1rem; }
+        input  { width: 240px; }
+        select { width: 254px; }
+        #loading { margin-top: 16px; color: #555; display: none; }
+    </style>
 </head>
 <body>
-<h1>결제하기</h1>
+<h1>결제 테스트 (단독 호출용)</h1>
 
-<p>주문번호: <strong th:text="${orderId}"></strong></p>
-<p>결제 금액: <strong th:text="${totalPrice}"></strong>원</p>
+<label for="orderId">Order&nbsp;ID</label>
+<input id="orderId" placeholder="주문 ID (orders.order_id)" />
 
-<form th:action="@{/api/v1/payments/toss/{oid}(oid=${orderId})}"
-      method="post"
-      th:object="${#beans.emptyBean}"
-      enctype="application/json">
-    <!-- 실제로는 AJAX로 JSON 바디를 보내는 편이 깔끔합니다만,
-         간단히 hidden 필드 + JS fetch 예시를 드립니다. -->
+<label for="amount">Amount (원)</label>
+<input id="amount" type="number" min="100" placeholder="결제 금액" />
 
-    <input type="hidden" id="orderId" th:value="${orderId}" />
-    <input type="hidden" id="payAmount" th:value="${totalPrice}" />
+<label for="orderName">Order&nbsp;Name</label>
+<input id="orderName" placeholder="주문명 (예: 도서 3권)" />
 
-    <label>
-        주문명:
-        <input type="text" id="payName" placeholder="주문명을 입력하세요" required />
-    </label>
-    <br/>
+<label for="payType">Pay&nbsp;Type</label>
+<select id="payType">
+    <option value="CARD">CARD</option>
+    <option value="ACCOUNT">ACCOUNT</option>
+</select>
 
-    <label>
-        결제수단:
-        <select id="payType">
-            <option value="CARD">신용카드</option>
-            <option value="ACCOUNT">가상계좌</option>
-        </select>
-    </label>
-    <br/>
+<br><br>
+<button id="payBtn">결제하기</button>
+<div id="loading">결제 페이지를 생성 중입니다… 잠시만 기다려주세요.</div>
 
-    <button type="button" onclick="submitPayment()">결제 요청</button>
-</form>
+<script>
+    const btn   = document.getElementById('payBtn');
+    const load  = document.getElementById('loading');
 
-<script th:inline="javascript">
-    /*<![CDATA[*/
-    async function submitPayment() {
-        const oid  = /*[[${orderId}]]*/ '';
-        const body = {
-            payAmount: document.getElementById('payAmount').value,
-            payName:   document.getElementById('payName').value,
-            payType:   document.getElementById('payType').value
-        };
+    btn.addEventListener('click', async () => {
+        const orderId   = document.getElementById('orderId').value.trim();
+        const payAmount = +document.getElementById('amount').value;
+        const payName   = document.getElementById('orderName').value.trim();
+        const payType   = document.getElementById('payType').value;
 
-        const resp = await fetch(`/api/v1/payments/toss/${oid}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-
-        if (!resp.ok) {
-            const err = await resp.json();
-            alert('결제 요청 실패: ' + err.message);
+        if (!orderId || !payAmount || !payName) {
+            alert('Order ID / Amount / Order Name를 모두 입력하세요');
             return;
         }
 
-        const data = await resp.json();
-        // Toss가 준 redirectUrl로 리다이렉트
-        window.location.href = data.redirectUrl;
-    }
-    /*]]>*/
+        // 중복 클릭 방지
+        btn.disabled = true;
+        load.style.display = 'block';
+
+        try {
+            const res = await fetch(`/api/v1/payments/toss/${orderId}`, {
+                method : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ payAmount, payType, payName })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                alert('결제 요청 실패:\n' + errText);
+                return;
+            }
+
+            const data = await res.json();
+            console.log('[결제 응답 데이터]', data);
+
+            // 가능한 모든 필드를 순서대로 체크
+            const possibleKeys = [
+                'redirectUrl',
+                'checkoutUrl',
+                'checkoutPageUrl',
+                'paymentUrl',
+                'nextRedirectAppUrl',
+                'nextRedirectPcUrl'
+            ];
+
+            const payPageUrl = possibleKeys
+                .map(k => data[k])
+                .find(v => v);
+
+            if (!payPageUrl) {
+                alert('결제 페이지 URL을 찾을 수 없습니다. 콘솔을 확인하세요.');
+                console.error('응답 전체:', data);
+                return;
+            }
+
+            // 실제 결제 페이지로 이동
+            window.location.href = payPageUrl;
+
+        } catch (err) {
+            console.error('결제 요청 중 오류', err);
+            alert('결제 요청 중 오류가 발생했습니다.');
+        } finally {
+            // 재활성화
+            btn.disabled = false;
+            load.style.display = 'none';
+        }
+    });
 </script>
 </body>
 </html>

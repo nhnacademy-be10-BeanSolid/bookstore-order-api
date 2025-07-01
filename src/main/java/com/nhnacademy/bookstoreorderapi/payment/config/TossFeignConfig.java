@@ -7,6 +7,7 @@ import okhttp3.OkHttpClient.Builder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import javax.swing.border.EmptyBorder;
 import java.util.Collections;
 
 @Configuration
@@ -34,4 +35,5 @@ public class TossFeignConfig {
                 .build();
         return new OkHttpClient(client);
     }
+
 }
