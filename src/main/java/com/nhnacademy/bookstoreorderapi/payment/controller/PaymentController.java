@@ -65,7 +65,7 @@ public class PaymentController {
      * (3) NEW! 결제 정보 조회
      * GET /api/v1/payments/{paymentKey}
      */
-    @GetMapping(path = "/{paymentKey}")
+    @GetMapping("/{paymentKey}")
     public ResponseEntity<PaymentResDto> getPaymentInfo(
             @PathVariable("paymentKey") String paymentKey) {
 
