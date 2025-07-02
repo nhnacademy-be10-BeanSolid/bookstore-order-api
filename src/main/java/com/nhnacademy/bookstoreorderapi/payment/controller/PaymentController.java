@@ -22,10 +22,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /**
-     * (1) JSON 바디로 Toss 결제 요청
-     * POST /api/v1/payments/toss/{orderId}
-     */
+    // (1) JSON 바디로 Toss 결제 요청
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
@@ -38,10 +35,7 @@ public class PaymentController {
                 .body(res);
     }
 
-    /**
-     * (2) GET 방식으로 Toss 결제 요청 (query parameter)
-     * GET /api/v1/payments/toss/{orderId}/create
-     */
+    // (2) GET 방식으로 Toss 결제 요청 (query parameter)
     @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
@@ -61,10 +55,7 @@ public class PaymentController {
                 .body(res);
     }
 
-    /**
-     * (3) NEW! 결제 정보 조회
-     * GET /api/v1/payments/{paymentKey}
-     */
+    // (3) NEW! 결제 정보 조회
     @GetMapping("/{paymentKey}")
     public ResponseEntity<PaymentResDto> getPaymentInfo(
             @PathVariable("paymentKey") String paymentKey) {
@@ -73,10 +64,7 @@ public class PaymentController {
         return ResponseEntity.ok(info);
     }
 
-    /**
-     * (4) Toss 성공 콜백
-     * GET /api/v1/payments/toss/success
-     */
+    // (4) Toss 성공 콜백
     @GetMapping("/toss/success")
     public RedirectView tossSuccess(@RequestParam Map<String,String> params) {
         log.info("[PAY CALLBACK] success: params={}", params);
@@ -96,10 +84,7 @@ public class PaymentController {
         return rv;
     }
 
-    /**
-     * (5) Toss 실패 콜백
-     * GET /api/v1/payments/toss/fail
-     */
+    // (5) Toss 실패 콜백
     @GetMapping("/toss/fail")
     public RedirectView tossFail(@RequestParam Map<String,String> params) {
         log.info("[PAY CALLBACK] fail: params={}", params);
@@ -110,40 +95,19 @@ public class PaymentController {
         return rv;
     }
 
-    /**
-     * (6) 포인트 결제 취소(환불)
-     * POST /api/v1/payments/toss/{paymentKey}/cancel
-     */
-    @CrossOrigin(origins = "*")
-    @PostMapping(path = "/toss/{paymentKey}/cancel",
-            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Map<String,Object>> cancelAndRefund(
+    // (6) 카드 결제 환불
+    @PostMapping(path = "/toss/{paymentKey}/refund",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String,Object>> refundCardPayment(
             @PathVariable("paymentKey") String paymentKey,
-            @RequestParam("cancelReason") String cancelReason) {
-
-        log.info("[PAY CANCEL] paymentKey={} reason={}", paymentKey, cancelReason);
-        Map<String,Object> resp = paymentService.cancelPaymentPoint(paymentKey, cancelReason);
+            @RequestBody Map<String,Object> req  // { "cancelReason": "...", "amount": 1000 }
+    ) {
+        log.info("[PAY REFUND] paymentKey={} req={}", paymentKey, req);
+        Map<String,Object> resp = paymentService.refundCardPayment(paymentKey, req);
         return ResponseEntity.ok(resp);
     }
 
-    /**
-     * (7) 대체 Cancel 엔드포인트 (포인트 전용)
-     * POST /api/v1/payments/toss/cancel/point
-     */
-    @PostMapping(path = "/toss/cancel/point",
-            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public ResponseEntity<Map<String,Object>> cancelPaymentPoint(
-            @RequestParam String paymentKey,
-            @RequestParam String cancelReason) {
-
-        return ResponseEntity.ok(
-                paymentService.cancelPaymentPoint(paymentKey, cancelReason)
-        );
-    }
-
-    /**
-     * 모든 예외를 잡아서 500 응답으로 변환
-     */
+    // 모든 예외를 잡아서 500 응답으로 변환
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String,Object>> handleAll(Exception ex) {
         log.error("[PAY][ERROR]", ex);

@@ -31,7 +31,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
-    // (기존) Redirect URL 추출 유틸
+    // Redirect URL 추출 유틸
     private String extractRedirectUrl(Map<String, Object> resp) {
         Object checkout = resp.get("checkout");
         if (checkout instanceof Map<?, ?> nested) {
@@ -55,6 +55,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
@@ -63,7 +64,7 @@ public class PaymentServiceImpl implements PaymentService {
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
 
-        Map<String,Object> body = Map.of(
+        Map<String, Object> body = Map.of(
                 "method", method,
                 "orderId", orderId,
                 "orderName", dto.getPayName(),
@@ -71,8 +72,8 @@ public class PaymentServiceImpl implements PaymentService {
                 "successUrl", tossProps.getSuccessUrl(),
                 "failUrl", tossProps.getFailUrl()
         );
-        Map<String,Object> resp = tossClient.createPayment(body);
 
+        Map<String, Object> resp = tossClient.createPayment(body);
         Object key = resp.get("paymentKey");
         if (key == null) {
             log.error("[TOSS CREATE][ERROR] no paymentKey in {}", resp);
@@ -99,6 +100,7 @@ public class PaymentServiceImpl implements PaymentService {
         } catch (FeignException.NotFound nf) {
             log.info("[TOSS CONFIRM] CARD 결제 – Confirm 호출 불필요({})", nf.status());
         }
+
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
         Payment payment = payRepo.findByOrder(order)
@@ -108,6 +110,7 @@ public class PaymentServiceImpl implements PaymentService {
                         .payAmount(amount)
                         .payName("도서 구매")
                         .build());
+
         payment.setPaymentKey(paymentKey);
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(amount);
@@ -124,35 +127,38 @@ public class PaymentServiceImpl implements PaymentService {
         });
     }
 
+    // ★ 카드 결제 환불
     @Override
     @Transactional
-    public Map<String,Object> cancelPaymentPoint(String paymentKey, String cancelReason) {
-        Payment payment = payRepo.findByPaymentKey(paymentKey)
-                .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
-        Map<String,Object> resp = tossClient.cancelPayment(
-                paymentKey,
-                Map.of("cancelReason", cancelReason)
+    public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
+        Map<String, String> body = Map.of(
+                "cancelReason", (String) req.get("cancelReason"),
+                "cancelAmount", req.get("amount").toString()
         );
-        payment.setPaymentStatus(PaymentStatus.CANCEL);
-        payRepo.save(payment);
+
+        Map<String, Object> resp = tossClient.cancelPayment(paymentKey, body);
+
+        payRepo.findByPaymentKey(paymentKey).ifPresent(p -> {
+            p.setPaymentStatus(PaymentStatus.CANCEL);
+            payRepo.save(p);
+        });
+
         return resp;
     }
 
-    // ──────────────────────────────────────────────────────────────────
-    // ★ 새로 추가된 결제 정보 조회
     @Override
     @Transactional(readOnly = true)
     public PaymentResDto getPaymentInfo(String paymentKey) {
-        Map<String,Object> resp = tossClient.getPaymentInfo(paymentKey);
+        Map<String, Object> resp = tossClient.getPaymentInfo(paymentKey);
         return PaymentResDto.builder()
                 .paymentKey(paymentKey)
-                .orderId( Objects.toString(resp.get("orderId"), "") )
-                .payType( Objects.toString(resp.get("method"), "") )
-                .payName( Objects.toString(resp.get("orderName"), "") )
-                .payAmount( ((Number)resp.get("amount")).longValue() )
+                .orderId(Objects.toString(resp.get("orderId"), ""))
+                .payType(Objects.toString(resp.get("method"), ""))
+                .payName(Objects.toString(resp.get("orderName"), ""))
+                .payAmount(((Number) resp.get("amount")).longValue())
                 .redirectUrl(extractRedirectUrl(resp))
-                .successUrl( tossProps.getSuccessUrl() )
-                .failUrl( tossProps.getFailUrl() )
+                .successUrl(tossProps.getSuccessUrl())
+                .failUrl(tossProps.getFailUrl())
                 .build();
     }
 }
