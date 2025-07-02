@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8" />
+    <title>토스 결제 테스트</title>
+    <style>
+        body   { font-family: sans-serif; margin: 40px; }
+        label  { display: block; margin: 8px 0 4px; font-weight: bold; }
+        input, select, button { padding: 6px; font-size: 1rem; }
+        input  { width: 100%; max-width: 300px; }
+        select { width: 100%; max-width: 314px; }
+        #loading { margin-top: 16px; color: #555; display: none; }
+        .container { max-width: 360px; margin: auto; }
+        button { margin-top: 16px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>결제 테스트</h1>
+
+    <label for="orderId">주문 번호</label>
+    <input id="orderId" th:value="${orderId}" placeholder="주문 ID (orders.order_id)" />
+
+    <label for="amount">결제 금액 (원)</label>
+    <input id="amount" type="number" min="100" th:value="${totalPrice}" placeholder="예: 15000" />
+
+    <label for="orderName">주문명</label>
+    <input id="orderName" placeholder="예: 도서 3권" />
+
+    <label for="payType">결제 수단</label>
+    <select id="payType">
+        <option value="CARD">신용카드</option>
+        <option value="ACCOUNT">계좌이체</option>
+    </select>
+
+    <button id="payBtn">결제하기</button>
+    <div id="loading">결제 페이지를 생성 중입니다… 잠시만 기다려주세요.</div>
+</div>
+
+<script>
+    const btn   = document.getElementById('payBtn');
+    const load  = document.getElementById('loading');
+
+    btn.addEventListener('click', async () => {
+        const orderId   = document.getElementById('orderId').value.trim();
+        const payAmount = +document.getElementById('amount').value;
+        const payName   = document.getElementById('orderName').value.trim();
+        const payType   = document.getElementById('payType').value;
+
+        if (!orderId || !payAmount || !payName) {
+            alert('주문 번호, 결제 금액, 주문명을 모두 입력해주세요.');
+            return;
+        }
+
+        btn.disabled = true;
+        load.style.display = 'block';
+
+        try {
+            const res = await fetch(`/api/v1/payments/toss/${orderId}`, {
+                method : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ payAmount, payType, payName })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                alert('결제 요청 실패:\n' + errText);
+                return;
+            }
+
+            const data = await res.json();
+            const keys = [
+                'redirectUrl',
+                'checkoutUrl',
+                'checkoutPageUrl',
+                'paymentUrl',
+                'nextRedirectAppUrl',
+                'nextRedirectPcUrl'
+            ];
+
+            const payPageUrl = keys.map(k => data[k]).find(v => v);
+            if (!payPageUrl) {
+                alert('결제 페이지 URL을 찾을 수 없습니다.');
+                console.error('응답 전체:', data);
+                return;
+            }
+
+            window.location.href = payPageUrl;
+
+        } catch (err) {
+            console.error('결제 요청 중 오류', err);
+            alert('결제 요청 중 오류가 발생했습니다.');
+        } finally {
+            btn.disabled = false;
+            load.style.display = 'none';
+        }
+    });
+</script>
+</body>
+</html>
