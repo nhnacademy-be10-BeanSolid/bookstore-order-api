@@ -16,7 +16,7 @@ import java.util.List;
 public class Wrapping {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "wrapping_id")
+//    @Column(name = "wrapping_id")
     private Long id;
 
     @Column(name = "name", nullable = false)
