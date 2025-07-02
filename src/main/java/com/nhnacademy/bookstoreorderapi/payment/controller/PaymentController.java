@@ -23,25 +23,27 @@ public class PaymentController {
     private final PaymentService paymentService;
 
 
-   @CrossOrigin(origins = "*")
+    @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{paymentKey}/cancel",
-                             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-                public ResponseEntity<Map<String,Object>> cancelAndRefund(
+            consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    public ResponseEntity<Map<String,Object>> cancelAndRefund(
             @PathVariable String paymentKey,
             @RequestParam("cancelReason") String cancelReason) {
 
-                        log.info("[PAY CANCEL] paymentKey={} reason={}", paymentKey, cancelReason);
-                Map<String,Object> resp = paymentService.cancelPaymentPoint(paymentKey, cancelReason);
-                return ResponseEntity.ok(resp);
-            }
+        log.info("[PAY CANCEL] paymentKey={} reason={}", paymentKey, cancelReason);
+        Map<String,Object> resp = paymentService.cancelPaymentPoint(paymentKey, cancelReason);
+        return ResponseEntity.ok(resp);
+    }
+
+
 
     @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
             @PathVariable String orderId,
-            @RequestParam("payType") PayType payType,
-            @RequestParam("payName") String payName,
-            @RequestParam("payAmount") Long payAmount) {
+            @RequestParam("payType")  PayType payType,
+            @RequestParam("payName")  String  payName,
+            @RequestParam("payAmount") Long    payAmount) {
 
         PaymentReqDto dto = new PaymentReqDto();
         dto.setPayType(payType);
@@ -55,31 +57,41 @@ public class PaymentController {
                 .body(res);
     }
 
+
+
     @GetMapping("/toss/success")
     public RedirectView tossSuccess(@RequestParam Map<String,String> params) {
         log.info("[PAY CALLBACK] success: params={}", params);
+
         String pk  = params.get("paymentKey");
         String oid = params.get("orderId");
         Long   amt = params.containsKey("amount")
                 ? Long.valueOf(params.get("amount")) : null;
+
         if (pk != null && oid != null && amt != null) {
             paymentService.markSuccess(pk, oid, amt);
         } else {
             log.warn("파라미터 누락: {}", params);
         }
+
         RedirectView rv = new RedirectView("/success.html");
         params.forEach(rv::addStaticAttribute);
         return rv;
     }
 
+
+
     @GetMapping("/toss/fail")
     public RedirectView tossFail(@RequestParam Map<String,String> params) {
         log.info("[PAY CALLBACK] fail: params={}", params);
         paymentService.markFail(params.get("paymentKey"), params.get("message"));
+
         RedirectView rv = new RedirectView("/fail.html");
         params.forEach(rv::addStaticAttribute);
         return rv;
     }
+
+
 
     @PostMapping(path = "/toss/cancel/point",
             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
@@ -91,6 +103,7 @@ public class PaymentController {
                 paymentService.cancelPaymentPoint(paymentKey, cancelReason)
         );
     }
+
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String,Object>> handleAll(Exception ex) {
