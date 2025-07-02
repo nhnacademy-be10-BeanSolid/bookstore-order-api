@@ -24,63 +24,53 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentServiceImpl implements PaymentService{
+public class PaymentServiceImpl implements PaymentService {
 
     private final OrderRepository orderRepo;
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
-    /**
-     * 응답 맵에서 redirect URL을 추출.
-     * ① checkout.url 우선 확인
-     * ② 그 외 키 순차 탐색
-     */
+    // (기존) Redirect URL 추출 유틸
     private String extractRedirectUrl(Map<String, Object> resp) {
         Object checkout = resp.get("checkout");
         if (checkout instanceof Map<?, ?> nested) {
             Object url = nested.get("url");
-            if (url != null) {
-                return url.toString();
-            }
+            if (url != null) return url.toString();
         }
         return Stream.of(
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
                         resp.get("paymentUrl"),
-                        resp.get("nextRedirectPcUrl")  // 결제 페이지 바로 이동용 URL
+                        resp.get("nextRedirectPcUrl")
                 )
                 .filter(Objects::nonNull)
                 .map(Object::toString)
                 .findFirst()
-                .orElseThrow(() ->
-                        new IllegalStateException("리다이렉트 URL 없음: " + resp)
-                );
+                .orElseThrow(() -> new IllegalStateException("리다이렉트 URL 없음: " + resp));
     }
 
     @Override
+    @Transactional
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
-                .ifPresent(p -> {
-                    throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId);
-                });
+                .ifPresent(p -> { throw new IllegalStateException("이미 결제 완료된 주문입니다: " + orderId); });
 
         String method = dto.getPayType() == PayType.ACCOUNT
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
 
         Map<String,Object> body = Map.of(
-                "method",     method,
-                "orderId",    orderId,
-                "orderName",  dto.getPayName(),
-                "amount",     dto.getPayAmount(),
+                "method", method,
+                "orderId", orderId,
+                "orderName", dto.getPayName(),
+                "amount", dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
-                "failUrl",    tossProps.getFailUrl()
+                "failUrl", tossProps.getFailUrl()
         );
-
         Map<String,Object> resp = tossClient.createPayment(body);
 
         Object key = resp.get("paymentKey");
@@ -90,11 +80,11 @@ public class PaymentServiceImpl implements PaymentService{
         }
 
         return PaymentResDto.builder()
+                .paymentKey(key.toString())
                 .orderId(orderId)
                 .payType(dto.getPayType().name())
-                .payAmount(dto.getPayAmount())
                 .payName(dto.getPayName())
-                .paymentKey(key.toString())
+                .payAmount(dto.getPayAmount())
                 .redirectUrl(extractRedirectUrl(resp))
                 .successUrl(tossProps.getSuccessUrl())
                 .failUrl(tossProps.getFailUrl())
@@ -105,12 +95,10 @@ public class PaymentServiceImpl implements PaymentService{
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
         try {
-            // CARD 결제는 confirm 엔드포인트가 없으니 404만 무시
             tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
         } catch (FeignException.NotFound nf) {
             log.info("[TOSS CONFIRM] CARD 결제 – Confirm 호출 불필요({})", nf.status());
         }
-
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
         Payment payment = payRepo.findByOrder(order)
@@ -120,7 +108,6 @@ public class PaymentServiceImpl implements PaymentService{
                         .payAmount(amount)
                         .payName("도서 구매")
                         .build());
-
         payment.setPaymentKey(paymentKey);
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(amount);
@@ -137,23 +124,35 @@ public class PaymentServiceImpl implements PaymentService{
         });
     }
 
-    /**
-     * 결제 취소(환불) 요청
-     */
     @Override
     @Transactional
     public Map<String,Object> cancelPaymentPoint(String paymentKey, String cancelReason) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
-
         Map<String,Object> resp = tossClient.cancelPayment(
                 paymentKey,
                 Map.of("cancelReason", cancelReason)
         );
-
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
-
         return resp;
+    }
+
+    // ──────────────────────────────────────────────────────────────────
+    // ★ 새로 추가된 결제 정보 조회
+    @Override
+    @Transactional(readOnly = true)
+    public PaymentResDto getPaymentInfo(String paymentKey) {
+        Map<String,Object> resp = tossClient.getPaymentInfo(paymentKey);
+        return PaymentResDto.builder()
+                .paymentKey(paymentKey)
+                .orderId( Objects.toString(resp.get("orderId"), "") )
+                .payType( Objects.toString(resp.get("method"), "") )
+                .payName( Objects.toString(resp.get("orderName"), "") )
+                .payAmount( ((Number)resp.get("amount")).longValue() )
+                .redirectUrl(extractRedirectUrl(resp))
+                .successUrl( tossProps.getSuccessUrl() )
+                .failUrl( tossProps.getFailUrl() )
+                .build();
     }
 }

@@ -20,4 +20,7 @@ public interface TossPaymentClient {
     @PostMapping("/payments/{paymentKey}/cancel")
     Map<String,Object> cancelPayment(@PathVariable String paymentKey,
                                      @RequestBody Map<String,String> body);
+    @GetMapping("/v1/payments/{paymentKey}")
+    Map<String, Object> getPaymentInfo(
+            @PathVariable("paymentKey") String paymentKey);
 }
