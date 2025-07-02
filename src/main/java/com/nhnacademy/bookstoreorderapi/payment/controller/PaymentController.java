@@ -22,17 +22,18 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    @CrossOrigin(origins = "*")
-    @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PaymentResDto> requestPayment(
-            @PathVariable String orderId,
-            @RequestBody @Valid PaymentReqDto dto) {
 
-        PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
-        return ResponseEntity
-                .created(URI.create("/api/v1/payments/" + res.getPaymentId()))
-                .body(res);
-    }
+   @CrossOrigin(origins = "*")
+    @PostMapping(path = "/toss/{paymentKey}/cancel",
+                             consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+                public ResponseEntity<Map<String,Object>> cancelAndRefund(
+            @PathVariable String paymentKey,
+            @RequestParam("cancelReason") String cancelReason) {
+
+                        log.info("[PAY CANCEL] paymentKey={} reason={}", paymentKey, cancelReason);
+                Map<String,Object> resp = paymentService.cancelPaymentPoint(paymentKey, cancelReason);
+                return ResponseEntity.ok(resp);
+            }
 
     @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
