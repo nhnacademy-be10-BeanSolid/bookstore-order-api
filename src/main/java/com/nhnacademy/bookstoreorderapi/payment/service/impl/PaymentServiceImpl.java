@@ -10,6 +10,7 @@ import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
+import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ import java.util.stream.Stream;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.payment.service.PaymentService {
+public class PaymentServiceImpl implements PaymentService{
 
     private final OrderRepository orderRepo;
     private final PaymentRepository payRepo;
@@ -47,7 +48,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                         resp.get("checkoutUrl"),
                         resp.get("checkoutPageUrl"),
                         resp.get("paymentUrl"),
-                        resp.get("nextRedirectPcUrl") //결제 페이지로 바로 이동할수 있는 URL이 담겨있음
+                        resp.get("nextRedirectPcUrl")  // 결제 페이지 바로 이동용 URL
                 )
                 .filter(Objects::nonNull)
                 .map(Object::toString)
@@ -71,7 +72,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 ? "VIRTUAL_ACCOUNT"
                 : dto.getPayType().name();
 
-        Map<String, Object> body = Map.of(
+        Map<String,Object> body = Map.of(
                 "method",     method,
                 "orderId",    orderId,
                 "orderName",  dto.getPayName(),
@@ -80,7 +81,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
                 "failUrl",    tossProps.getFailUrl()
         );
 
-        Map<String, Object> resp = tossClient.createPayment(body);
+        Map<String,Object> resp = tossClient.createPayment(body);
 
         Object key = resp.get("paymentKey");
         if (key == null) {
@@ -104,8 +105,7 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
         try {
-            // CARD 결제의 경우 confirmPayment 엔드포인트가 없으므로,
-            // 404(Not Found)만 무시하고 넘어갑니다.
+            // CARD 결제는 confirm 엔드포인트가 없으니 404만 무시
             tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", amount));
         } catch (FeignException.NotFound nf) {
             log.info("[TOSS CONFIRM] CARD 결제 – Confirm 호출 불필요({})", nf.status());
@@ -137,15 +137,23 @@ public class PaymentServiceImpl implements com.nhnacademy.bookstoreorderapi.paym
         });
     }
 
+    /**
+     * 결제 취소(환불) 요청
+     */
     @Override
     @Transactional
-    public Map<String, Object> cancelPaymentPoint(String paymentKey, String reason) {
+    public Map<String,Object> cancelPaymentPoint(String paymentKey, String cancelReason) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new IllegalArgumentException("결제 없음: " + paymentKey));
 
-        Map<String, Object> resp = tossClient.cancelPayment(paymentKey, Map.of("cancelReason", reason));
+        Map<String,Object> resp = tossClient.cancelPayment(
+                paymentKey,
+                Map.of("cancelReason", cancelReason)
+        );
+
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
+
         return resp;
     }
 }
