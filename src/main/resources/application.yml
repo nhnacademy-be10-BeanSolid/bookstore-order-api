@@ -9,21 +9,28 @@ spring:
   config:
     import: "optional:configserver:"
   cloud:
+    loadbalancer:
+      ribbon:
+        enabled: false
     config:
       discovery:
         enabled: true
         service-id: config-server
-      name: mysql           # config-server 에 올라간 yml 이름
+      name: mysql
     openfeign:
       circuitbreaker:
-        enabled: true       # Feign에 서킷 브레이커 적용 활성화
+        enabled: true
       client:
         config:
           default:
             connect-timeout: 3000
             read-timeout: 3000
+            loggerLevel: FULL
       okhttp:
+        enabled: false
+      httpclient:
         enabled: true
+
 
 resilience4j:
   circuitbreaker:
@@ -32,7 +39,7 @@ resilience4j:
         sliding-window-size: 100
 
 server:
-  port: 10350
+  port: 10351
 
 eureka:
   client:
@@ -43,11 +50,11 @@ eureka:
 
 payment:
   toss:
-    base-url:       https://sandbox.tosspayments.com/v1
-    test-client-api-key: test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
-    test-secret-api-key: test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
-    success-url: http://localhost:10350/api/v1/payments/toss/success
-    fail-url:    http://localhost:10350/api/v1/payments/toss/fail
+    base-url:  https://api.tosspayments.com/v1
+    client-api-key: test_ck_DLJOpm5QrlwNvJboZZaNVPNdxbWn
+    secret-api-key: test_sk_Gv6LjeKD8a9512k9vamx8wYxAdXy
+    success-url: http://s1.java21.net:10350/api/v1/payments/toss/success
+    fail-url:    http://s1.java21.net:10350/api/v1/payments/toss/fail
 
 management:
   endpoints:
