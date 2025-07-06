@@ -5,15 +5,17 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
@@ -37,7 +39,7 @@ import java.util.stream.Collectors;
 public class OrderServiceImpl implements OrderService {
 
     private final BookOrderService bookOrderService;
-    private final UserOrderService userOrderService;
+    private final UserService userService;
 
     private final OrderRepository orderRepository;
     private final WrappingRepository wrappingRepository;
@@ -52,16 +54,16 @@ public class OrderServiceImpl implements OrderService {
     // 주문 생성
     @Override
     @Transactional
-    public void createOrder(OrderRequest orderRequest, String xUserId) {
+    public OrderResponse createOrder(OrderRequest orderRequest, String xUserId) {
         // parameters validation
         Long userNo = getUserNo(xUserId);
         validParameters(orderRequest);
-        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userNo);
+        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.orderItems().size(), userNo);
 
         Order order = Order.of(orderRequest, userNo);
 
         // 요청데이터 대신 DB에서 조회된 값을 사용 + 주문수량이 재고보다 많은지 검증.
-        List<OrderItemRequest> itemRequests = orderRequest.items();
+        List<OrderRequest.OrderItemRequest> itemRequests = orderRequest.orderItems();
         Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
         Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
         reduceStock(itemRequests, bookMap);
@@ -81,6 +83,8 @@ public class OrderServiceImpl implements OrderService {
                 order.getTotalPrice(),
                 shippingInfo.deliveryFee(),
                 shippingInfo.address());
+
+        return null; // 임시
     }
 
     // 회원 주문 전체 조회
@@ -132,11 +136,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private List<OrderItem> buildOrderItems(Order order,
-                                            List<OrderItemRequest> itemRequests,
+                                            List<OrderRequest.OrderItemRequest> itemRequests,
                                             Map<Long, BookOrderResponse> bookMap,
                                             Map<Long, Wrapping> wrappingMap) {
         List<OrderItem> items = new ArrayList<>();
-        for (OrderItemRequest req : itemRequests) {
+        for (OrderRequest.OrderItemRequest req : itemRequests) {
             BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.bookId()),
                     "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.bookId());
             Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.wrappingId()),
@@ -156,9 +160,9 @@ public class OrderServiceImpl implements OrderService {
         return items;
     }
 
-    private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
+    private Map<Long, Wrapping> fetchWrappings(List<OrderRequest.OrderItemRequest> itemRequests) {
         List<Long> ids = itemRequests.stream()
-                .map(OrderItemRequest::wrappingId)
+                .map(OrderRequest.OrderItemRequest::wrappingId)
                 .toList();
         List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
 
@@ -171,9 +175,9 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toMap(Wrapping::getId, Function.identity()));
     }
 
-    private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
+    private Map<Long, BookOrderResponse> fetchBooks(List<OrderRequest.OrderItemRequest> itemRequests) {
         List<Long> ids = itemRequests.stream()
-                .map(OrderItemRequest::bookId)
+                .map(OrderRequest.OrderItemRequest::bookId)
                 .toList();
         List<BookOrderResponse> books = bookOrderService.getBookOrderResponse(ids);
 
@@ -217,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
                                                 OrderStatus newStatus,
                                                 String memo,
                                                 String xUserId) {
-        if (!userOrderService.getUserInfo(xUserId).isAuth()) {
+        if (!userService.getUserInfo(xUserId).isAuth()) {
             throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
         }
         Long changedBy = getUserNo(xUserId);
@@ -318,12 +322,12 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private void reduceStock(List<OrderItemRequest> itemRequests,
+    private void reduceStock(List<OrderRequest.OrderItemRequest> itemRequests,
                             Map<Long, BookOrderResponse> bookMap) {
         Map<Long, Integer> quantityMap = itemRequests.stream()
                 .collect(Collectors.groupingBy(
-                        OrderItemRequest::bookId,
-                        Collectors.summingInt(OrderItemRequest::quantity)
+                        OrderRequest.OrderItemRequest::bookId,
+                        Collectors.summingInt(OrderRequest.OrderItemRequest::quantity)
                 ));
 
         List<BookStockReduceRequest> stockReduceRequests = new ArrayList<>(quantityMap.size());
@@ -353,7 +357,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private Long getUserNo(String xUserId) {
-        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
-        return userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
+        if (xUserId == null || xUserId.isBlank()) {
+            return null;
+        }
+
+        UserResponse userInfo = userService.getUserInfo(xUserId);
+        return userInfo.userNo();
     }
 }
