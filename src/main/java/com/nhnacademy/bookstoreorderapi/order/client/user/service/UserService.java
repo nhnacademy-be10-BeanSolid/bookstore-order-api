@@ -29,7 +29,7 @@ public class UserService {
             throw new UserNotFoundException("유저를 찾을 수 없습니다 - userId: " + userId);
         }
 
-        log.warn("UserService fallback 실행 - userId: {}, error: {}", userId, t.getMessage());
+        log.warn("UserService getUserInfo fallback 실행 - userId: {}, error: {}", userId, t.getMessage());
         throw new ExternalServiceException("UserServiceClient 에러 발생", t);
     }
 }
