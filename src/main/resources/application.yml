@@ -38,8 +38,8 @@ eureka:
   client:
     service-url:
       defaultZone: >
-        http://s1.java21.net:10344/eureka,
-        http://s1.java21.net:10345/eureka
+        http://localhost:10344/eureka,
+        http://localhost:10345/eureka
 
 payment:
   toss:
