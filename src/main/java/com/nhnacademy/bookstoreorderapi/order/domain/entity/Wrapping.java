@@ -24,13 +24,4 @@ public class Wrapping {
     private Integer price;
 
     private Boolean isActive;
-
-    @Builder.Default
-    @OneToMany(mappedBy = "wrapping")
-    private List<OrderItem> items = new ArrayList<>();
-
-    public void addItem(OrderItem item) {
-        this.items.add(item);
-        item.setWrapping(this);
-    }
 }
