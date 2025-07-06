@@ -15,12 +15,16 @@ public class UserOrderService {
 
     private final UserServiceClient userServiceClient;
 
-    @CircuitBreaker(name = "user-service", fallbackMethod = "fallbackUserOrders")
+    @CircuitBreaker(name = "user-service", fallbackMethod = "fallbackGetUserInfo")
     public UserOrderResponse getUserInfo(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId가 비어있습니다.");
+        }
+
         return userServiceClient.getUserInfo(userId).getBody();
     }
 
-    public UserOrderResponse fallbackUserOrders(String userId, Throwable t) {
+    public UserOrderResponse fallbackGetUserInfo(String userId, Throwable t) {
         log.warn("Fallback - userId: {}", userId);
         throw new ExternalServiceException("UserServiceClient Error", t);
     }
