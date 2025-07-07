@@ -38,7 +38,7 @@ public class PaymentServiceImpl implements PaymentService {
      * Optional + Stream 조합으로 null 체크와 순차 검색을 처리합니다.
      */
     private String extractRedirectUrl(Map<String, Object> resp) {
-        return Stream.<Optional<String>>of(
+        return Stream.of(
                         // nested field: checkout.url
                         Optional.ofNullable(resp.get("checkout"))
                                 .filter(Map.class::isInstance)
