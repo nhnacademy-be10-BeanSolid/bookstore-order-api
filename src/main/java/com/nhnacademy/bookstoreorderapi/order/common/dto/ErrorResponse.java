@@ -8,7 +8,7 @@ import lombok.*;
 @Builder
 public class ErrorResponse {
     
-    private final int httpStatus;
-    private final String errorReason;
-    private final Map<String, String> fieldErrors = new HashMap<>();
+    private int httpStatus;
+    private String errorReason;
+    private Map<String, String> fieldErrors = new HashMap<>();
 }

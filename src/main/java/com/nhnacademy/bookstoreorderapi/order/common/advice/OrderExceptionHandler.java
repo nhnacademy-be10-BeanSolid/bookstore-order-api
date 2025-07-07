@@ -38,11 +38,15 @@ public class OrderExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
+        Map<String, String> fieldErrors = new HashMap<>();
+        ex.getBindingResult().getFieldErrors().forEach(fieldError ->
+                fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage()));
+
         ErrorResponse resp = ErrorResponse.builder()
                 .httpStatus(HttpStatus.BAD_REQUEST.value())
                 .errorReason("Bean Validation Failed")
-                .fieldErrors(ex.getBindingResult().getFieldErrors().forEach(error -> 
-                        fieldErrors.put(error.getField(), error.getDefaultMessage())));
+                .fieldErrors(fieldErrors)
+                .build();
         
         return ResponseEntity.badRequest().body(resp);
     }
