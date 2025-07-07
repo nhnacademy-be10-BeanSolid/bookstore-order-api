@@ -1,8 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user;
 
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 
@@ -10,5 +9,5 @@ import org.springframework.web.bind.annotation.RequestHeader;
 public interface UserServiceClient {
 
     @GetMapping("/users/me")
-    ResponseEntity<UserOrderResponse> getUserInfo(@RequestHeader("X-USER-ID") String userId);
+    UserResponse getUserInfo(@RequestHeader("X-USER-ID") String userId);
 }
