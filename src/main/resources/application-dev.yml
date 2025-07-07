@@ -16,10 +16,6 @@ spring:
         auto_quote_keyword: true # 예약어를 인식하여 자동으로 인용 부호 추가.(DB 예약어와 충돌 방지)
 
 
-  # ① Ant 패턴 URL 매칭(프로필별로 다르게 주고 싶으면 여기에도 명시)
-  mvc:
-    pathmatch:
-      matching-strategy: ant_path_matcher
 
 ########################
 # ✨  Actuator 노출  ✨

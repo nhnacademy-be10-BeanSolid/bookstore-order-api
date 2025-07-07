@@ -88,6 +88,16 @@ public class PaymentServiceImpl implements PaymentService {
                 .map(Object::toString)
                 .orElseThrow(() -> new PaymentCreationException("Toss 응답에 paymentKey가 없습니다"));
 
+        Payment pending = Payment.builder()
+                .order(order)
+                .paymentKey(key)
+                .payType(dto.getPayType())
+                .payAmount(dto.getPayAmount())
+                .payName(dto.getPayName())
+                .paymentStatus(PaymentStatus.PENDING)
+                .build();
+        payRepo.save(pending);
+
         // 5) DTO 구성
         return PaymentResDto.builder()
                 .paymentKey(key)
