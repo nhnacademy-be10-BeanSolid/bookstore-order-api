@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Builder
-public record UserOrderResponse(
+public record UserResponse(
     Long userNo,
     String userId,
     String userPassword,
@@ -18,6 +18,8 @@ public record UserOrderResponse(
     int userPoint,
     boolean isAuth,
     String userStatus,
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    LocalDateTime createdAt,
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     LocalDateTime lastLoginAt,
     String userGradeName
