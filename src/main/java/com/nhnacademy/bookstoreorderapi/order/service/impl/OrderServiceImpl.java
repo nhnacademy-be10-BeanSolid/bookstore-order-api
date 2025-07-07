@@ -76,15 +76,7 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
         orderItemRepository.saveAll(items);
 
-        //TODO: reductStock은 외부 api를 호출하기 때문에 하나의 트랜잭션으로 묶이면 안된다. 해결방법을 찾아야 한다.
-        try {
-            reduceStock(itemRequests, bookMap);
-        } catch (Exception e) {
-            orderRepository.delete(order);
-            orderItemRepository.deleteAll(items);
-
-            // 책 재고 복원 api 호출 예정
-        }
+        reduceStock(itemRequests, bookMap);
 
         log.info("주문 완료: id={}, orderId={}, userNo={}, totalPrice={}, deliveryFee={}, address={}",
                 order.getId(),
