@@ -13,7 +13,7 @@ public record OrderRequest(
         String receiverName,
 
         @NotBlank(message = "받는 사람 전화번호를 입력해주세요")
-        @Pattern(regexp = "^01[0-9][0-9]{8}$",
+        @Pattern(regexp = "^01\\d\\d{8}$",
                 message = "올바른 휴대폰 번호 형식이 아닙니다 (올바른 형식: 01012345678)")
         String receiverPhoneNumber,
 
