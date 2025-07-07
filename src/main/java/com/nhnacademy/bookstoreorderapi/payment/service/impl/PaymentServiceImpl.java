@@ -168,7 +168,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
         // 1) Toss 환불 API 호출
         try {
-            tossClient.refundPayment(paymentKey, Map.of(
+            tossClient.cancelPayment(paymentKey, Map.of(
                     "cancelReason", req.getCancelReason(),
                     "cancelAmount", req.getAmount()
             ));
