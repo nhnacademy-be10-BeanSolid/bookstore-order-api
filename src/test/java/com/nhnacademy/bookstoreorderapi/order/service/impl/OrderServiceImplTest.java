@@ -11,8 +11,12 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundExcep
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -53,6 +57,8 @@ class OrderServiceImplTest {
     UserService userService;
     @Mock
     OrderValidationService orderValidationService;
+    @Mock
+    CustomOrderRepository customOrderRepository;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -316,5 +322,85 @@ class OrderServiceImplTest {
         
         verify(userService).getUserInfo(xUserId);
         verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
+    }
+
+    @Test
+    @DisplayName("xUserId가 null일 때 주문 전체 조회는 불가능하다")
+    void findAllByUserId_withNullXUserId_returnsEmpty() {
+        // given
+        String xUserId = null;
+        Page<OrderSummaryResponse> emptyPage = new org.springframework.data.domain.PageImpl<>(List.of());
+        
+        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 10)))
+                .willReturn(emptyPage);
+        
+        // when
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        
+        // then
+        assertThat(result.getContent()).isEmpty();
+        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 10));
+        verify(userService, never()).getUserInfo(anyString());
+    }
+
+    @Test
+    @DisplayName("xUserId가 blank일 때 주문 전체 조회는 불가능하다")
+    void findAllByUserId_withBlankXUserId_returnsEmpty() {
+        // given
+        String xUserId = "";
+        Page<OrderSummaryResponse> emptyPage = new org.springframework.data.domain.PageImpl<>(List.of());
+        
+        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 10)))
+                .willReturn(emptyPage);
+        
+        // when
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        
+        // then
+        assertThat(result.getContent()).isEmpty();
+        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 10));
+        verify(userService, never()).getUserInfo(anyString());
+    }
+
+    @Test
+    @DisplayName("xUserId가 null일 때 주문 상세 조회는 주문번호만으로 가능하다")
+    void findByOrderId_withNullXUserId_success() {
+        // given
+        String xUserId = null;
+        String orderId = "ORDER-20240101-001";
+        
+        Order mockOrder = Order.of(validOrderRequest, null);
+        
+        given(orderRepository.findByOrderIdAndUserNo(orderId, null))
+                .willReturn(Optional.of(mockOrder));
+        
+        // when
+        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        
+        // then
+        assertThat(result).isNotNull();
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, null);
+        verify(userService, never()).getUserInfo(anyString());
+    }
+
+    @Test
+    @DisplayName("xUserId가 blank일 때 주문 상세 조회는 주문번호만으로 가능하다")
+    void findByOrderId_withBlankXUserId_success() {
+        // given
+        String xUserId = "";
+        String orderId = "ORDER-20240101-001";
+        
+        Order mockOrder = Order.of(validOrderRequest, null);
+        
+        given(orderRepository.findByOrderIdAndUserNo(orderId, null))
+                .willReturn(Optional.of(mockOrder));
+        
+        // when
+        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        
+        // then
+        assertThat(result).isNotNull();
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, null);
+        verify(userService, never()).getUserInfo(anyString());
     }
 }
