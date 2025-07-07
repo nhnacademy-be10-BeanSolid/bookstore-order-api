@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -148,5 +152,61 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(orderService, never()).createOrder(any(OrderRequest.class), anyString());
+    }
+
+    @Test
+    @DisplayName("회원 주문 전체 조회에 성공한다")
+    void getAllOrdersByUserId_success() throws Exception {
+        // given
+        String xUserId = "testUser";
+        List<OrderSummaryResponse> orderSummaries = List.of(
+                new OrderSummaryResponse(LocalDate.now(), "ORDER-20240101-001", "홍길동", 10_000L),
+                new OrderSummaryResponse(LocalDate.now().minusDays(1), "ORDER-20240101-002", "김철수", 10_000L)
+        );
+        Page<OrderSummaryResponse> pageResult = new PageImpl<>(orderSummaries, PageRequest.of(0, 10), 10);
+        
+        given(orderService.findAllByUserId(xUserId)).willReturn(pageResult);
+
+        // when & then
+        mockMvc.perform(get("/orders")
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.content[0].receiverName").value("홍길동"))
+                .andExpect(jsonPath("$.content[1].orderId").value("ORDER-20240101-002"))
+                .andExpect(jsonPath("$.content[1].receiverName").value("김철수"));
+
+        verify(orderService).findAllByUserId(xUserId);
+    }
+
+    @Test
+    @DisplayName("회원 주문 전체 조회 시 빈 페이지를 반환한다")
+    void getAllOrdersByUserId_emptyPage() throws Exception {
+        // given
+        String xUserId = "testUser";
+        Page<OrderSummaryResponse> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+        
+        given(orderService.findAllByUserId(xUserId)).willReturn(emptyPage);
+
+        // when & then
+        mockMvc.perform(get("/orders")
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content.length()").value(0));
+
+        verify(orderService).findAllByUserId(xUserId);
+    }
+
+    @Test
+    @DisplayName("X-USER-ID 헤더 없이 요청하면 400 에러가 발생한다")
+    void getAllOrdersByUserId_missingXUserIdHeader_badRequest() throws Exception {
+        // when & then
+        mockMvc.perform(get("/orders"))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).findAllByUserId(anyString());
     }
 }

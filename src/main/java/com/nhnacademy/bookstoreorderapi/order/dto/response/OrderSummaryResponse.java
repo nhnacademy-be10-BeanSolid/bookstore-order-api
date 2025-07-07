@@ -11,18 +11,15 @@ public record OrderSummaryResponse(
     LocalDate orderDate,
     String orderId,
     String receiverName,
-    String itemsInfo,
     Long totalPrice
 ) {
     public static OrderSummaryResponse of(Order o, List<OrderItem> items, String bookTitle) {
 
         int size = items.size() - 1;
-        String itemsInfo = bookTitle + String.format(" 외 %d권", size);
 
         return new OrderSummaryResponse(o.getOrderDate(),
                 o.getOrderId(),
-                o.getShippingInfo().receiverName(),
-                itemsInfo,
+                o.getShippingInfo().getReceiverName(),
                 o.getTotalPrice());
     }
 }
