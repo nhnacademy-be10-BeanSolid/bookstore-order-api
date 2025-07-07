@@ -34,6 +34,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
 
+    /** Map 응답에서 첫 번째 non-null URL을 꺼냅니다. */
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
                         Optional.ofNullable(resp.get("checkout"))
@@ -51,20 +52,25 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new RedirectUrlNotFoundException(resp));
     }
 
+    /** Toss 결제 요청 생성 */
     @Override
     @Transactional
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
+        // 1) 주문 검증
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        // 2) 이미 결제됨 확인
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new AlreadyPaidException(orderId); });
 
+        // 3) Toss API 호출
         Map<String, Object> body = Map.of(
-                "method",    dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
-                "orderId",   orderId,
-                "orderName", dto.getPayName(),
-                "amount",    dto.getPayAmount(),
+                "method",     dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
+                "orderId",    orderId,
+                "orderName",  dto.getPayName(),
+                "amount",     dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
                 "failUrl",    tossProps.getFailUrl()
         );
@@ -77,10 +83,12 @@ public class PaymentServiceImpl implements PaymentService {
             throw new PaymentCreationException("Toss 결제 생성 실패: " + fe.getMessage());
         }
 
+        // 4) paymentKey 검증
         String key = Optional.ofNullable(resp.get("paymentKey"))
                 .map(Object::toString)
                 .orElseThrow(() -> new PaymentCreationException("Toss 응답에 paymentKey가 없습니다"));
 
+        // 5) DTO 구성
         return PaymentResDto.builder()
                 .paymentKey(key)
                 .orderId(orderId)
@@ -93,24 +101,28 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
+    /** 결제 성공 콜백 처리 */
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
+        // Toss confirm 호출 (NotFound만 무시)
         try {
             tossClient.confirmPayment(paymentKey, Map.of(
                     "orderId", orderId,
-                    "amount", String.valueOf(amount)
+                    "amount",  String.valueOf(amount)
             ));
         } catch (FeignException.NotFound nf) {
-            log.info("[TOSS CONFIRM] Confirm 호출 스킵({})", nf.status());
+            log.info("[TOSS CONFIRM] 스킵({})", nf.status());
         } catch (FeignException fe) {
             log.error("[TOSS CONFIRM][ERROR] {}", fe.getMessage(), fe);
             throw new PaymentConfirmationException("Toss 결제 확인 실패: " + fe.getMessage());
         }
 
+        // 주문 존재 여부 재검증
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
+        // DB에 성공 처리
         Payment payment = payRepo.findByOrder(order)
                 .orElseGet(() -> Payment.builder()
                         .order(order)
@@ -126,6 +138,7 @@ public class PaymentServiceImpl implements PaymentService {
         payRepo.save(payment);
     }
 
+    /** 결제 실패 콜백 처리 */
     @Override
     @Transactional
     public void markFail(String paymentKey, String reason) {
@@ -139,19 +152,20 @@ public class PaymentServiceImpl implements PaymentService {
                 });
     }
 
-    // Map 기반 호출 (기존 호환용)
+    // ─────────────────────────────────────────────────────
+    // (6) 카드 결제 환불 (레거시 Map 기반)
     @Override
     @Transactional
     public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
         // Map → DTO 변환
         CancelPaymentRequest dto = new CancelPaymentRequest(
                 Objects.toString(req.get("orderId"), ""),
-                ((Number)req.getOrDefault("amount", 0)).longValue(),
+                ((Number) req.getOrDefault("amount", 0)).longValue(),
                 Objects.toString(req.get("cancelReason"), "")
         );
-        // 새 메서드 호출
+        // 신규 메서드 호출
         PaymentResDto result = refundCardPayment(paymentKey, dto);
-        // 결과 DTO를 Map으로 변환해 돌려주기
+        // 결과를 Map으로 변환해 반환
         return Map.of(
                 "paymentKey", result.getPaymentKey(),
                 "orderId",    result.getOrderId(),
@@ -162,40 +176,51 @@ public class PaymentServiceImpl implements PaymentService {
         );
     }
 
-    // DTO 기반 호출 (신규)
+    // (7) 결제 취소/환불 처리 (DTO 기반)
     @Override
     @Transactional
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
-        // 1) Toss 환불 API 호출
-        try {
-            tossClient.cancelPayment(paymentKey, Map.of(
-                    "cancelReason", req.getCancelReason(),
-                    "cancelAmount", req.getAmount()
-            ));
-        } catch (FeignException fe) {
-            log.error("[TOSS CANCEL][ERROR] {}", fe.getMessage(), fe);
-            throw new PaymentCancellationException("Toss 환불 요청 실패: " + fe.getMessage());
-        }
-
-        // 2) DB 업데이트
+        // 1) DB에서 기존 결제 조회
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
+
+        Map<String,Object> resp;
+        try {
+            // 2) 가상계좌(PENDING) vs 카드환불 분기
+            if (payment.getPayType() == PayType.ACCOUNT
+                    && payment.getPaymentStatus() == PaymentStatus.PENDING) {
+                // 가상계좌 미입금 취소
+                resp = tossClient.cancelPayment(paymentKey, Map.of(
+                        "cancelReason", req.getCancelReason(),
+                        "cancelAmount",  req.getAmount()
+                ));
+            } else {
+                // 카드 결제 환불
+                resp = tossClient.refundPayment(paymentKey, Map.of(
+                        "cancelReason", req.getCancelReason(),
+                        "cancelAmount",  req.getAmount()
+                ));
+            }
+        } catch (FeignException fe) {
+            log.error("[TOSS REFUND][ERROR] {}", fe.getMessage(), fe);
+            throw new PaymentCancellationException("Toss 환불/취소 요청 실패: " + fe.getMessage());
+        }
+
+        // 3) DB 상태 업데이트
         payment.setPaymentStatus(PaymentStatus.CANCEL);
         payRepo.save(payment);
 
-        // 3) DTO 반환
+        // 4) DTO로 결과 리턴
         return PaymentResDto.builder()
                 .paymentKey(paymentKey)
                 .orderId(req.getOrderId())
                 .payType(payment.getPayType().name())
                 .payName(payment.getPayName())
                 .payAmount(req.getAmount())
-                .redirectUrl(null)
-                .successUrl(null)
-                .failUrl(null)
                 .build();
     }
 
+    /** 결제 정보 조회 */
     @Override
     @Transactional(readOnly = true)
     public PaymentResDto getPaymentInfo(String paymentKey) {
