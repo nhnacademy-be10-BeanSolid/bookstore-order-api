@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
@@ -28,7 +29,6 @@ public class PaymentController {
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable("orderId") String orderId,
             @RequestBody @Valid PaymentReqDto dto) {
-
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
         return ResponseEntity
                 .created(URI.create("/api/v1/payments/" + res.getPaymentKey()))
@@ -43,7 +43,6 @@ public class PaymentController {
             @RequestParam("payType")  PayType payType,
             @RequestParam("payName")  String  payName,
             @RequestParam("payAmount") Long    payAmount) {
-
         PaymentReqDto dto = new PaymentReqDto();
         dto.setPayType(payType);
         dto.setPayName(payName);
@@ -55,11 +54,10 @@ public class PaymentController {
                 .body(res);
     }
 
-    // (3) NEW! 결제 정보 조회
+    // (3) 결제 정보 조회
     @GetMapping("/{paymentKey}")
     public ResponseEntity<PaymentResDto> getPaymentInfo(
             @PathVariable("paymentKey") String paymentKey) {
-
         PaymentResDto info = paymentService.getPaymentInfo(paymentKey);
         return ResponseEntity.ok(info);
     }
@@ -70,8 +68,7 @@ public class PaymentController {
         log.info("[PAY CALLBACK] success: params={}", params);
         String pk  = params.get("paymentKey");
         String oid = params.get("orderId");
-        Long   amt = params.containsKey("amount")
-                ? Long.valueOf(params.get("amount")) : null;
+        Long   amt = params.containsKey("amount") ? Long.valueOf(params.get("amount")) : null;
 
         if (pk != null && oid != null && amt != null) {
             paymentService.markSuccess(pk, oid, amt);
@@ -95,16 +92,24 @@ public class PaymentController {
         return rv;
     }
 
-    // (6) 카드 결제 환불
-    @PostMapping(path = "/toss/{paymentKey}/refund",
-            consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String,Object>> refundCardPayment(
+    // (6) 카드 결제 환불 (레거시 Map 기반)
+    @PostMapping(path = "/toss/{paymentKey}/refund", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String,Object>> refundCardPaymentLegacy(
             @PathVariable("paymentKey") String paymentKey,
-            @RequestBody Map<String,Object> req  // { "cancelReason": "...", "amount": 1000 }
-    ) {
-        log.info("[PAY REFUND] paymentKey={} req={}", paymentKey, req);
+            @RequestBody Map<String,Object> req) {
+        log.info("[PAY REFUND-LEGACY] paymentKey={} req={}", paymentKey, req);
         Map<String,Object> resp = paymentService.refundCardPayment(paymentKey, req);
         return ResponseEntity.ok(resp);
+    }
+
+    // (7) 결제 취소(환불) 요청 (프론트 Cancel 버튼)
+    @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<PaymentResDto> cancelPayment(
+            @PathVariable String paymentKey,
+            @RequestBody @Valid CancelPaymentRequest req) {
+        log.info("[PAY CANCEL] paymentKey={} req={}", paymentKey, req);
+        PaymentResDto dto = paymentService.refundCardPayment(paymentKey, req);
+        return ResponseEntity.ok(dto);
     }
 
     // 모든 예외를 잡아서 500 응답으로 변환

@@ -23,7 +23,7 @@ public interface TossPaymentClient {
     @PostMapping("/payments/{paymentKey}/cancel")
     Map<String,Object> cancelPayment(
             @PathVariable("paymentKey") String paymentKey,
-            @RequestBody Map<String,String> body
+            @RequestBody Map<String,Object> body
     );
 
     @PostMapping("/payments/{paymentKey}/refunds")
