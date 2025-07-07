@@ -1,23 +1,25 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.client.NotAdminException;
-import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
-import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookOrderService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserOrderService;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderItemRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
+import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.TaskScheduler;
@@ -28,7 +30,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,51 +37,61 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
-    private final BookOrderService bookOrderService;
-    private final UserOrderService userOrderService;
+    private final OrderValidationService orderValidationService;
+
+    private final BookService bookService;
+    private final UserService userService;
 
     private final OrderRepository orderRepository;
-    private final WrappingRepository wrappingRepository;
+    private final OrderItemRepository orderItemRepository;
     private final CanceledOrderRepository canceledOrderRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
-    private final OrderItemRepository orderItemRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
 
     // 주문 생성
     @Override
     @Transactional
-    public void createOrder(OrderRequest orderRequest, String xUserId) {
-        // parameters validation
+    public OrderResponse createOrder(OrderRequest orderRequest, String xUserId) {
+        // 사전 검증
+        if (orderRequest == null) {
+            throw new IllegalArgumentException("orderRequest는 null일 수 없습니다.");
+        }
         Long userNo = getUserNo(xUserId);
-        validParameters(orderRequest);
-        log.info("주문 생성 시작: item's size={}, userId={}", orderRequest.items().size(), userNo);
+        log.info("주문 생성 시작 - item's size: {}, userId: {}", orderRequest.orderItems().size(), userNo);
 
+        // 도서 및 포장지 검증 및 조회
+        List<OrderRequest.OrderItemRequest> itemRequests = orderRequest.orderItems();
+        Map<Long, BookResponse> bookMap = orderValidationService.fetchAndValidateBooks(itemRequests);
+        Map<Long, Wrapping> wrappingMap = orderValidationService.fetchAndValidateWrappings(itemRequests);
+
+        // 주문 생성
         Order order = Order.of(orderRequest, userNo);
-
-        // 요청데이터 대신 DB에서 조회된 값을 사용 + 주문수량이 재고보다 많은지 검증.
-        List<OrderItemRequest> itemRequests = orderRequest.items();
-        Map<Long, BookOrderResponse> bookMap = fetchBooks(itemRequests);
-        Map<Long, Wrapping> wrappingMap = fetchWrappings(itemRequests);
-        reduceStock(itemRequests, bookMap);
-
-        List<OrderItem> items = buildOrderItems(order, itemRequests, bookMap, wrappingMap);
-
-        long totalPrice = calculateTotal(items);
-        order.setTotalPrice(totalPrice);
-        ShippingInfo shippingInfo = ShippingInfo.of(orderRequest, determineFee(totalPrice, userNo));
-        order.setShippingInfo(shippingInfo);
-
+        List<OrderItem> items = OrderItem.createItems(order, itemRequests, bookMap, wrappingMap);
         orderRepository.save(order);
+        orderItemRepository.saveAll(items);
+
+        //TODO: reductStock은 외부 api를 호출하기 때문에 하나의 트랜잭션으로 묶이면 안된다. 해결방법을 찾아야 한다.
+        try {
+            reduceStock(itemRequests, bookMap);
+        } catch (Exception e) {
+            orderRepository.delete(order);
+            orderItemRepository.deleteAll(items);
+
+            // 책 재고 복원 api 호출 예정
+        }
+
         log.info("주문 완료: id={}, orderId={}, userNo={}, totalPrice={}, deliveryFee={}, address={}",
                 order.getId(),
                 order.getOrderId(),
                 userNo,
                 order.getTotalPrice(),
-                shippingInfo.deliveryFee(),
-                shippingInfo.address());
+                order.getShippingInfo().deliveryFee(),
+                order.getShippingInfo().address());
+
+        return OrderResponse.from(order);
     }
 
     // 회원 주문 전체 조회
@@ -111,90 +122,23 @@ public class OrderServiceImpl implements OrderService {
 
         List<OrderSummaryResponse> orderList = new ArrayList<>();
         for (Order o : orders) {
-            Long bookId = o.getItems().getFirst().getBookId();
-            String bookTitle = bookOrderService.getBookOrderResponse(List.of(bookId)).getFirst().title();
+            List<OrderItem> orderItems = orderItemRepository.findAllByOrder(o);
+            Long bookId = orderItems.getFirst().getBookId();
+            String bookTitle = bookService.getBookOrderResponse(List.of(bookId)).getFirst().title();
 
-            OrderSummaryResponse orderSummaryResponse = OrderSummaryResponse.of(o, bookTitle);
+            OrderSummaryResponse orderSummaryResponse = OrderSummaryResponse.of(o, orderItems, bookTitle);
             orderList.add(orderSummaryResponse);
         }
         return orderList;
     }
 
-    private int determineFee(long totalPrice, Long userId) {
-        final int THRESHOLD = 30_000;
-        final int FEE = 5_000;
-
-        return totalPrice >= THRESHOLD && Objects.nonNull(userId) ? 0 : FEE;
-    }
-
-    private long calculateTotal(List<OrderItem> items) {
-        return items.stream().mapToLong(i -> (long) i.getUnitPrice() * i.getQuantity()).sum();
-    }
-
-    private List<OrderItem> buildOrderItems(Order order,
-                                            List<OrderItemRequest> itemRequests,
-                                            Map<Long, BookOrderResponse> bookMap,
-                                            Map<Long, Wrapping> wrappingMap) {
-        List<OrderItem> items = new ArrayList<>();
-        for (OrderItemRequest req : itemRequests) {
-            BookOrderResponse book = Objects.requireNonNull(bookMap.get(req.bookId()),
-                    "book을 찾을 수 없습니다. 찾을 수 없는 id: " + req.bookId());
-            Wrapping wrapping = Objects.requireNonNull(wrappingMap.get(req.wrappingId()),
-                    "wrapping을 찾을 수 없습니다. 찾을 수 없는 id: " + req.wrappingId());
-            OrderItem item = OrderItem.of(book, req.quantity());
-
-            order.addItem(item);
-            wrapping.addItem(item);
-            items.add(item);
-        }
-
-        //TODO 주문: 영속성 전파(cascade)가 설정이 되어 있다면 saveAll을 생략할 수 있다고 함. 되어 있다면 지우기.
-        wrappingRepository.saveAll(wrappingMap.values());
-        orderItemRepository.saveAll(items);
-        log.debug("wrapping & orderItem 저장 완료, item's size={}", items.size());
-
-        return items;
-    }
-
-    private Map<Long, Wrapping> fetchWrappings(List<OrderItemRequest> itemRequests) {
-        List<Long> ids = itemRequests.stream()
-                .map(OrderItemRequest::wrappingId)
-                .toList();
-        List<Wrapping> wrappings = wrappingRepository.findAllById(ids);
-
-        if (wrappings.size() != new HashSet<>(ids).size()) {
-            throw new WrappingNotFoundException("wrapping의 개수가 일치하지 않습니다: " + ids);
-        }
-        log.debug("{}개의 포장지를 가져옵니다. ids={}", wrappings.size(), ids);
-
-        return wrappings.stream()
-                .collect(Collectors.toMap(Wrapping::getId, Function.identity()));
-    }
-
-    private Map<Long, BookOrderResponse> fetchBooks(List<OrderItemRequest> itemRequests) {
-        List<Long> ids = itemRequests.stream()
-                .map(OrderItemRequest::bookId)
-                .toList();
-        List<BookOrderResponse> books = bookOrderService.getBookOrderResponse(ids);
-
-        if (books == null || books.isEmpty()) {
-            throw new BookNotFoundException("일치하는 책이 아무 것도 없습니다: " + ids);
-        }
-        log.debug("{}권의 책을 가져옵니다. ids={}", books.size(), ids);
-
-        return books.stream()
-                .collect(Collectors.toMap(BookOrderResponse::id, Function.identity()));
-    }
-
-    /*───────────────────────────────────────────────────────
-     * 3. 주문 취소
-     *──────────────────────────────────────────────────────*/
+    // 주문 취소
     @Override
     @Transactional
-    public void cancelOrder(Long orderId, String reason) {
+    public void cancelOrder(String orderId, String reason) {
 
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("주문을 찾을 수 없습니다."));
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
@@ -204,7 +148,7 @@ public class OrderServiceImpl implements OrderService {
 
         canceledOrderRepository.save(
                 CanceledOrder.builder()
-                        .orderId(orderId)
+                        .orderId(order.getId())
                         .canceledAt(LocalDateTime.now())
                         .reason(reason)
                         .build());
@@ -219,7 +163,7 @@ public class OrderServiceImpl implements OrderService {
                                                 OrderStatus newStatus,
                                                 String memo,
                                                 String xUserId) {
-        if (!userOrderService.getUserInfo(xUserId).isAuth()) {
+        if (!userService.getUserInfo(xUserId).isAuth()) {
             throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
         }
         Long changedBy = getUserNo(xUserId);
@@ -308,40 +252,28 @@ public class OrderServiceImpl implements OrderService {
                 .collect(Collectors.toList());
     }
 
-    private void validParameters(Object... parameters) {
-        for (int i = 0; i < parameters.length; i++) {
-            Object param = parameters[i];
-            if (param == null) {
-                throw new IllegalArgumentException(String.format("parameter is null: index[%d]", i));
-            }
-            if (param instanceof String && ((String) param).isBlank()) {
-                throw new IllegalArgumentException(String.format("String parameter is blank: index[%d]", i));
-            }
-        }
-    }
-
-    private void reduceStock(List<OrderItemRequest> itemRequests,
-                            Map<Long, BookOrderResponse> bookMap) {
+    private void reduceStock(List<OrderRequest.OrderItemRequest> itemRequests,
+                            Map<Long, BookResponse> bookMap) {
         Map<Long, Integer> quantityMap = itemRequests.stream()
                 .collect(Collectors.groupingBy(
-                        OrderItemRequest::bookId,
-                        Collectors.summingInt(OrderItemRequest::quantity)
+                        OrderRequest.OrderItemRequest::bookId,
+                        Collectors.summingInt(OrderRequest.OrderItemRequest::quantity)
                 ));
 
         List<BookStockReduceRequest> stockReduceRequests = new ArrayList<>(quantityMap.size());
         for (Map.Entry<Long, Integer> entry : quantityMap.entrySet()) {
             Long bookId = entry.getKey();
             Integer requestedQuantity = entry.getValue();
-            BookOrderResponse book = bookMap.get(bookId);
+            BookResponse book = bookMap.get(bookId);
 
             int available = book.stock();
             validStock(book, bookId, available, requestedQuantity);
-            stockReduceRequests.add(new BookStockReduceRequest(bookId, available - requestedQuantity));
+            stockReduceRequests.add(new BookStockReduceRequest(bookId, requestedQuantity));
         }
-        bookOrderService.stockUpdate(stockReduceRequests);
+        bookService.stockUpdate(stockReduceRequests);
     }
 
-    private void validStock(BookOrderResponse book, Long bookId, Integer available, Integer requestedQuantity) {
+    private void validStock(BookResponse book, Long bookId, Integer available, Integer requestedQuantity) {
         if (book == null) {
             throw new BookNotFoundException("책을 찾을 수 없습니다. id=" + bookId);
         }
@@ -355,7 +287,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private Long getUserNo(String xUserId) {
-        UserOrderResponse userInfo = userOrderService.getUserInfo(xUserId);
-        return userInfo != null ? userInfo.userNo() : null; // 회원 도메인은 PK를 userNo로 명명함.
+        if (xUserId == null || xUserId.isBlank()) {
+            return null;
+        }
+
+        UserResponse userInfo = userService.getUserInfo(xUserId);
+        return userInfo.userNo();
     }
 }

@@ -7,7 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Builder
-public record BookOrderResponse (
+public record BookResponse(
         Long id,
         String title,
         String description,

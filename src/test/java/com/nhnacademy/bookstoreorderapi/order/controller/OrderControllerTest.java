@@ -1,197 +1,152 @@
-//package com.nhnacademy.bookstoreorderapi.order.controller;
-//
-//import com.fasterxml.jackson.databind.ObjectMapper;
-//import com.nhnacademy.bookstoreorderapi.order.dto.*;
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-//import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-//import org.junit.jupiter.api.BeforeEach;
-//import org.junit.jupiter.api.Test;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-//import org.springframework.boot.test.mock.mockito.MockBean;
-//import org.springframework.http.MediaType;
-//import org.springframework.test.web.servlet.MockMvc;
-//
-//import java.time.LocalDate;
-//import java.time.LocalDateTime;
-//import java.util.Arrays;
-//import java.util.Collections;
-//
-//import static org.mockito.ArgumentMatchers.*;
-//import static org.mockito.BDDMockito.given;
-//import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-//import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-//
-//@WebMvcTest(OrderController.class)
-//class OrderControllerTest {
-//
-//    @Autowired
-//    private MockMvc mockMvc;
-//
-//    @MockBean
-//    private OrderService orderService;
-//
-//    @Autowired
-//    private ObjectMapper objectMapper;
-//
-//    private OrderResponseDto sampleGuestOrder;
-//    private OrderResponseDto sampleMemberOrder;
-//    private StatusChangeResponseDto sampleStatusChange;
-//    private OrderStatusLogDto sampleLog;
-//
-//    @BeforeEach
-//    void setUp() {
-//        sampleGuestOrder = OrderResponseDto.builder()
-//                .orderId(1L)
-//                .totalPrice(10000)
-//                .deliveryFee(5000)
-//                .finalPrice(15000)
-//                .message("[비회원: 테스트 (010-0000-0001)] 주문 생성됨 / 총액: 10000원 / 배송비: 5000원 / 결제금액: 15000원")
-//                .build();
-//
-//        sampleMemberOrder = OrderResponseDto.builder()
-//                .orderId(2L)
-//                .totalPrice(30000)
-//                .deliveryFee(0)
-//                .finalPrice(30000)
-//                .message("[회원 ID: 42] 주문 생성됨 / 총액: 30000원 / 배송비: 0원 / 결제금액: 30000원")
-//                .build();
-//
-//        sampleStatusChange = StatusChangeResponseDto.builder()
-//                .orderId(3L)
-//                .oldStatus(OrderStatus.PENDING)
-//                .newStatus(OrderStatus.SHIPPING)
-//                .changedBy(999L)
-//                .memo("발송 준비 완료")
-//                .changedAt(LocalDateTime.now())
-//                .build();
-//
-//        sampleLog = OrderStatusLogDto.builder()
-//                .orderStateId(1L)
-//                .orderId(3L)
-//                .oldStatus(OrderStatus.PENDING)
-//                .newStatus(OrderStatus.SHIPPING)
-//                .changedBy(999L)
-//                .memo("발송 준비 완료")
-//                .changedAt(LocalDateTime.now())
-//                .build();
-//    }
-//
-//    @Test
-//    void listMyOrders_returnsOkAndJsonArray() throws Exception {
-//        given(orderService.listByUser("42"))
-//                .willReturn(Arrays.asList(sampleGuestOrder, sampleMemberOrder));
-//
-//        mockMvc.perform(get("/orders")
-//                        .param("userId", "42")
-//                        .accept(MediaType.APPLICATION_JSON))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$[0].orderId").value(1L))
-//                .andExpect(jsonPath("$[1].orderId").value(2L));
-//    }
-//
-//    @Test
-//    void createOrder_guestValid_returnsOk() throws Exception {
-//        OrderRequestDto req = OrderRequestDto.builder()
-//                .orderType("guest")
-//                .guestId(1L)
-//                .items(Collections.singletonList(
-//                        OrderItemDto.builder()
-//                                .bookId(1L)
-//                                .quantity(1)
-//                                .giftWrapped(false)
-//                                .build()
-//                ))
-//                .build();
-//
-//        given(orderService.createOrder(any(OrderRequestDto.class)))
-//                .willReturn(sampleGuestOrder);
-//
-//        mockMvc.perform(post("/orders")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(req)))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$.orderId").value(1L));
-//    }
-//
-//    @Test
-//    void createOrder_memberValid_returnsOk() throws Exception {
-//        OrderRequestDto req = OrderRequestDto.builder()
-//                .orderType("member")
-//                .userId("42")
-//                .orderAddress("서울특별시 강남구 테헤란로 123")   // ⭐️ 추가
-//                .deliveryDate(LocalDate.of(2025, 6, 20))
-//                .items(Collections.singletonList(
-//                        OrderItemDto.builder()
-//                                .bookId(2L)
-//                                .quantity(3)
-//                                .giftWrapped(true)
-//                                .wrappingId(1L)
-//                                .build()
-//                ))
-//                .build();
-//
-//        given(orderService.createOrder(any(OrderRequestDto.class)))
-//                .willReturn(sampleMemberOrder);
-//
-//        mockMvc.perform(post("/orders")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(req)))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$.orderId").value(2L));
-//    }
-//
-//    @Test
-//    void changeStatus_valid_returnsOk() throws Exception {
-//        StatusChangeRequestDto dto = new StatusChangeRequestDto();
-//        dto.setNewStatus(OrderStatus.SHIPPING);
-//        dto.setChangedBy(999L);
-//        dto.setMemo("발송 준비 완료");
-//
-//        given(orderService.changeStatus(eq(3L), any(), anyLong(), anyString()))
-//                .willReturn(sampleStatusChange);
-//
-//        mockMvc.perform(patch("/orders/3/status")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(dto)))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$.newStatus").value("SHIPPING"));
-//    }
-//
-//    @Test
-//    void cancelOrder_valid_returnsOk() throws Exception {
-//        CancelOrderRequestDto dto = new CancelOrderRequestDto();
-//        dto.setReason("고객 변심");
-//
-//        mockMvc.perform(post("/orders/2/cancel")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(dto)))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$.message")
-//                        .value("주문이 정상적으로 취소되었습니다."));
-//    }
-//
-//    @Test
-//    void requestReturn_valid_returnsOk() throws Exception {
-//
-//        ReturnRequestDto dto = ReturnRequestDto.builder().reason("테스트 이유").requestedAt(LocalDateTime.now()).damaged(false).build();
-//        given(orderService.requestReturn(3L, dto)).willReturn(25000);
-//
-//        mockMvc.perform(post("/orders/3/returns")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(objectMapper.writeValueAsString(dto)))
-//                .andExpect(status().isOk());
-//    }
-//
-//    @Test
-//    void getStatusLog_valid_returnsOk() throws Exception {
-//        given(orderService.getStatusLog(3L))
-//                .willReturn(Collections.singletonList(sampleLog));
-//
-//        mockMvc.perform(get("/orders/3/status-log")
-//                        .accept(MediaType.APPLICATION_JSON))
-//                .andExpect(status().isOk())
-//                .andExpect(jsonPath("$[0].orderStateId").value(1L))
-//                .andExpect(jsonPath("$[0].orderId").value(3L));
-//    }
-//}
+package com.nhnacademy.bookstoreorderapi.order.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import static org.mockito.BDDMockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@ExtendWith(MockitoExtension.class)
+class OrderControllerTest {
+
+    @Mock
+    private OrderService orderService;
+
+    @InjectMocks
+    private OrderController orderController;
+
+    private MockMvc mockMvc;
+    private ObjectMapper objectMapper;
+    private OrderRequest validOrderRequest;
+    private OrderResponse orderResponse;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();
+        objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+
+        List<OrderRequest.OrderItemRequest> items = List.of(
+                new OrderRequest.OrderItemRequest(1L, 2, 15000L, 1L),
+                new OrderRequest.OrderItemRequest(2L, 1, 25000L, 2L)
+        );
+
+        validOrderRequest = new OrderRequest(
+                "홍길동",
+                "01012345678",
+                "12345",
+                "서울특별시 강남구 테헤란로 123",
+                "10층",
+                LocalDate.now().plusDays(3),
+                items
+        );
+
+        orderResponse = new OrderResponse(
+                1L, // id
+                "ORDER-20240101-001", // orderId
+                "PENDING", // status
+                LocalDate.now(), // orderDate
+                "홍길동", // receiverName
+                "01012345678", // receiverPhoneNumber
+                "서울특별시 강남구 테헤란로 123", // address
+                LocalDate.now().plusDays(3), // requestedDeliveryDate
+                3000, // deliveryFee
+                55000L // totalAmount
+        );
+    }
+
+    @Test
+    @DisplayName("회원 주문 생성에 성공한다")
+    void createOrder_withValidMemberRequest_success() throws Exception {
+        // given
+        String xUserId = "testUser";
+        given(orderService.createOrder(any(OrderRequest.class), eq(xUserId)))
+                .willReturn(orderResponse);
+
+        // when & then
+        mockMvc.perform(post("/orders")
+                        .header("X-USER-ID", xUserId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validOrderRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.receiverName").value("홍길동"))
+                .andExpect(jsonPath("$.receiverPhoneNumber").value("01012345678"))
+                .andExpect(jsonPath("$.address").value("서울특별시 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.totalAmount").value(55000))
+                .andExpect(jsonPath("$.deliveryFee").value(3000))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        verify(orderService).createOrder(any(OrderRequest.class), eq(xUserId));
+    }
+
+    @Test
+    @DisplayName("비회원 주문 생성에 성공한다")
+    void createOrder_withValidGuestRequest_success() throws Exception {
+        // given
+        String xUserId = "";
+        given(orderService.createOrder(any(OrderRequest.class), eq(xUserId)))
+                .willReturn(orderResponse);
+
+        // when & then
+        mockMvc.perform(post("/orders")
+                        .header("X-USER-ID", "")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(validOrderRequest)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.receiverName").value("홍길동"));
+
+        verify(orderService).createOrder(any(OrderRequest.class), eq(xUserId));
+    }
+
+    @Test
+    @DisplayName("잘못된 Content-Type으로 요청 시 415 에러가 발생한다")
+    void createOrder_withWrongContentType_unsupportedMediaType() throws Exception {
+        // given
+        String xUserId = "testUser";
+
+        // when & then
+        mockMvc.perform(post("/orders")
+                        .header("X-USER-ID", xUserId)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("invalid content"))
+                .andExpect(status().isUnsupportedMediaType());
+
+        verify(orderService, never()).createOrder(any(OrderRequest.class), anyString());
+    }
+
+    @Test
+    @DisplayName("잘못된 JSON 형식으로 요청 시 400 에러가 발생한다")
+    void createOrder_withInvalidJson_badRequest() throws Exception {
+        // given
+        String xUserId = "testUser";
+        String invalidJson = "{invalid json}";
+
+        // when & then
+        mockMvc.perform(post("/orders")
+                        .header("X-USER-ID", xUserId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidJson))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).createOrder(any(OrderRequest.class), anyString());
+    }
+}

@@ -104,17 +104,6 @@
             <artifactId>resilience4j-feign</artifactId>
         </dependency>
 
-        <!-- Spring Security Web -->
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-
         <!-- WebJars (Bootstrap, Popper.js, jQuery) -->
         <dependency>
             <groupId>org.webjars</groupId>
