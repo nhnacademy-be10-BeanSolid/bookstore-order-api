@@ -209,4 +209,41 @@ class OrderControllerTest {
 
         verify(orderService, never()).findAllByUserId(anyString());
     }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회에 성공한다")
+    void getOrder_success() throws Exception {
+        // given
+        String xUserId = "testUser";
+        String orderId = "ORDER-20240101-001";
+        
+        given(orderService.findByOrderId(orderId, xUserId)).willReturn(orderResponse);
+
+        // when & then
+        mockMvc.perform(get("/orders/{orderId}", orderId)
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.receiverName").value("홍길동"))
+                .andExpect(jsonPath("$.receiverPhoneNumber").value("01012345678"))
+                .andExpect(jsonPath("$.address").value("서울특별시 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.totalAmount").value(55000))
+                .andExpect(jsonPath("$.deliveryFee").value(3000))
+                .andExpect(jsonPath("$.status").value("PENDING"));
+
+        verify(orderService).findByOrderId(orderId, xUserId);
+    }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회 시 X-USER-ID 헤더가 없으면 400 에러가 발생한다")
+    void getOrder_missingXUserIdHeader_badRequest() throws Exception {
+        // given
+        String orderId = "ORDER-20240101-001";
+
+        // when & then
+        mockMvc.perform(get("/orders/{orderId}", orderId))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).findByOrderId(anyString(), anyString());
+    }
 }

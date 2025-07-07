@@ -8,6 +8,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
@@ -25,6 +26,7 @@ import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -252,5 +254,67 @@ class OrderServiceImplTest {
                    stockRequests.getFirst().bookId().equals(1L) &&
                    stockRequests.getFirst().stock().equals(5);
         }));
+    }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회에 성공한다")
+    void findByOrderId_success() {
+        // given
+        String xUserId = "testUser";
+        String orderId = "ORDER-20240101-001";
+        Long userNo = 1L;
+        
+        Order mockOrder = Order.of(validOrderRequest, userNo);
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.of(mockOrder));
+        
+        // when
+        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        
+        // then
+        assertThat(result).isNotNull();
+        verify(userService).getUserInfo(xUserId);
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
+    }
+
+    @Test
+    @DisplayName("회원 주문 상세 조회 시 주문이 존재하지 않으면 예외가 발생한다")
+    void findByOrderId_orderNotFound_throwsException() {
+        // given
+        String xUserId = "testUser";
+        String orderId = "ORDER-20240101-001";
+        Long userNo = 1L;
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.empty());
+        
+        // when & then
+        assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("주문을 찾을 수 없습니다. 주문번호: " + orderId);
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
+    }
+
+    @Test
+    @DisplayName("다른 회원의 주문 상세 조회 시 예외가 발생한다")
+    void findByOrderId_differentUser_throwsException() {
+        // given
+        String xUserId = "testUser";
+        String orderId = "ORDER-20240101-001";
+        Long userNo = 1L;
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.empty());
+        
+        // when & then
+        assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessage("주문을 찾을 수 없습니다. 주문번호: " + orderId);
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
     }
 }
