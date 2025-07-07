@@ -14,7 +14,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class ShippingInfo {
 
-    public static Integer DEFAULT_DELIVERY_FEE = 5_000;
+    public static final Integer DEFAULT_DELIVERY_FEE = 5_000;
 
     private String receiverName;
     private String receiverPhoneNumber;
