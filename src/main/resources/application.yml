@@ -44,9 +44,7 @@ server:
 eureka:
   client:
     service-url:
-      defaultZone: >
-        http://localhost:10344/eureka,
-        http://localhost:10345/eureka
+      defaultZone: http://localhost:10344/eureka,http://localhost:10345/eureka
 
 payment:
   toss:
