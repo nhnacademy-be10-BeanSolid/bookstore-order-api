@@ -38,19 +38,23 @@ public class PaymentServiceImpl implements PaymentService {
     /** Map 응답에서 첫 번째 non-null URL을 꺼냅니다. */
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
+                        Optional.ofNullable(resp.get("nextRedirectPcUrl")).map(Object::toString),
+                        Optional.ofNullable(resp.get("nextRedirectMobileUrl")).map(Object::toString),
+                        Optional.ofNullable(resp.get("hostedCheckoutUrl")).map(Object::toString),
+                        /* ↓ 이하 테스트·샌드박스 키 */
+                        Optional.ofNullable(resp.get("checkoutUrl")).map(Object::toString),
+                        Optional.ofNullable(resp.get("checkoutPageUrl")).map(Object::toString),
+                        Optional.ofNullable(resp.get("paymentUrl")).map(Object::toString),
                         Optional.ofNullable(resp.get("checkout"))
                                 .filter(Map.class::isInstance)
                                 .map(Map.class::cast)
                                 .map(m -> m.get("url"))
-                                .map(Object::toString),
-                        Optional.ofNullable(resp.get("checkoutUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("checkoutPageUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("paymentUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("nextRedirectPcUrl")).map(Object::toString)
+                                .map(Object::toString)
                 )
                 .flatMap(Optional::stream)
                 .findFirst()
                 .orElseThrow(() -> new RedirectUrlNotFoundException(resp));
+
     }
 
     /** Toss 결제 요청 생성 */
