@@ -1,7 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.dto.response;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
@@ -29,11 +28,11 @@ public class OrderResponse {
                 o.getOrderId(),
                 o.getStatus().name(),
                 o.getOrderDate(),
-                o.getShippingInfo().receiverName(),
-                o.getShippingInfo().receiverPhoneNumber(),
-                o.getShippingInfo().address(),
-                o.getShippingInfo().requestedDeliveryDate(),
-                o.getShippingInfo().deliveryFee(),
+                o.getShippingInfo().getReceiverName(),
+                o.getShippingInfo().getReceiverPhoneNumber(),
+                o.getShippingInfo().getAddress(),
+                o.getShippingInfo().getRequestedDeliveryDate(),
+                o.getShippingInfo().getDeliveryFee(),
                 o.getTotalPrice()
         );
     }
