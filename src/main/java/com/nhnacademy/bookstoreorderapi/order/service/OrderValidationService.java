@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -46,6 +47,7 @@ public class OrderValidationService {
     public Map<Long, Wrapping> fetchAndValidateWrappings(List<OrderRequest.OrderItemRequest> itemRequests) {
         List<Long> wrappingIds = itemRequests.stream()
                 .map(OrderRequest.OrderItemRequest::wrappingId)
+                .filter(Objects::nonNull)
                 .toList();
         
         List<Wrapping> wrappings = wrappingRepository.findAllById(wrappingIds);
