@@ -50,6 +50,7 @@ public class Order extends BaseTimeEntity {
                 .status(OrderStatus.PENDING) // 테스트 코드 통과를 위한 임시 조치
                 .orderDate(LocalDate.now())
                 .shippingInfo(shippingInfo)
+                .totalPrice(totalAmount)
                 .build();
     }
 
