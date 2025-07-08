@@ -26,12 +26,6 @@ public interface TossPaymentClient {
             @RequestBody Map<String,Object> body
     );
 
-    @PostMapping("/payments/{paymentKey}/refunds")
-    Map<String,Object> refundPayment(
-            @PathVariable("paymentKey") String paymentKey,
-            @RequestBody Map<String,Object> body
-    );
-
     @GetMapping("/payments/{paymentKey}")
     Map<String, Object> getPaymentInfo(
             @PathVariable("paymentKey") String paymentKey
