@@ -177,11 +177,6 @@ public class PaymentServiceImpl implements PaymentService {
                 resp = tossClient.cancelPayment(paymentKey,
                         Map.of("cancelReason", req.getCancelReason(),
                                 "cancelAmount",  req.getAmount()));
-            } else {
-                // 카드 환불
-                resp = tossClient.refundPayment(paymentKey,
-                        Map.of("cancelReason", req.getCancelReason(),
-                                "cancelAmount",  req.getAmount()));
             }
         } catch (FeignException fe) {
             log.error("[TOSS REFUND][ERROR] {}", fe.getMessage(), fe);
