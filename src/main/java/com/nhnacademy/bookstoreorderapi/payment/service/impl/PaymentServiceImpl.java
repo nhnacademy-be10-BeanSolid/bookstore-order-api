@@ -138,7 +138,6 @@ public class PaymentServiceImpl implements PaymentService {
         payRepo.save(payment);
 
         order.setStatus(OrderStatus.PENDING);
-        orderRepo.save(order);
     }
 
     @Override
