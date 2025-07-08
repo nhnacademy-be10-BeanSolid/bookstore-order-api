@@ -22,11 +22,12 @@ public class OrderResponse {
     private Long totalAmount;
 
     public static OrderResponse from(Order o) {
+        String statusName = o.getStatus() == null ? null : o.getStatus().name();
 
         return new OrderResponse(
                 o.getId(),
                 o.getOrderId(),
-                o.getStatus().name(),
+                statusName,
                 o.getOrderDate(),
                 o.getShippingInfo().getReceiverName(),
                 o.getShippingInfo().getReceiverPhoneNumber(),
