@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
@@ -144,6 +145,8 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(amount);
         payRepo.save(payment);
+
+        order.setStatus(OrderStatus.PENDING);
     }
 
     /** 결제 실패 콜백 처리 */
