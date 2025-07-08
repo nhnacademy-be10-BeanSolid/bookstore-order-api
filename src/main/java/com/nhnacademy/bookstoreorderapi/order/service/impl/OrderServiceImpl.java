@@ -22,6 +22,8 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
     private final BookService bookService;
     private final UserService userService;
 
+    private final CustomOrderRepository customOrderRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final CanceledOrderRepository canceledOrderRepository;
@@ -73,23 +76,15 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
         orderItemRepository.saveAll(items);
 
-        //TODO: reductStock은 외부 api를 호출하기 때문에 하나의 트랜잭션으로 묶이면 안된다. 해결방법을 찾아야 한다.
-        try {
-            reduceStock(itemRequests, bookMap);
-        } catch (Exception e) {
-            orderRepository.delete(order);
-            orderItemRepository.deleteAll(items);
-
-            // 책 재고 복원 api 호출 예정
-        }
+        reduceStock(itemRequests, bookMap);
 
         log.info("주문 완료: id={}, orderId={}, userNo={}, totalPrice={}, deliveryFee={}, address={}",
                 order.getId(),
                 order.getOrderId(),
                 userNo,
                 order.getTotalPrice(),
-                order.getShippingInfo().deliveryFee(),
-                order.getShippingInfo().address());
+                order.getShippingInfo().getDeliveryFee(),
+                order.getShippingInfo().getAddress());
 
         return OrderResponse.from(order);
     }
@@ -97,15 +92,10 @@ public class OrderServiceImpl implements OrderService {
     // 회원 주문 전체 조회
     @Override
     @Transactional
-    public List<OrderSummaryResponse> findAllByUserId(String xUserId) {
+    public Page<OrderSummaryResponse> findAllByUserId(String xUserId) {
         Long userNo = getUserNo(xUserId);
 
-        List<Order> orders = orderRepository.findAllByUserNo(userNo);
-        if (orders.isEmpty()) {
-            throw new OrderNotFoundException("주문을 찾을 수 없습니다.");
-        }
-
-        return getOrderSummaryResponses(orders);
+        return customOrderRepository.findOrderSummary(userNo, PageRequest.of(0, 10));
     }
 
     // 회원 주문 상세 조회
@@ -116,20 +106,6 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다. 주문번호: " + orderId));
 
         return OrderResponse.from(order);
-    }
-
-    private List<OrderSummaryResponse> getOrderSummaryResponses(List<Order> orders) {
-
-        List<OrderSummaryResponse> orderList = new ArrayList<>();
-        for (Order o : orders) {
-            List<OrderItem> orderItems = orderItemRepository.findAllByOrder(o);
-            Long bookId = orderItems.getFirst().getBookId();
-            String bookTitle = bookService.getBookOrderResponse(List.of(bookId)).getFirst().title();
-
-            OrderSummaryResponse orderSummaryResponse = OrderSummaryResponse.of(o, orderItems, bookTitle);
-            orderList.add(orderSummaryResponse);
-        }
-        return orderList;
     }
 
     // 주문 취소

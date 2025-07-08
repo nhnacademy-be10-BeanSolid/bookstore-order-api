@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
 public class OrderIdGenerator {
 
     private OrderIdGenerator() {
-        throw new RuntimeException("생성자로 생성할 수 없는 클래스입니다.");
+        throw new AssertionError("유틸리티 클래스는 생성자로 생성할 수 없습니다."); // 일반적으로 private 생성자에 AssertionError를 많이 사용한다고 합니다.
     }
 
     private static final SecureRandom RANDOM = new SecureRandom(); // 보안을 위해 SecureRandom을 사용.

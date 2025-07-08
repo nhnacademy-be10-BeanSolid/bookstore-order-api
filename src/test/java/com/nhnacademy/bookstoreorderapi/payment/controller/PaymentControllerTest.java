@@ -1,84 +1,148 @@
-//package com.nhnacademy.bookstoreorderapi.payment.controller;
-//
-//import com.fasterxml.jackson.databind.ObjectMapper;
-//import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
-//import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
-//import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
-//import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
-//import org.junit.jupiter.api.DisplayName;
-//import org.junit.jupiter.api.Test;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-//import org.springframework.boot.autoconfigure.data.jpa.DataJpaRepositoriesAutoConfiguration;
-//import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
-//import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
-//import org.springframework.boot.autoconfigure.orm.jpa.JpaAuditAutoConfiguration;
-//import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-//import org.springframework.boot.test.context.TestPropertySource;
-//import org.springframework.boot.test.mock.mockito.MockBean;
-//import org.springframework.http.MediaType;
-//import org.springframework.test.web.servlet.MockMvc;
-//
-//import static org.mockito.ArgumentMatchers.any;
-//import static org.mockito.Mockito.when;
-//import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-//import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-//
-//// 단위 테스트: Controller 레이어만 띄워서 검증
-//@WebMvcTest(
-//        controllers = PaymentController.class,
-//        excludeAutoConfiguration = {
-//                DataSourceAutoConfiguration.class,
-//                HibernateJpaAutoConfiguration.class,
-//                DataJpaRepositoriesAutoConfiguration.class,
-//                JpaRepositoriesAutoConfiguration.class,
-//                JpaAuditAutoConfiguration.class
-//        }
-//)
-//@TestPropertySource(properties = "payment.toss.base-url=https://sandbox.tosspayments.com/v1")
-//class PaymentControllerTest {
-//
-//    @Autowired
-//    MockMvc mvc;
-//
-//    @Autowired
-//    ObjectMapper om;
-//
-//    @MockBean
-//    PaymentService paymentService;   // 실제 서비스 대신 Mock
-//
-//    @Test
-//    @DisplayName("POST /api/v1/payments/toss/{orderId} → 201 Created + Location 헤더 + paymentKey 반환")
-//    void requestPayment_api() throws Exception {
-//        // 1. Stub PaymentResDto 생성 (paymentKey를 "pay_999"로 설정)
-//        PaymentResDto stub = PaymentResDto.builder()
-//                .paymentId(1L)
-//                .orderId("ORD-10")
-//                .paymentKey("pay_999")            // <-- 여기
-//                .redirectUrl("https://redirect")
-//                .successUrl("ok")
-//                .failUrl("fail")
-//                .payName("도서 결제")
-//                .payAmount(5_000L)
-//                .payType("CARD")
-//                .build();
-//
-//        // 2. Mock PaymentService 동작 정의
-//        when(paymentService.requestTossPayment(any(), any())).thenReturn(stub);
-//
-//        // 3. 요청용 DTO
-//        PaymentReqDto req = PaymentReqDto.builder()
-//                .payAmount(5_000L)
-//                .payType(PayType.CARD)
-//                .payName("도서 결제")
-//                .build();
-//
-//        // 4. 수행 및 검증
-//        mvc.perform(post("/api/v1/payments/toss/{oid}", "ORD-10")
-//                        .contentType(MediaType.APPLICATION_JSON)
-//                        .content(om.writeValueAsString(req)))
-//                .andExpect(status().isCreated())                                     // 201
-//                .andExpect(header().string("Location", "/api/v1/payments/1"))         // Location 헤더
-//                .andExpect(jsonPath("$.paymentKey").value("pay_999"));                // 반환된 paymentKey
-//    }
-//}
+package com.nhnacademy.bookstoreorderapi.payment.controller;
+
+import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
+import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.*;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.servlet.view.RedirectView;
+
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.*;
+
+class PaymentControllerTest {
+
+    @Mock
+    private PaymentService paymentService;
+
+    @InjectMocks
+    private PaymentController paymentController;
+
+    @BeforeEach
+    void init() {
+        MockitoAnnotations.openMocks(this);
+    }
+
+    @Test
+    void requestPayment_success() {
+        // given
+        PaymentReqDto dto = new PaymentReqDto();
+        dto.setPayAmount(1000L);
+        dto.setPayType(PayType.CARD);
+        dto.setPayName("카드결제");
+
+        PaymentResDto resDto = PaymentResDto.builder()
+                .paymentKey("pk-1")
+                .orderId("order-123")
+                .payAmount(1000L)
+                .payName("카드결제")
+                .payType("CARD")
+                .build();
+
+        when(paymentService.requestTossPayment("order-123", dto)).thenReturn(resDto);
+
+        // when
+        ResponseEntity<PaymentResDto> response = paymentController.requestPayment("order-123", dto);
+
+        // then
+        assertThat(response.getStatusCodeValue()).isEqualTo(201);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().getPaymentKey()).isEqualTo("pk-1");
+    }
+
+    @Test
+    void getPaymentInfo_success() {
+        // given
+        PaymentResDto resDto = PaymentResDto.builder()
+                .paymentKey("pk-1")
+                .orderId("order-123")
+                .payAmount(1000L)
+                .build();
+
+        when(paymentService.getPaymentInfo("pk-1")).thenReturn(resDto);
+
+        // when
+        ResponseEntity<PaymentResDto> response = paymentController.getPaymentInfo("pk-1");
+
+        // then
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getBody().getOrderId()).isEqualTo("order-123");
+    }
+
+    @Test
+    void tossSuccess_validParams() {
+        // given
+        Map<String, String> params = Map.of(
+                "paymentKey", "pk-123",
+                "orderId", "order-1",
+                "amount", "1000"
+        );
+
+        // when
+        RedirectView redirectView = paymentController.tossSuccess(params);
+
+        // then
+        verify(paymentService).markSuccess("pk-123", "order-1", 1000L);
+        assertThat(redirectView.getUrl()).isEqualTo("/success.html");
+    }
+
+    @Test
+    void tossFail_validParams() {
+        Map<String, String> params = Map.of(
+                "paymentKey", "pk-999",
+                "message", "카드 오류"
+        );
+
+        RedirectView redirectView = paymentController.tossFail(params);
+
+        verify(paymentService).markFail("pk-999", "카드 오류");
+        assertThat(redirectView.getUrl()).isEqualTo("/fail.html");
+    }
+
+    @Test
+    void refundCardPaymentLegacy_success() {
+        Map<String, Object> request = Map.of("amount", 1000, "reason", "테스트");
+        Map<String, Object> responseMap = Map.of("result", "ok");
+
+        when(paymentService.refundCardPayment("pk-legacy", request)).thenReturn(responseMap);
+
+        ResponseEntity<Map<String, Object>> response = paymentController.refundCardPaymentLegacy("pk-legacy", request);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getBody()).containsEntry("result", "ok");
+    }
+
+    @Test
+    void cancelPayment_success() {
+        CancelPaymentRequest req = new CancelPaymentRequest("orderId", 2000L, "사용자 요청");
+        PaymentResDto dto = PaymentResDto.builder()
+                .paymentKey("pk-cancel")
+                .orderId("orderId")
+                .payAmount(2000L)
+                .build();
+
+        when(paymentService.refundCardPayment("pk-cancel", req)).thenReturn(dto);
+
+        ResponseEntity<PaymentResDto> response = paymentController.cancelPayment("pk-cancel", req);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(200);
+        assertThat(response.getBody().getOrderId()).isEqualTo("orderId");
+    }
+
+    @Test
+    void handleAll_exceptionTest() {
+        Exception ex = new RuntimeException("테스트 예외");
+
+        ResponseEntity<Map<String, Object>> response = paymentController.handleAll(ex);
+
+        assertThat(response.getStatusCodeValue()).isEqualTo(500);
+        assertThat(response.getBody()).containsKey("message");
+        assertThat(response.getBody().get("message")).isEqualTo("테스트 예외");
+    }
+}
