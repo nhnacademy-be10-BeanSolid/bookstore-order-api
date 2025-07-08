@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.service;
 
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 
@@ -19,6 +20,8 @@ public interface PaymentService {
     PaymentResDto getPaymentInfo(String paymentKey);
 
     Map<String,Object> refundCardPayment(String paymentKey, Map<String,Object> req);
+
+    PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request);
 
 
 
