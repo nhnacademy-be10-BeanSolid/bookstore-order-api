@@ -178,7 +178,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    /* Map 버전 환불 API는 동일 로직 재사용 */
     @Override
     @Transactional
     public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
