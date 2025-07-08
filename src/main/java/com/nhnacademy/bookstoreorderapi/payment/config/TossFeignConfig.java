@@ -25,11 +25,4 @@ public class TossFeignConfig {
         };
     }
 
-//    @Bean
-//    public OkHttpClient feignOkHttpClient() {
-//        okhttp3.OkHttpClient client = new Builder()
-//                .protocols(Collections.singletonList(Protocol.HTTP_1_1))
-//                .build();
-//        return new OkHttpClient(client);
-//    }
 }
