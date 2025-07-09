@@ -8,15 +8,14 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.TaskScheduler;
 
 import java.time.LocalDate;
@@ -402,5 +403,204 @@ class OrderServiceImplTest {
         assertThat(result).isNotNull();
         verify(orderRepository).findByOrderIdAndUserNo(orderId, null);
         verify(userService, never()).getUserInfo(anyString());
+    }
+
+    // ========== 구매 확인 테스트 ==========
+
+    @Test
+    @DisplayName("구매 확인 성공 - 유효한 사용자와 구매 이력이 있는 경우")
+    void verifyPurchase_success_withValidUserAndPurchase() {
+        // given
+        String xUserId = "testUser";
+        Long bookId = 123L;
+        Long userNo = 1L;
+        
+        UserResponse userResponse = UserResponse.builder()
+                .userNo(userNo)
+                .userId(xUserId)
+                .build();
+        
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(userNo, bookId, true);
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(customOrderRepository.findByUserNoAndBookId(userNo, bookId)).willReturn(expectedResponse);
+
+        // when
+        PurchaseVerificationResponse result = orderService.verifyPurchase(xUserId, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(customOrderRepository).findByUserNoAndBookId(userNo, bookId);
+    }
+
+    @Test
+    @DisplayName("구매 확인 성공 - 유효한 사용자이지만 구매 이력이 없는 경우")
+    void verifyPurchase_success_withValidUserButNoPurchase() {
+        // given
+        String xUserId = "testUser";
+        Long bookId = 456L;
+        Long userNo = 2L;
+        
+        UserResponse userResponse = UserResponse.builder()
+                .userNo(userNo)
+                .userId(xUserId)
+                .build();
+        
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(userNo, bookId, false);
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(customOrderRepository.findByUserNoAndBookId(userNo, bookId)).willReturn(expectedResponse);
+
+        // when
+        PurchaseVerificationResponse result = orderService.verifyPurchase(xUserId, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(customOrderRepository).findByUserNoAndBookId(userNo, bookId);
+    }
+
+    @Test
+    @DisplayName("구매 확인 - null 사용자 ID로 인한 예외 발생")
+    void verifyPurchase_withNullUserId_throwsException() {
+        // given
+        String xUserId = null;
+        Long bookId = 789L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
+                .isInstanceOf(MissingRequiredParameterException.class)
+                .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+        
+        verify(userService, never()).getUserInfo(anyString());
+        verify(customOrderRepository, never()).findByUserNoAndBookId(any(), any());
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 빈 문자열 사용자 ID로 인한 예외 발생")
+    void verifyPurchase_withBlankUserId_throwsException() {
+        // given
+        String xUserId = "";
+        Long bookId = 101L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
+                .isInstanceOf(MissingRequiredParameterException.class)
+                .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+        
+        verify(userService, never()).getUserInfo(anyString());
+        verify(customOrderRepository, never()).findByUserNoAndBookId(any(), any());
+    }
+
+    @Test
+    @DisplayName("구매 확인 - null bookId로 인한 예외 발생")
+    void verifyPurchase_withNullBookId_throwsException() {
+        // given
+        String xUserId = "testUser";
+        Long bookId = null;
+        
+        UserResponse userResponse = UserResponse.builder()
+                .userNo(1L)
+                .userId(xUserId)
+                .build();
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+
+        // when & then
+        assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
+                .isInstanceOf(MissingRequiredParameterException.class)
+                .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(customOrderRepository, never()).findByUserNoAndBookId(any(), any());
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 공백만 있는 사용자 ID로 인한 예외 발생")
+    void verifyPurchase_withWhitespaceUserId_throwsException() {
+        // given
+        String xUserId = "   ";
+        Long bookId = 202L;
+
+        // when & then
+        assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
+                .isInstanceOf(MissingRequiredParameterException.class)
+                .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+        
+        verify(userService, never()).getUserInfo(anyString());
+        verify(customOrderRepository, never()).findByUserNoAndBookId(any(), any());
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 사용자 서비스에서 사용자 정보 조회")
+    void verifyPurchase_userServiceInteraction() {
+        // given
+        String xUserId = "activeUser";
+        Long bookId = 999L;
+        Long userNo = 5L;
+        
+        UserResponse userResponse = UserResponse.builder()
+                .userNo(userNo)
+                .userId(xUserId)
+                .userName("홍길동")
+                .userEmail("test@example.com")
+                .build();
+        
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(userNo, bookId, true);
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(customOrderRepository.findByUserNoAndBookId(userNo, bookId)).willReturn(expectedResponse);
+
+        // when
+        PurchaseVerificationResponse result = orderService.verifyPurchase(xUserId, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(customOrderRepository).findByUserNoAndBookId(userNo, bookId);
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 다양한 bookId 값 처리")
+    void verifyPurchase_withVariousBookIds() {
+        // given
+        String xUserId = "testUser";
+        Long bookId = Long.MAX_VALUE; // Edge case: 매우 큰 bookId
+        Long userNo = 3L;
+        
+        UserResponse userResponse = UserResponse.builder()
+                .userNo(userNo)
+                .userId(xUserId)
+                .build();
+        
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(userNo, bookId, false);
+        
+        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(customOrderRepository.findByUserNoAndBookId(userNo, bookId)).willReturn(expectedResponse);
+
+        // when
+        PurchaseVerificationResponse result = orderService.verifyPurchase(xUserId, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+        
+        verify(userService).getUserInfo(xUserId);
+        verify(customOrderRepository).findByUserNoAndBookId(userNo, bookId);
     }
 }

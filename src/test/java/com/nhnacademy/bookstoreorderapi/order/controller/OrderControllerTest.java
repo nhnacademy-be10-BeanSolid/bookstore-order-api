@@ -5,9 +5,8 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +14,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -24,8 +25,10 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.BDDMockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @ExtendWith(MockitoExtension.class)
 class OrderControllerTest {
@@ -245,5 +248,95 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(orderService, never()).findByOrderId(anyString(), anyString());
+    }
+
+    // ========== 구매 확인 테스트 ==========
+
+    @Test
+    @DisplayName("구매 확인 성공 - 구매 이력이 있는 경우")
+    void verifyPurchase_success_withValidPurchase() throws Exception {
+        // given
+        String xUserId = "testUser";
+        Long bookId = 123L;
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(1L, bookId, true);
+        
+        given(orderService.verifyPurchase(xUserId, bookId)).willReturn(expectedResponse);
+
+        // when & then
+        mockMvc.perform(get("/orders/verify-purchase")
+                        .header("X-USER-ID", xUserId)
+                        .param("bookId", bookId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userNo").value(1L))
+                .andExpect(jsonPath("$.bookId").value(123L))
+                .andExpect(jsonPath("$.isValid").value(true));
+        
+        verify(orderService).verifyPurchase(xUserId, bookId);
+    }
+
+    @Test
+    @DisplayName("구매 확인 성공 - 구매 이력이 없는 경우")
+    void verifyPurchase_success_withNoPurchase() throws Exception {
+        // given
+        String xUserId = "testUser";
+        Long bookId = 456L;
+        PurchaseVerificationResponse expectedResponse = new PurchaseVerificationResponse(1L, bookId, false);
+        
+        given(orderService.verifyPurchase(xUserId, bookId)).willReturn(expectedResponse);
+
+        // when & then
+        mockMvc.perform(get("/orders/verify-purchase")
+                        .header("X-USER-ID", xUserId)
+                        .param("bookId", bookId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userNo").value(1L))
+                .andExpect(jsonPath("$.bookId").value(456L))
+                .andExpect(jsonPath("$.isValid").value(false));
+        
+        verify(orderService).verifyPurchase(xUserId, bookId);
+    }
+
+    @Test
+    @DisplayName("구매 확인 - X-USER-ID 헤더 없이 요청하면 400 에러 발생")
+    void verifyPurchase_missingXUserIdHeader_badRequest() throws Exception {
+        // given
+        Long bookId = 123L;
+
+        // when & then
+        mockMvc.perform(get("/orders/verify-purchase")
+                        .param("bookId", bookId.toString()))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).verifyPurchase(anyString(), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("구매 확인 - bookId 파라미터 없이 요청하면 400 에러 발생")
+    void verifyPurchase_missingBookIdParam_badRequest() throws Exception {
+        // given
+        String xUserId = "testUser";
+
+        // when & then
+        mockMvc.perform(get("/orders/verify-purchase")
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).verifyPurchase(anyString(), any(Long.class));
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 잘못된 bookId 형식으로 요청하면 400 에러 발생")
+    void verifyPurchase_invalidBookIdFormat_badRequest() throws Exception {
+        // given
+        String xUserId = "testUser";
+        String invalidBookId = "invalid";
+
+        // when & then
+        mockMvc.perform(get("/orders/verify-purchase")
+                        .header("X-USER-ID", xUserId)
+                        .param("bookId", invalidBookId))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).verifyPurchase(anyString(), any(Long.class));
     }
 }

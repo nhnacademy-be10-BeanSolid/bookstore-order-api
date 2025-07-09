@@ -20,12 +20,6 @@ public class OrderInternalController {
 
     private final OrderInternalService orderInternalService;
 
-//    @GetMapping
-//    public ResponseEntity<PurchaseVerificationResponse> verifyPurchase(@RequestHeader("X-USER-ID") String xUserId,
-//                                                                       @RequestParam Long bookId) {
-//        return ResponseEntity.ok(orderInternalService.)
-//    }
-
     @GetMapping
     public ResponseEntity<List<UserOrderAmountResponse>> getOrderAmountGroupByUserLastThreeMonth() {
         return ResponseEntity.ok(orderInternalService.findOrderAmountGroupByUserLastThreeMonths());

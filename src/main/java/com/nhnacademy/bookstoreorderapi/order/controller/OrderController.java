@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -77,5 +78,11 @@ public class OrderController {
 
         int returnsAmount = orderService.requestReturn(orderId, dto);
         return ResponseEntity.ok(returnsAmount);
+    }
+
+    @GetMapping("/verify-purchase")
+    public ResponseEntity<PurchaseVerificationResponse> verifyPurchase(@RequestHeader("X-USER-ID") String xUserId,
+                                                                       @RequestParam Long bookId) {
+        return ResponseEntity.ok(orderService.verifyPurchase(xUserId, bookId));
     }
 }
