@@ -80,7 +80,7 @@ public class PaymentController {
         } else {
             log.warn("필수 파라미터 누락 : {}", params);
         }
-        return redirect("https://bookstore-beansolid.store/payments/success", params);
+        return redirect("https://bookstore-beansolid.store/api/v1/payments/toss/success", params);
     }
 
     // (5) 결제 실패 콜백
@@ -89,7 +89,7 @@ public class PaymentController {
         log.info("[PAY CALLBACK] fail: {}", params);
         paymentService.markFail(params.get("paymentKey"), params.get("message"));
 
-        return redirect("https://bookstore-beansolid.store/payments/fail", params);
+        return redirect("https://bookstore-beansolid.store/api/v1/payments/toss/fail", params);
     }
 
     // (6) 레거시 환불(Map 버전)
