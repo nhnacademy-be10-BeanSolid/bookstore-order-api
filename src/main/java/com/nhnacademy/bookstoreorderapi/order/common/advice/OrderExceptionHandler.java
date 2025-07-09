@@ -1,53 +1,36 @@
 package com.nhnacademy.bookstoreorderapi.order.common.advice;
 
+import com.nhnacademy.bookstoreorderapi.common.dto.ErrorResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import com.nhnacademy.bookstoreorderapi.order.common.dto.ErrorResponse;
 
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestControllerAdvice
 public class OrderExceptionHandler {
 
-    /**
-     * Bean Validation 검증 실패 예외를 처리합니다.
-     *
-     * <p>입력값 검증 실패 시 다음과 같은 형태로 응답합니다:
-     * <pre>
-     * {
-     *     "status": 400,
-     *     "error": "Bean Validation Failed",
-     *     "fieldErrors": {
-     *         "fieldName": "error Message"
-     *     }
-     * }
-     * </pre>
-     *
-     * @param ex MethodArgumentNotValidException 객체
-     * @return ResponseEntity 타입의 응답
-     *
-     * @author mni-js
-     * @since 2025-07-06
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        Map<String, String> fieldErrors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(fieldError ->
-                fieldErrors.put(fieldError.getField(), fieldError.getDefaultMessage()));
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(fieldError -> fieldError.getField() + ": " + fieldError.getDefaultMessage())
+                .collect(Collectors.joining(", "));
 
-        ErrorResponse resp = ErrorResponse.builder()
-                .httpStatus(HttpStatus.BAD_REQUEST.value())
-                .errorReason("Bean Validation Failed")
-                .fieldErrors(fieldErrors)
-                .build();
+        ErrorResponse resp = new ErrorResponse(HttpStatus.BAD_REQUEST.name(), errorMessage);
         
         return ResponseEntity.badRequest().body(resp);
+    }
+
+    @ExceptionHandler(NotAdminException.class)
+    public ResponseEntity<ErrorResponse> handleNotAdminException(NotAdminException ex) {
+        ErrorResponse errorMessage = new ErrorResponse(HttpStatus.FORBIDDEN.name(), ex.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorMessage);
     }
 }

@@ -158,7 +158,7 @@ public class OrderServiceImpl implements OrderService {
                     String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
         }
 
-        OrderStatusLog log = OrderStatusLog.createFrom(order.getId(), oldStatus, newStatus, changedBy, memo);
+        OrderStatusLog log = new OrderStatusLog(oldStatus, newStatus, changedBy, memo, order);
         statusLogRepository.save(log);
 
         order.setStatus(newStatus);
@@ -195,7 +195,7 @@ public class OrderServiceImpl implements OrderService {
             return;
         }
 
-        statusLogRepository.save(OrderStatusLog.createFrom(orderId, OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료"));
+        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
         order.setStatus(OrderStatus.COMPLETED);
         orderRepository.save(order);
     }
