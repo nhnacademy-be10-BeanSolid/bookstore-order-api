@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 
@@ -19,6 +20,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 })
 @EnableJpaAuditing
 @EnableDiscoveryClient
+@EnableScheduling
 public class BookstoreOrderApiApplication {
 
     public static void main(String[] args) {
