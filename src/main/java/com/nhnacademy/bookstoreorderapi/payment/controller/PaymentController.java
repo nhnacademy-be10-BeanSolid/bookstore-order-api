@@ -5,16 +5,18 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -25,11 +27,14 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @Value("${frontend.base-url}")
+    private String frontBase;
+
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable String orderId,
-            @RequestBody @Valid PaymentReqDto dto) {
+            @RequestBody PaymentReqDto dto) {
 
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
         return ResponseEntity
@@ -42,8 +47,8 @@ public class PaymentController {
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
             @PathVariable String orderId,
             @RequestParam PayType payType,
-            @RequestParam String payName,
-            @RequestParam Long payAmount) {
+            @RequestParam String  payName,
+            @RequestParam Long    payAmount) {
 
         PaymentReqDto dto = new PaymentReqDto();
         dto.setOrderId(orderId);
@@ -75,12 +80,13 @@ public class PaymentController {
         }
 
         String target = UriComponentsBuilder
-                .fromUriString("https://bookstore-beansolid.store/payments/success")
-                .queryParam("paymentKey", pk)
-                .queryParam("orderId", oid)
-                .queryParam("amount", amt)
-                .build()
-                .toUriString();
+                .fromUriString(frontBase + "/payments/success")
+                .queryParams(CollectionUtils.toMultiValueMap(Map.of(
+                        "paymentKey", List.of(pk),
+                        "orderId",    List.of(oid),
+                        "amount",     List.of(String.valueOf(amt))
+                )))
+                .build().toUriString();
 
         return new RedirectView(target, false);
     }
@@ -90,11 +96,10 @@ public class PaymentController {
         paymentService.markFail(p.get("paymentKey"), p.get("message"));
 
         String target = UriComponentsBuilder
-                .fromUriString("https://bookstore-beansolid.store/payments/fail")
+                .fromUriString(frontBase + "/payments/fail")
                 .queryParam("paymentKey", p.get("paymentKey"))
-                .queryParam("orderId", p.get("orderId"))
-                .build()
-                .toUriString();
+                .queryParam("orderId",    p.get("orderId"))
+                .build().toUriString();
 
         return new RedirectView(target, false);
     }
@@ -102,7 +107,7 @@ public class PaymentController {
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> cancelPayment(
             @PathVariable String paymentKey,
-            @RequestBody @Valid CancelPaymentRequest req) {
+            @RequestBody CancelPaymentRequest req) {
 
         return ResponseEntity.ok(paymentService.refundCardPayment(paymentKey, req));
     }
