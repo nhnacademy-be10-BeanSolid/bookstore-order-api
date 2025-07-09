@@ -17,6 +17,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
@@ -31,7 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -226,6 +230,16 @@ public class OrderServiceImpl implements OrderService {
         return statusLogRepository.findByOrderId(order.getId()).stream() //TODO 주문: 다른 엔티티에 주문ID가 orderid로 들어가 있어서 주문번호와 헷갈림.
                 .map(OrderStatusLogDto::createFrom)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId) {
+        Long userNo = getUserNo(xUserId);
+        if (userNo == null || bookId == null) {
+            throw new IllegalArgumentException("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+        }
+
+        return customOrderRepository.findByUserNoAndBookId(userNo, bookId);
     }
 
     private void reduceStock(List<OrderRequest.OrderItemRequest> itemRequests,
