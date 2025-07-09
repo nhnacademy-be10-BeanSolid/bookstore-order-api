@@ -8,7 +8,6 @@ import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +25,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+    @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable String orderId,
@@ -37,6 +37,7 @@ public class PaymentController {
                 .body(res);
     }
 
+    @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
             @PathVariable String orderId,
@@ -45,6 +46,7 @@ public class PaymentController {
             @RequestParam Long payAmount) {
 
         PaymentReqDto dto = new PaymentReqDto();
+        dto.setOrderId(orderId);
         dto.setPayType(payType);
         dto.setPayName(payName);
         dto.setPayAmount(payAmount);
@@ -62,17 +64,18 @@ public class PaymentController {
 
     @GetMapping("/success")
     public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
-        log.info("[PAY CALLBACK] success {}", p);
-        String pk = p.get("paymentKey");
+        String pk  = p.get("paymentKey");
         String oid = p.get("orderId");
-        Long amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+
         if (pk != null && oid != null && amt != null) {
             paymentService.markSuccess(pk, oid, amt);
         } else {
             log.warn("필수 파라미터 누락 {}", p);
         }
+
         String target = UriComponentsBuilder
-                .fromUriString("https://bookstore-beansolid.store/api/v1/payments/success")
+                .fromUriString("https://bookstore-beansolid.store/payments/success")
                 .queryParam("paymentKey", pk)
                 .queryParam("orderId", oid)
                 .queryParam("amount", amt)
@@ -84,11 +87,16 @@ public class PaymentController {
 
     @GetMapping("/fail")
     public RedirectView tossFail(@RequestParam Map<String, String> p) {
-        log.info("[PAY CALLBACK] fail {}", p);
         paymentService.markFail(p.get("paymentKey"), p.get("message"));
-        RedirectView rv = new RedirectView("/payments/fail.html", true);
-        p.forEach(rv::addStaticAttribute);
-        return rv;
+
+        String target = UriComponentsBuilder
+                .fromUriString("https://bookstore-beansolid.store/payments/fail")
+                .queryParam("paymentKey", p.get("paymentKey"))
+                .queryParam("orderId", p.get("orderId"))
+                .build()
+                .toUriString();
+
+        return new RedirectView(target, false);
     }
 
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -103,7 +111,7 @@ public class PaymentController {
     public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
         log.error("[PAY][ERROR]", ex);
         return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .status(500)
                 .body(Map.of("status", 500, "message", ex.getMessage()));
     }
 }
