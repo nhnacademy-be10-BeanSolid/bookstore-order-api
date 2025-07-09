@@ -299,7 +299,7 @@ class OrderServiceImplTest {
         // when & then
         assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
                 .isInstanceOf(OrderNotFoundException.class)
-                .hasMessage("주문을 찾을 수 없습니다. 주문번호: " + orderId);
+                .hasMessage("주문을 찾을 수 없습니다: orderId=" + orderId);
         
         verify(userService).getUserInfo(xUserId);
         verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
@@ -319,7 +319,7 @@ class OrderServiceImplTest {
         // when & then
         assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
                 .isInstanceOf(OrderNotFoundException.class)
-                .hasMessage("주문을 찾을 수 없습니다. 주문번호: " + orderId);
+                .hasMessage("주문을 찾을 수 없습니다: orderId=" + orderId);
         
         verify(userService).getUserInfo(xUserId);
         verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);

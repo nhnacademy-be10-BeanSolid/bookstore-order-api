@@ -29,9 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -105,7 +103,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse findByOrderId(String orderId, String xUserId) {
         Long userNo = getUserNo(xUserId);
         Order order = orderRepository.findByOrderIdAndUserNo(orderId, userNo)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다. 주문번호: " + orderId));
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         return OrderResponse.from(order);
     }
@@ -116,7 +114,7 @@ public class OrderServiceImpl implements OrderService {
     public void cancelOrder(String orderId, String reason) {
 
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         if (order.getStatus() != OrderStatus.PENDING) {
             throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
@@ -168,41 +166,41 @@ public class OrderServiceImpl implements OrderService {
 //        return StatusChangeResponseDto.createFrom(log);
 //    }
 
-    private void scheduleAutoDeliveryComplete(Long orderId) {
+//    private void scheduleAutoDeliveryComplete(Long orderId) {
+//
+//        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+//        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+//
+//        taskScheduler.schedule(() -> {
+//            try {
+//                completeDelivery(orderId);
+//            } catch (Exception e) {
+//                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+//            }
+//        }, triggerTime);
+//    }
 
-        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
-        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
-
-        taskScheduler.schedule(() -> {
-            try {
-                completeDelivery(orderId);
-            } catch (Exception e) {
-                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
-            }
-        }, triggerTime);
-    }
-
-    @Transactional
-    public void completeDelivery(Long orderId) {
-
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-
-        if (order.getStatus() != OrderStatus.SHIPPING) {
-            return;
-        }
-
-        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
-        order.setStatus(OrderStatus.COMPLETED);
-        orderRepository.save(order);
-    }
+//    @Transactional
+//    public void completeDelivery(Long orderId) {
+//
+//        Order order = orderRepository.findById(orderId)
+//                .orElseThrow(() -> new OrderNotFoundException(orderId));
+//
+//        if (order.getStatus() != OrderStatus.SHIPPING) {
+//            return;
+//        }
+//
+//        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
+//        order.setStatus(OrderStatus.COMPLETED);
+//        orderRepository.save(order);
+//    }
 
     // 반품 요청
     @Override
     @Transactional
     public int requestReturn(String orderId, ReturnRequest dto) {
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
 
         if (order.getStatus() == OrderStatus.RETURNED) {
             throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
