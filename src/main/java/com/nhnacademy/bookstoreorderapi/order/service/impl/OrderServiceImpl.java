@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
+import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
@@ -11,9 +11,6 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
-import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
@@ -137,39 +134,39 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
-    // 주문 상태 변경
-    @Override
-    @Transactional
-    public StatusChangeResponseDto changeStatus(String orderId,
-                                                OrderStatus newStatus,
-                                                String memo,
-                                                String xUserId) {
-        if (!userService.getUserInfo(xUserId).isAuth()) {
-            throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
-        }
-        Long changedBy = getUserNo(xUserId);
-
-        Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-
-        OrderStatus oldStatus = order.getStatus();
-        if (!oldStatus.canTransitionTo(newStatus)) {
-            throw new InvalidOrderStatusChangeException(
-                    String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
-        }
-
-        OrderStatusLog log = new OrderStatusLog(oldStatus, newStatus, changedBy, memo, order);
-        statusLogRepository.save(log);
-
-        order.setStatus(newStatus);
-        orderRepository.save(order);
-
-        if (newStatus == OrderStatus.SHIPPING) {
-            scheduleAutoDeliveryComplete(order.getId()); //TODO 주문: 자동으로 배송 완료 처리 되는 것도 로그 변경 이력을 남겨야하는데...
-        }
-
-        return StatusChangeResponseDto.createFrom(log);
-    }
+//    // 주문 상태 변경
+//    @Override
+//    @Transactional
+//    public StatusChangeResponseDto changeStatus(String orderId,
+//                                                OrderStatus newStatus,
+//                                                String memo,
+//                                                String xUserId) {
+//        if (!userService.getUserInfo(xUserId).isAuth()) {
+//            throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
+//        }
+//        Long changedBy = getUserNo(xUserId);
+//
+//        Order order = orderRepository.findByOrderId(orderId)
+//                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+//
+//        OrderStatus oldStatus = order.getStatus();
+//        if (!oldStatus.canTransitionTo(newStatus)) {
+//            throw new InvalidOrderStatusChangeException(
+//                    String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
+//        }
+//
+//        OrderStatusLog log = new OrderStatusLog(oldStatus, newStatus, changedBy, memo, order);
+//        statusLogRepository.save(log);
+//
+//        order.setStatus(newStatus);
+//        orderRepository.save(order);
+//
+//        if (newStatus == OrderStatus.SHIPPING) {
+//            scheduleAutoDeliveryComplete(order.getId()); //TODO 주문: 자동으로 배송 완료 처리 되는 것도 로그 변경 이력을 남겨야하는데...
+//        }
+//
+//        return StatusChangeResponseDto.createFrom(log);
+//    }
 
     private void scheduleAutoDeliveryComplete(Long orderId) {
 
@@ -220,18 +217,19 @@ public class OrderServiceImpl implements OrderService {
         return (int) (order.getTotalPrice() - OrderReturn.RETURNS_FEE);
     }
 
-    // 상태 변경 이력 조회
-    @Override
-    @Transactional(readOnly = true)
-    public List<OrderStatusLogDto> getStatusLog(String orderId, String xUserId) {
-
-        Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-
-        return statusLogRepository.findByOrderId(order.getId()).stream() //TODO 주문: 다른 엔티티에 주문ID가 orderid로 들어가 있어서 주문번호와 헷갈림.
-                .map(OrderStatusLogDto::createFrom)
-                .collect(Collectors.toList());
-    }
+    //TODO: 변경 이력 조회는 관리자 말고 쓸 일이 없을듯? 사용자에게는 현재 주문 상태만 보여주면 됨.
+//    // 상태 변경 이력 조회
+//    @Override
+//    @Transactional(readOnly = true)
+//    public List<OrderStatusLogDto> getStatusLog(String orderId, String xUserId) {
+//
+//        Order order = orderRepository.findByOrderId(orderId)
+//                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
+//
+//        return statusLogRepository.findByOrderId(order.getId()).stream() //TODO 주문: 다른 엔티티에 주문ID가 orderid로 들어가 있어서 주문번호와 헷갈림.
+//                .map(OrderStatusLogDto::createFrom)
+//                .collect(Collectors.toList());
+//    }
 
     @Override
     public PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId) {
