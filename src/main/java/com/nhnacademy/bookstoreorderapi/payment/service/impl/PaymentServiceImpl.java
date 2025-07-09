@@ -104,20 +104,21 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
 
-        if (payment.getPayType() == PayType.ACCOUNT) {
-            Map<String, Object> confirmBody = Map.of(
-                    "orderId", orderId,
-                    "amount", amount
-            );
-            Map<String, Object> confirmResp;
-            try {
-                confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);
-            } catch (FeignException fe) {
-                throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
-            }
-            if (!"DONE".equals(confirmResp.get("status"))) {
-                throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
-            }
+        // ↓ 신규: 모든 결제 방식에 대해 orderId, amount 포함한 body 생성
+        Map<String, Object> confirmBody = Map.of(
+                "orderId", orderId,
+                "amount",  amount
+        );
+
+        Map<String, Object> confirmResp;
+        try {
+            confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);
+        } catch (FeignException fe) {
+            throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
+        }
+
+        if (!"DONE".equals(confirmResp.get("status"))) {
+            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
         }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
