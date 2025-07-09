@@ -27,8 +27,10 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
+
     @Value("${frontend.base-url}")
     private String frontBase;
+
 
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -41,6 +43,7 @@ public class PaymentController {
                 .created(URI.create("/api/v1/payments/" + res.getPaymentKey()))
                 .body(res);
     }
+
 
     @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
@@ -62,10 +65,12 @@ public class PaymentController {
                 .body(res);
     }
 
+
     @GetMapping("/{paymentKey}")
     public ResponseEntity<PaymentResDto> getPaymentInfo(@PathVariable String paymentKey) {
         return ResponseEntity.ok(paymentService.getPaymentInfo(paymentKey));
     }
+
 
     @GetMapping("/success")
     public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
@@ -86,10 +91,12 @@ public class PaymentController {
                         "orderId",    List.of(oid),
                         "amount",     List.of(String.valueOf(amt))
                 )))
-                .build().toUriString();
+                .build()
+                .toUriString();
 
         return new RedirectView(target, false);
     }
+
 
     @GetMapping("/fail")
     public RedirectView tossFail(@RequestParam Map<String, String> p) {
@@ -99,10 +106,12 @@ public class PaymentController {
                 .fromUriString(frontBase + "/payments/fail")
                 .queryParam("paymentKey", p.get("paymentKey"))
                 .queryParam("orderId",    p.get("orderId"))
-                .build().toUriString();
+                .build()
+                .toUriString();
 
         return new RedirectView(target, false);
     }
+
 
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> cancelPayment(
