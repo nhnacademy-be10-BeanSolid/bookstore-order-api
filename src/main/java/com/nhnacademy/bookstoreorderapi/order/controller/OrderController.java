@@ -44,18 +44,18 @@ public class OrderController {
         return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
     }
 
-    // 주문 상태 변경
-    @PatchMapping("/{orderId}/status")
-    public StatusChangeResponseDto changeStatus(@PathVariable String orderId,
-                                                @Valid @RequestBody StatusChangeRequest dto,
-                                                @RequestHeader("X-USER-ID") String xUserId) {
-        return orderService.changeStatus(
-                orderId,
-                dto.newStatus(),
-                dto.memo(),
-                xUserId
-        );
-    }
+//    // 주문 상태 변경
+//    @PatchMapping("/{orderId}/status")
+//    public StatusChangeResponseDto changeStatus(@PathVariable String orderId,
+//                                                @Valid @RequestBody StatusChangeRequest dto,
+//                                                @RequestHeader("X-USER-ID") String xUserId) {
+//        return orderService.changeStatus(
+//                orderId,
+//                dto.newStatus(),
+//                dto.memo(),
+//                xUserId
+//        );
+//    }
 
     @PostMapping("/{orderId}/cancel")
     public SuccessResponseDto cancelOrder(
@@ -67,11 +67,12 @@ public class OrderController {
         return new SuccessResponseDto("주문이 정상적으로 취소되었습니다.");
     }
 
-    @GetMapping("/{orderId}/status-log")
-    public List<OrderStatusLogDto> getStatusLog(@PathVariable String orderId,
-                                                @RequestHeader("X-USER-ID") String xUserId) {
-        return orderService.getStatusLog(orderId, xUserId);
-    }
+    //TODO: 사용자만 가능한 주문 상태 변경 api로 리팩토링하기
+//    @GetMapping("/{orderId}/status-log")
+//    public List<OrderStatusLogDto> getStatusLog(@PathVariable String orderId,
+//                                                @RequestHeader("X-USER-ID") String xUserId) {
+//        return orderService.getStatusLog(orderId, xUserId);
+//    }
 
     @PostMapping("/{orderId}/returns")
     public ResponseEntity<Integer> requestReturn(@PathVariable String orderId, @RequestBody ReturnRequest dto) {
