@@ -70,7 +70,7 @@ public class PaymentController {
         } else {
             log.warn("필수 파라미터 누락 {}", p);
         }
-        RedirectView rv = new RedirectView("/success.html", true);
+        RedirectView rv = new RedirectView("/payments/success.html", true);
         p.forEach(rv::addStaticAttribute);
         return rv;
     }
@@ -79,7 +79,7 @@ public class PaymentController {
     public RedirectView tossFail(@RequestParam Map<String, String> p) {
         log.info("[PAY CALLBACK] fail {}", p);
         paymentService.markFail(p.get("paymentKey"), p.get("message"));
-        RedirectView rv = new RedirectView("/fail.html", true);
+        RedirectView rv = new RedirectView("/payments/fail.html", true);
         p.forEach(rv::addStaticAttribute);
         return rv;
     }
