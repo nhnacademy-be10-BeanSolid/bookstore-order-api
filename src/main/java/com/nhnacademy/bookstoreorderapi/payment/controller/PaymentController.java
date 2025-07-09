@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.util.Map;
@@ -70,9 +71,15 @@ public class PaymentController {
         } else {
             log.warn("필수 파라미터 누락 {}", p);
         }
-        RedirectView rv = new RedirectView("/payments/success.html", true);
-        p.forEach(rv::addStaticAttribute);
-        return rv;
+        String target = UriComponentsBuilder
+                .fromUriString("https://bookstore-fe.store/payments/success")
+                .queryParam("paymentKey", pk)
+                .queryParam("orderId", oid)
+                .queryParam("amount", amt)
+                .build()
+                .toUriString();
+
+        return new RedirectView(target, false);
     }
 
     @GetMapping("/fail")
