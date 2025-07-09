@@ -101,24 +101,21 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
 
-        Map<String,Object> confirmBody = Map.of(
-                "paymentKey", paymentKey,
+        Map<String, Object> confirmBody = Map.of(
                 "orderId", orderId,
-                "amount" , amount
+                "amount",  amount
         );
 
-        Map<String,Object> confirmResp;
+        Map<String, Object> confirmResp;
         try {
-            confirmResp = tossClient.confirmPayment(confirmBody);
+            confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);   // 수정
         } catch (FeignException fe) {
             throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
         }
 
-        // status == DONE 인지 한번 더 검증(선택)
-        if (!"DONE".equals(confirmResp.get("status"))) {
+        if (!"DONE".equals(confirmResp.get("status"))) {                        // 검증
             throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
         }
-
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));

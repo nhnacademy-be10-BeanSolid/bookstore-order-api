@@ -14,18 +14,19 @@ public class TossFeignConfig {
 
     @Bean
     public RequestInterceptor tossAuthInterceptor() {
-
         return (RequestTemplate template) -> {
             template.header("Authorization", props.getBasicAuthHeader());
             template.header("Content-Type", "application/json");
             template.header("User-Agent", "BookstoreOrderApi/1.0");
 
-
-            String url = template.url();
+            String url    = template.url();
             String method = template.method();
 
-            if ("POST".equals(method) && "/payments".equals(url)) {
+            boolean isCreatePayment = "POST".equals(method) && url.matches(".*/payments$");
+            if (isCreatePayment) {
                 template.header("X-Client-Api-Key", props.getClientApiKey());
+            } else {
+                template.removeHeader("X-Client-Api-Key");
             }
         };
     }
