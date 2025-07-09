@@ -72,7 +72,7 @@ public class PaymentController {
             log.warn("필수 파라미터 누락 {}", p);
         }
         String target = UriComponentsBuilder
-                .fromUriString("https://bookstore-fe.store/payments/success")
+                .fromUriString("https://bookstore-beansolid.store/api/v1/payments/success")
                 .queryParam("paymentKey", pk)
                 .queryParam("orderId", oid)
                 .queryParam("amount", amt)
