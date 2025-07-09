@@ -10,6 +10,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
@@ -236,7 +237,7 @@ public class OrderServiceImpl implements OrderService {
     public PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId) {
         Long userNo = getUserNo(xUserId);
         if (userNo == null || bookId == null) {
-            throw new IllegalArgumentException("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
+            throw new MissingRequiredParameterException("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
         }
 
         return customOrderRepository.findByUserNoAndBookId(userNo, bookId);
