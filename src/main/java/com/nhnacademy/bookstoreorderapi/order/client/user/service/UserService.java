@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user.service;
 
-import com.nhnacademy.bookstoreorderapi.order.client.ExternalServiceException;
+import com.nhnacademy.bookstoreorderapi.common.exception.ExternalServiceException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.exception.UserNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;

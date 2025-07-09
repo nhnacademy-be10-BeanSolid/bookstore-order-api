@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.client.book.service;
 
 import com.nhnacademy.bookstoreorderapi.order.client.book.BookServiceClient;
-import com.nhnacademy.bookstoreorderapi.order.client.ExternalServiceException;
+import com.nhnacademy.bookstoreorderapi.common.exception.ExternalServiceException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;

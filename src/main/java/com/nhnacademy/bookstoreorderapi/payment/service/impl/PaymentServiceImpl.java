@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;

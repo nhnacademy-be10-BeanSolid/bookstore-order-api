@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.payment.exception;
+package com.nhnacademy.bookstoreorderapi.common.exception;
 
 public class OrderNotFoundException extends RuntimeException {
     public OrderNotFoundException(String orderId) {

@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.client.NotAdminException;
+import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.exception.InsufficientStockException;
@@ -11,7 +11,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.OrderStatusLogDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.StatusChangeResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
