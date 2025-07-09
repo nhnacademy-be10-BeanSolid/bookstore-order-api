@@ -29,6 +29,7 @@ public class PaymentController {
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable("orderId") String orderId,
             @RequestBody @Valid PaymentReqDto dto) {
+        dto.setOrderId(orderId);
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
         return ResponseEntity
                 .created(URI.create("/api/v1/payments/" + res.getPaymentKey()))
