@@ -48,8 +48,8 @@ public class PaymentServiceImpl implements PaymentService {
                                 .map(m -> ((Map<?,?>) m).get("url"))
                                 .orElse(null)
                 )
-                .filter(Objects::nonNull)       // null 이 아닌 것만
-                .map(Object::toString)          // 실제 URL 문자열
+                .filter(Objects::nonNull)
+                .map(Object::toString)
                 .findFirst()
                 .orElseThrow(() -> new RedirectUrlNotFoundException(resp));
     }
@@ -97,36 +97,35 @@ public class PaymentServiceImpl implements PaymentService {
                 .failUrl(tossProps.getFailUrl())
                 .build();
     }
+
     @Override
     @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
-
-        Map<String, Object> confirmBody = Map.of(
-                "orderId", orderId,
-                "amount",  amount
-        );
-
-        Map<String, Object> confirmResp;
-        try {
-            confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);   // 수정
-        } catch (FeignException fe) {
-            throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
-        }
-
-        if (!"DONE".equals(confirmResp.get("status"))) {                        // 검증
-            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
-        }
-
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
-
-        Payment payment = payRepo.findByOrder(order)
+        Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
+
+        if (payment.getPayType() == PayType.ACCOUNT) {
+            Map<String, Object> confirmBody = Map.of(
+                    "orderId", orderId,
+                    "amount", amount
+            );
+            Map<String, Object> confirmResp;
+            try {
+                confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);
+            } catch (FeignException fe) {
+                throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
+            }
+            if (!"DONE".equals(confirmResp.get("status"))) {
+                throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
+            }
+        }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(amount);
         payRepo.save(payment);
 
+        Order order = orderRepo.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
         order.setStatus(OrderStatus.PENDING);
         orderRepo.save(order);
     }
@@ -168,7 +167,6 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional(readOnly = true)
     public PaymentResDto getPaymentInfo(String paymentKey) {
         Map<String, Object> resp = tossClient.getPaymentInfo(paymentKey);
-
         return PaymentResDto.builder()
                 .paymentKey(paymentKey)
                 .orderId(Objects.toString(resp.get("orderId"), ""))
