@@ -8,6 +8,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
@@ -477,7 +478,7 @@ class OrderServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(MissingRequiredParameterException.class)
                 .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
         
         verify(userService, never()).getUserInfo(anyString());
@@ -493,7 +494,7 @@ class OrderServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(MissingRequiredParameterException.class)
                 .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
         
         verify(userService, never()).getUserInfo(anyString());
@@ -516,7 +517,7 @@ class OrderServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(MissingRequiredParameterException.class)
                 .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
         
         verify(userService).getUserInfo(xUserId);
@@ -532,7 +533,7 @@ class OrderServiceImplTest {
 
         // when & then
         assertThatThrownBy(() -> orderService.verifyPurchase(xUserId, bookId))
-                .isInstanceOf(IllegalArgumentException.class)
+                .isInstanceOf(MissingRequiredParameterException.class)
                 .hasMessage("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
         
         verify(userService, never()).getUserInfo(anyString());
