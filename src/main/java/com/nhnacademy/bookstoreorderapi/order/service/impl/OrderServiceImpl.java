@@ -70,6 +70,7 @@ public class OrderServiceImpl implements OrderService {
         Map<Long, BookResponse> bookMap = orderValidationService.fetchAndValidateBooks(itemRequests);
         Map<Long, Wrapping> wrappingMap = orderValidationService.fetchAndValidateWrappings(itemRequests);
 
+        //TODO: 포장비 포함시켜서 총 금액 계산해야됨.
         // 주문 생성
         Order order = Order.of(orderRequest, userNo);
         List<OrderItem> items = OrderItem.createItems(order, itemRequests, bookMap, wrappingMap);
@@ -91,7 +92,7 @@ public class OrderServiceImpl implements OrderService {
 
     // 회원 주문 전체 조회
     @Override
-    @Transactional
+    @Transactional(readOnly = true)
     public Page<OrderSummaryResponse> findAllByUserId(String xUserId) {
         Long userNo = getUserNo(xUserId);
 
@@ -229,6 +230,7 @@ public class OrderServiceImpl implements OrderService {
 //                .collect(Collectors.toList());
 //    }
 
+    @Transactional(readOnly = true)
     @Override
     public PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId) {
         Long userNo = getUserNo(xUserId);
