@@ -8,13 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-/**
- * application.yml 의 payment.toss.* 설정을 바인딩
- * - baseUrl        : https://sandbox.tosspayments.com/v1  (샌드박스)
- * - clientApiKey   : test_ck_...
- * - secretApiKey   : test_sk_...
- * - successUrl, failUrl : 콜백 URL
- */
+
 @Configuration
 @ConfigurationProperties(prefix = "payment.toss")
 @Getter
