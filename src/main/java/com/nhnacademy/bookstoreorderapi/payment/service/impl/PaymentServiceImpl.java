@@ -30,36 +30,33 @@ import java.util.stream.Stream;
 @Slf4j
 public class PaymentServiceImpl implements PaymentService {
 
-    private final OrderRepository     orderRepo;
-    private final PaymentRepository   payRepo;
-    private final TossPaymentConfig   tossProps;
-    private final TossPaymentClient   tossClient;
+    private final OrderRepository orderRepo;
+    private final PaymentRepository payRepo;
+    private final TossPaymentConfig tossProps;
+    private final TossPaymentClient tossClient;
 
-    // 리다이렉트 URL 추출
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
-                        Optional.ofNullable(resp.get("nextRedirectPcUrl")),
-                        Optional.ofNullable(resp.get("nextRedirectMobileUrl")),
-                        Optional.ofNullable(resp.get("hostedCheckoutUrl")),
-                        Optional.ofNullable(resp.get("checkoutUrl")),
-                        Optional.ofNullable(resp.get("checkoutPageUrl")),
-                        Optional.ofNullable(resp.get("paymentUrl")),
+                        resp.get("nextRedirectPcUrl"),
+                        resp.get("nextRedirectMobileUrl"),
+                        resp.get("hostedCheckoutUrl"),
+                        resp.get("checkoutUrl"),
+                        resp.get("checkoutPageUrl"),
+                        resp.get("paymentUrl"),
                         Optional.ofNullable(resp.get("checkout"))
                                 .filter(Map.class::isInstance)
-                                .map(x -> ((Map<?,?>)x).get("url"))
+                                .map(m -> ((Map<?,?>) m).get("url"))
+                                .orElse(null)
                 )
-                .filter(Objects::nonNull)
-                .map(Object::toString)
+                .filter(Objects::nonNull)       // null 이 아닌 것만
+                .map(Object::toString)          // 실제 URL 문자열
                 .findFirst()
                 .orElseThrow(() -> new RedirectUrlNotFoundException(resp));
     }
 
-    // Toss 결제 생성
-    @Override @Transactional
+    @Override
+    @Transactional
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-
-        dto.setOrderId(orderId);                       // ★ 필수
-
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
@@ -67,17 +64,15 @@ public class PaymentServiceImpl implements PaymentService {
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new AlreadyPaidException(orderId); });
 
-        Map<String,Object> body = Map.of(
-                "method"     , dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT"
-                        : dto.getPayType().name(),
-                "orderId"    , orderId,
-                "orderName"  , dto.getPayName(),
-                "amount"     , dto.getPayAmount(),
-                "successUrl" , tossProps.getSuccessUrl(),
-                "failUrl"    , tossProps.getFailUrl()
+        Map<String, Object> body = Map.of(
+                "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
+                "orderId", orderId,
+                "orderName", dto.getPayName(),
+                "amount", dto.getPayAmount(),
+                "successUrl", tossProps.getSuccessUrl(),
+                "failUrl", tossProps.getFailUrl()
         );
-
-        Map<String,Object> resp = tossClient.createPayment(body);
+        Map<String, Object> resp = tossClient.createPayment(body);
 
         String key = Objects.toString(resp.get("paymentKey"), "");
         if (key.isBlank()) throw new PaymentCreationException("paymentKey 없음");
@@ -102,20 +97,28 @@ public class PaymentServiceImpl implements PaymentService {
                 .failUrl(tossProps.getFailUrl())
                 .build();
     }
-
-    // 결제 성공 확정
-    @Override @Transactional
+    @Override
+    @Transactional
     public void markSuccess(String paymentKey, String orderId, long amount) {
 
-        // Toss confirm 호출
+        Map<String,Object> confirmBody = Map.of(
+                "paymentKey", paymentKey,
+                "orderId", orderId,
+                "amount" , amount
+        );
+
+        Map<String,Object> confirmResp;
         try {
-            tossClient.confirmPayment(paymentKey,
-                    Map.of("orderId", orderId, "amount", amount));   // ★ 숫자 그대로
-        } catch (FeignException.NotFound nf) {
-            log.info("[TOSS CONFIRM] not-found {}", nf.status());    // 결제 이미 승인된 경우
+            confirmResp = tossClient.confirmPayment(confirmBody);
         } catch (FeignException fe) {
-            throw new PaymentConfirmationException("Toss confirm 실패: " + fe.getMessage());
+            throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
         }
+
+        // status == DONE 인지 한번 더 검증(선택)
+        if (!"DONE".equals(confirmResp.get("status"))) {
+            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
+        }
+
 
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
@@ -131,8 +134,8 @@ public class PaymentServiceImpl implements PaymentService {
         orderRepo.save(order);
     }
 
-    // 결제 실패
-    @Override @Transactional
+    @Override
+    @Transactional
     public void markFail(String paymentKey, String reason) {
         payRepo.findByPaymentKey(paymentKey).ifPresentOrElse(p -> {
             p.setPaymentStatus(PaymentStatus.FAIL);
@@ -140,10 +143,9 @@ public class PaymentServiceImpl implements PaymentService {
         }, () -> { throw new PaymentNotFoundException(paymentKey); });
     }
 
-    // 환불
-    @Override @Transactional
+    @Override
+    @Transactional
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
-
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
 
@@ -153,6 +155,7 @@ public class PaymentServiceImpl implements PaymentService {
         ));
 
         payment.setPaymentStatus(PaymentStatus.CANCEL);
+        payment.setPayAmount(req.getAmount());
         payRepo.save(payment);
 
         return PaymentResDto.builder()
@@ -164,30 +167,30 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    // 결제 조회
-    @Override @Transactional(readOnly = true)
+    @Override
+    @Transactional(readOnly = true)
     public PaymentResDto getPaymentInfo(String paymentKey) {
-        Map<String,Object> resp = tossClient.getPaymentInfo(paymentKey);
+        Map<String, Object> resp = tossClient.getPaymentInfo(paymentKey);
 
         return PaymentResDto.builder()
                 .paymentKey(paymentKey)
                 .orderId(Objects.toString(resp.get("orderId"), ""))
                 .payType(Objects.toString(resp.get("method"), ""))
                 .payName(Objects.toString(resp.get("orderName"), ""))
-                .payAmount(((Number)resp.get("amount")).longValue())
+                .payAmount(((Number) resp.get("amount")).longValue())
                 .redirectUrl(extractRedirectUrl(resp))
                 .successUrl(tossProps.getSuccessUrl())
                 .failUrl(tossProps.getFailUrl())
                 .build();
     }
 
-    // Map 기반 환불 재사용
-    @Override @Transactional
-    public Map<String,Object> refundCardPayment(String paymentKey, Map<String,Object> req) {
+    @Override
+    @Transactional
+    public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
         return Map.of("data", refundCardPayment(paymentKey,
                 new CancelPaymentRequest(
                         Objects.toString(req.get("orderId"), ""),
-                        ((Number)req.getOrDefault("amount", 0)).longValue(),
+                        ((Number) req.getOrDefault("amount", 0)).longValue(),
                         Objects.toString(req.get("cancelReason"), "")
                 )));
     }
