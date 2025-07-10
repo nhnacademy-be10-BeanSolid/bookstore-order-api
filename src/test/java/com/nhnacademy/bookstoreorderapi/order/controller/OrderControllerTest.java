@@ -58,9 +58,7 @@ class OrderControllerTest {
         validOrderRequest = new OrderRequest(
                 "홍길동",
                 "01012345678",
-                "12345",
-                "서울특별시 강남구 테헤란로 123",
-                "10층",
+                "[12345] 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 items
         );

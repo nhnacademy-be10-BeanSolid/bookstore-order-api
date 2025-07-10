@@ -79,9 +79,7 @@ class OrderServiceImplTest {
         validOrderRequest = new OrderRequest(
                 "홍길동",
                 "01012345678",
-                "서울특별시 강남구",
-                "테헤란로 123",
-                "10층",
+                "[12345] 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 items
         );
@@ -236,9 +234,7 @@ class OrderServiceImplTest {
         OrderRequest requestWithDuplicates = new OrderRequest(
                 "홍길동",
                 "01012345678",
-                "서울특별시 강남구",
-                "테헤란로 123",
-                "10층",
+                "[12345] 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 duplicateItems
         );

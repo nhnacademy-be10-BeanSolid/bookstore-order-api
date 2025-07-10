@@ -28,12 +28,10 @@ public class ShippingInfo {
                 ? req.requestedDeliveryDate()
                 : LocalDate.now().plusDays(1);
 
-        String address = String.join(" ", req.zipCode(), req.baseAddress(), req.detailAddress());
-
         return new ShippingInfo(
                 req.receiverName(),
                 req.receiverPhoneNumber(),
-                address,
+                req.deliveryAddress(),
                 requestedDeliveryDate,
                 deliveryFee);
     }
