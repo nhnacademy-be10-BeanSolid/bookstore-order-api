@@ -182,7 +182,7 @@ public class OrderServiceImpl implements OrderService {
         log.info("[사용자] 주문 상태가 변경되었습니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
                 statusLog.getOrder().getOrderId(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
 
-        // SHIPPING 상태로 변경 시 자동 배송 완료 스케줄링
+        // SHIPPING 상태로 변경 시 일정 시간 후 자동 배송 완료 스케줄링
         if (newStatus == OrderStatus.SHIPPING) {
             scheduleAutoDeliveryComplete(order.getOrderId());
         }
