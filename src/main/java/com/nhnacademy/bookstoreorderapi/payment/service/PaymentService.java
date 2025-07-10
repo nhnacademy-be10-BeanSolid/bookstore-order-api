@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.service;
 
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 
@@ -12,7 +13,7 @@ public interface PaymentService {
     PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto);
 
      //결제 성공 콜백 처리
-    void markSuccess(String paymentKey, String orderId, long amount);
+    PaymentApprovalRequestDto markSuccess(PaymentApprovalRequestDto dto);
 
      // 결제 실패 콜백 처리
     void markFail(String paymentKey, String failMessage);
