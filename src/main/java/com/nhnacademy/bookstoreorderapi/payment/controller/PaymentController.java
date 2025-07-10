@@ -2,17 +2,22 @@ package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.*;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -23,27 +28,34 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    // (1) JSON 바디로 Toss 결제 요청
+
+    @Value("${frontend.base-url}")
+    private String frontBase;
+
+
     @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
-            @PathVariable("orderId") String orderId,
-            @RequestBody @Valid PaymentReqDto dto) {
+            @PathVariable String orderId,
+            @RequestBody PaymentReqDto dto) {
+
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
         return ResponseEntity
                 .created(URI.create("/api/v1/payments/" + res.getPaymentKey()))
                 .body(res);
     }
 
-    // (2) GET 방식으로 Toss 결제 요청 (query parameter)
+
     @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
-            @PathVariable("orderId") String orderId,
-            @RequestParam("payType")  PayType payType,
-            @RequestParam("payName")  String  payName,
-            @RequestParam("payAmount") Long    payAmount) {
+            @PathVariable String orderId,
+            @RequestParam PayType payType,
+            @RequestParam String  payName,
+            @RequestParam Long    payAmount) {
+
         PaymentReqDto dto = new PaymentReqDto();
+        dto.setOrderId(orderId);
         dto.setPayType(payType);
         dto.setPayName(payName);
         dto.setPayAmount(payAmount);
@@ -54,72 +66,86 @@ public class PaymentController {
                 .body(res);
     }
 
-    // (3) 결제 정보 조회
+
     @GetMapping("/{paymentKey}")
-    public ResponseEntity<PaymentResDto> getPaymentInfo(
-            @PathVariable("paymentKey") String paymentKey) {
-        PaymentResDto info = paymentService.getPaymentInfo(paymentKey);
-        return ResponseEntity.ok(info);
+    public ResponseEntity<PaymentResDto> getPaymentInfo(@PathVariable String paymentKey) {
+        return ResponseEntity.ok(paymentService.getPaymentInfo(paymentKey));
     }
 
-    // (4) Toss 성공 콜백
-    @GetMapping("/toss/success")
-    public RedirectView tossSuccess(@RequestParam Map<String,String> params) {
-        log.info("[PAY CALLBACK] success: params={}", params);
-        String pk  = params.get("paymentKey");
-        String oid = params.get("orderId");
-        Long   amt = params.containsKey("amount") ? Long.valueOf(params.get("amount")) : null;
 
-        if (pk != null && oid != null && amt != null) {
-            paymentService.markSuccess(pk, oid, amt);
-        } else {
-            log.warn("파라미터 누락: {}", params);
-        }
+//    @GetMapping("/success")
+//    public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
+//        String pk  = p.get("paymentKey");
+//        String oid = p.get("orderId");
+//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+//
+//        if (pk != null && oid != null && amt != null) {
+//            paymentService.markSuccess(pk, oid, amt);
+//        } else {
+//            log.warn("필수 파라미터 누락 {}", p);
+//        }
+//
+//        String target = UriComponentsBuilder
+//                .fromUriString(frontBase + "/payments/success")
+//                .queryParams(CollectionUtils.toMultiValueMap(Map.of(
+//                        "paymentKey", List.of(pk),
+//                        "orderId",    List.of(oid),
+//                        "amount",     List.of(String.valueOf(amt))
+//                )))
+//                .build()
+//                .toUriString();
+//
+//        return new RedirectView(target, false);
+//    }
 
-        RedirectView rv = new RedirectView("/success.html");
-        params.forEach(rv::addStaticAttribute);
-        return rv;
+    @GetMapping("/success")
+    public ResponseEntity<PaymentApprovalRequestDto> tossSuccess(@RequestParam("paymentKey") String paymentKey,
+                                                                 @RequestParam("orderId") String orderId,
+                                                                 @RequestParam("amount") long amount){
+//        String oid = d.get("orderId");
+//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+
+//        if (pk != null && oid != null && amt != null) {
+//            paymentService.markSuccess(dto);
+//        } else {
+//            log.warn("필수 파라미터 누락 {}", p);
+//        }
+
+        PaymentApprovalRequestDto dto = new PaymentApprovalRequestDto(paymentKey, orderId, amount);
+
+        PaymentApprovalRequestDto requestDto = paymentService.markSuccess(dto);
+        return  ResponseEntity.ok(requestDto);
     }
 
-    // (5) Toss 실패 콜백
-    @GetMapping("/toss/fail")
-    public RedirectView tossFail(@RequestParam Map<String,String> params) {
-        log.info("[PAY CALLBACK] fail: params={}", params);
-        paymentService.markFail(params.get("paymentKey"), params.get("message"));
 
-        RedirectView rv = new RedirectView("/fail.html");
-        params.forEach(rv::addStaticAttribute);
-        return rv;
+    @GetMapping("/fail")
+    public RedirectView tossFail(@RequestParam Map<String, String> p) {
+        paymentService.markFail(p.get("paymentKey"), p.get("message"));
+
+        String target = UriComponentsBuilder
+                .fromUriString(frontBase + "/payments/fail")
+                .queryParam("paymentKey", p.get("paymentKey"))
+                .queryParam("orderId",    p.get("orderId"))
+                .build()
+                .toUriString();
+
+        return new RedirectView(target, false);
     }
 
-    // (6) 카드 결제 환불 (레거시 Map 기반)
-    @PostMapping(path = "/toss/{paymentKey}/refund", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String,Object>> refundCardPaymentLegacy(
-            @PathVariable("paymentKey") String paymentKey,
-            @RequestBody Map<String,Object> req) {
-        log.info("[PAY REFUND-LEGACY] paymentKey={} req={}", paymentKey, req);
-        Map<String,Object> resp = paymentService.refundCardPayment(paymentKey, req);
-        return ResponseEntity.ok(resp);
-    }
 
-    // (7) 결제 취소(환불) 요청 (프론트 Cancel 버튼)
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> cancelPayment(
             @PathVariable String paymentKey,
-            @RequestBody @Valid CancelPaymentRequest req) {
-        log.info("[PAY CANCEL] paymentKey={} req={}", paymentKey, req);
-        PaymentResDto dto = paymentService.refundCardPayment(paymentKey, req);
-        return ResponseEntity.ok(dto);
+            @RequestBody CancelPaymentRequest req) {
+
+        return ResponseEntity.ok(paymentService.refundCardPayment(paymentKey, req));
     }
 
-    // 모든 예외를 잡아서 500 응답으로 변환
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String,Object>> handleAll(Exception ex) {
+    public ResponseEntity<Map<String, Object>> handleAll(Exception ex) {
         log.error("[PAY][ERROR]", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of(
-                        "status",  HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                        "message", ex.getMessage()
-                ));
+        return ResponseEntity
+                .status(500)
+                .body(Map.of("status", 500, "message", ex.getMessage()));
     }
 }

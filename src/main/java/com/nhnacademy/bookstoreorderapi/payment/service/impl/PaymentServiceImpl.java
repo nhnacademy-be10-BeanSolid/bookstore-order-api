@@ -10,6 +10,7 @@ import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.exception.*;
@@ -38,35 +39,33 @@ public class PaymentServiceImpl implements PaymentService {
 
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
-                        Optional.ofNullable(resp.get("nextRedirectPcUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("nextRedirectMobileUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("hostedCheckoutUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("checkoutUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("checkoutPageUrl")).map(Object::toString),
-                        Optional.ofNullable(resp.get("paymentUrl")).map(Object::toString),
+                        resp.get("nextRedirectPcUrl"),
+                        resp.get("nextRedirectMobileUrl"),
+                        resp.get("hostedCheckoutUrl"),
+                        resp.get("checkoutUrl"),
+                        resp.get("checkoutPageUrl"),
+                        resp.get("paymentUrl"),
                         Optional.ofNullable(resp.get("checkout"))
                                 .filter(Map.class::isInstance)
-                                .map(Map.class::cast)
-                                .map(m -> m.get("url"))
-                                .map(Object::toString)
+                                .map(m -> ((Map<?,?>) m).get("url"))
+                                .orElse(null)
                 )
-                .flatMap(Optional::stream)
+                .filter(Objects::nonNull)
+                .map(Object::toString)
                 .findFirst()
                 .orElseThrow(() -> new RedirectUrlNotFoundException(resp));
     }
 
-    /** Toss 결제 요청 */
     @Override
     @Transactional
     public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderId(orderId)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
 
-        Optional<Payment> oldOpt = payRepo.findByOrder(order);
-        if (oldOpt.isPresent() && oldOpt.get().getPaymentStatus() == PaymentStatus.SUCCESS)
-            throw new AlreadyPaidException(orderId); // 이미 성공된 주문
+        payRepo.findByOrder(order)
+                .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
+                .ifPresent(p -> { throw new AlreadyPaidException(orderId); });
 
-        /* Toss 결제 생성 */
         Map<String, Object> body = Map.of(
                 "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
                 "orderId", orderId,
@@ -75,13 +74,12 @@ public class PaymentServiceImpl implements PaymentService {
                 "successUrl", tossProps.getSuccessUrl(),
                 "failUrl", tossProps.getFailUrl()
         );
-        Map<String, Object> resp = tossClient.createPayment(body);    // 예외는 인터셉터가 처리
+        Map<String, Object> resp = tossClient.createPayment(body);
 
         String key = Objects.toString(resp.get("paymentKey"), "");
-        if (key.isBlank())
-            throw new PaymentCreationException("Toss 응답에 paymentKey가 없습니다");
+        if (key.isBlank()) throw new PaymentCreationException("paymentKey 없음");
 
-        Payment payment = oldOpt.orElseGet(Payment::new);            // 기존이 있으면 재사용
+        Payment payment = payRepo.findByOrder(order).orElseGet(Payment::new);
         payment.setOrder(order);
         payment.setPaymentKey(key);
         payment.setPayType(dto.getPayType());
@@ -102,32 +100,41 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    /** 결제 성공 콜백 */
     @Override
     @Transactional
-    public void markSuccess(String paymentKey, String orderId, long amount) {
+    public PaymentApprovalRequestDto markSuccess(PaymentApprovalRequestDto dto) {
+        Payment payment = payRepo.findByPaymentKey(dto.getPaymentKey())
+                .orElseThrow(() -> new PaymentNotFoundException(dto.getPaymentKey()));
+
+//        // ↓ 신규: 모든 결제 방식에 대해 orderId, amount 포함한 body 생성
+//        Map<String, Object> confirmBody = Map.of(
+//                "orderId", orderId,
+//                "amount",  amount
+//        );
+
+        PaymentApprovalRequestDto confirmResp;
         try {
-            tossClient.confirmPayment(paymentKey, Map.of("orderId", orderId, "amount", String.valueOf(amount)));
-        } catch (FeignException.NotFound nf) {
-            log.info("[TOSS CONFIRM] skip {}", nf.status());
+            confirmResp = tossClient.confirmPayment(dto);
         } catch (FeignException fe) {
-            throw new PaymentConfirmationException("Toss 결제 확인 실패: " + fe.getMessage());
+            throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
         }
 
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
-
-        Payment payment = payRepo.findByOrder(order)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
+//        if (!"DONE".equals(confirmResp.get("status"))) {
+//            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
+//        }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
-        payment.setPayAmount(amount);
+        payment.setPayAmount(dto.getAmount());
         payRepo.save(payment);
 
+        Order order = orderRepo.findByOrderId(dto.getOrderId())
+                .orElseThrow(() -> new OrderNotFoundException(dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING);
+        orderRepo.save(order);
+
+        return confirmResp;
     }
 
-    /** 결제 실패 콜백 */
     @Override
     @Transactional
     public void markFail(String paymentKey, String reason) {
@@ -137,7 +144,6 @@ public class PaymentServiceImpl implements PaymentService {
         }, () -> { throw new PaymentNotFoundException(paymentKey); });
     }
 
-    /** 환불(카드·가상계좌 공통) */
     @Override
     @Transactional
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
@@ -147,9 +153,10 @@ public class PaymentServiceImpl implements PaymentService {
         tossClient.cancelPayment(paymentKey, Map.of(
                 "cancelReason", req.getCancelReason(),
                 "cancelAmount", req.getAmount()
-        )); // payType 분기 제거 → 404 방지
+        ));
 
         payment.setPaymentStatus(PaymentStatus.CANCEL);
+        payment.setPayAmount(req.getAmount());
         payRepo.save(payment);
 
         return PaymentResDto.builder()
@@ -161,12 +168,10 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    /** 결제 정보 조회 */
     @Override
     @Transactional(readOnly = true)
     public PaymentResDto getPaymentInfo(String paymentKey) {
         Map<String, Object> resp = tossClient.getPaymentInfo(paymentKey);
-
         return PaymentResDto.builder()
                 .paymentKey(paymentKey)
                 .orderId(Objects.toString(resp.get("orderId"), ""))
@@ -179,7 +184,6 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    /* Map 버전 환불 API는 동일 로직 재사용 */
     @Override
     @Transactional
     public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
