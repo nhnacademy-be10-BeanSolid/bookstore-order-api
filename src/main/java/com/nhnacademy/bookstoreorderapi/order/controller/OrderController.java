@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.CancelOrderRequestDto;
+import com.nhnacademy.bookstoreorderapi.order.dto.SuccessResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
@@ -14,8 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/orders")
@@ -44,18 +43,13 @@ public class OrderController {
         return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
     }
 
-//    // 주문 상태 변경
-//    @PatchMapping("/{orderId}/status")
-//    public StatusChangeResponseDto changeStatus(@PathVariable String orderId,
-//                                                @Valid @RequestBody StatusChangeRequest dto,
-//                                                @RequestHeader("X-USER-ID") String xUserId) {
-//        return orderService.changeStatus(
-//                orderId,
-//                dto.newStatus(),
-//                dto.memo(),
-//                xUserId
-//        );
-//    }
+    // 주문 상태 변경
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<OrderResponse> changeOrderStatus(@PathVariable String orderId,
+                                                           @RequestBody StatusChangeRequest request,
+                                                           @RequestHeader("X-USER-ID") String xUserId) {
+        return ResponseEntity.ok(orderService.changeStatus(orderId, request, xUserId));
+    }
 
     @PostMapping("/{orderId}/cancel")
     public SuccessResponseDto cancelOrder(

@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.exception;
+package com.nhnacademy.bookstoreorderapi.order.common.exception;
 
 
 import org.springframework.http.HttpStatus;

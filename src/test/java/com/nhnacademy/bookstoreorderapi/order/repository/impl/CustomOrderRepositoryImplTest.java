@@ -119,7 +119,6 @@ class CustomOrderRepositoryImplTest {
         entityManager.flush();
         
         // 주문 아이템 생성
-        // Order1: 상품 40000원 + 포장지 1000원 = 41000원 총합, 순수 상품 금액 40000원
         OrderItem orderItem1 = OrderItem.builder()
                 .bookId(1L)
                 .unitPrice(20000)
@@ -128,7 +127,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(basicWrapping)
                 .build();
         
-        // Order2: 상품 60000원 + 포장지 3000원 = 63000원 총합, 순수 상품 금액 60000원
         OrderItem orderItem2 = OrderItem.builder()
                 .bookId(2L)
                 .unitPrice(30000)
@@ -137,7 +135,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(premiumWrapping)
                 .build();
         
-        // Order3: 상품 25000원 + 포장지 없음 = 25000원 총합, 순수 상품 금액 25000원
         OrderItem orderItem3 = OrderItem.builder()
                 .bookId(3L)
                 .unitPrice(25000)
@@ -146,7 +143,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(null)
                 .build();
         
-        // Order4: 상품 35000원 + 포장지 1000원 = 36000원 총합, 순수 상품 금액 35000원
         OrderItem orderItem4 = OrderItem.builder()
                 .bookId(4L)
                 .unitPrice(35000)
@@ -155,7 +151,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(basicWrapping)
                 .build();
         
-        // OldOrder: 상품 90000원 + 포장지 3000원 = 93000원 총합, 순수 상품 금액 90000원
         OrderItem oldOrderItem = OrderItem.builder()
                 .bookId(5L)
                 .unitPrice(45000)
@@ -164,7 +159,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(premiumWrapping)
                 .build();
         
-        // CanceledOrder: 상품 20000원 + 포장지 없음 = 20000원 총합, 순수 상품 금액 20000원
         OrderItem canceledOrderItem = OrderItem.builder()
                 .bookId(6L)
                 .unitPrice(20000)
@@ -249,14 +243,14 @@ class CustomOrderRepositoryImplTest {
                 .findFirst()
                 .orElse(null);
         assertThat(user1Response).isNotNull();
-        assertThat(user1Response.pureOrderAmount()).isEqualTo(96000L); // (40000-1000) + (60000-3000) = 39000 + 57000 = 96000
+        assertThat(user1Response.pureOrderAmount()).isEqualTo(100000L);
         
         UserOrderAmountResponse user2Response = result.stream()
                 .filter(response -> response.userNo().equals(2L))
                 .findFirst()
                 .orElse(null);
         assertThat(user2Response).isNotNull();
-        assertThat(user2Response.pureOrderAmount()).isEqualTo(59000L); // (25000-0) + (35000-1000) = 25000 + 34000 = 59000
+        assertThat(user2Response.pureOrderAmount()).isEqualTo(60000L);
     }
 
     @Test
