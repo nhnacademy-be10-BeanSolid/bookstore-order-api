@@ -14,7 +14,7 @@ public class XUserIdResolver {
     private final UserService userService;
 
     public Long resolveUserNo(String xUserId) {
-        if (isMember(xUserId)) {
+        if (!isMember(xUserId)) {
             return null;
         }
 
@@ -24,7 +24,7 @@ public class XUserIdResolver {
     }
 
     public boolean isAdmin(String xUserId) {
-        if (isMember(xUserId)) {
+        if (!isMember(xUserId)) {
             return false;
         }
 
