@@ -1,13 +1,10 @@
+
 spring:
   config:
+    import: ""
     activate:
       on-profile: test
 
-    cloud:
-      config:
-        enabled: false
-
-  # H2 인메모리 DB 설정
   datasource:
     driver-class-name: org.h2.Driver
     url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=false;MODE=MySQL
@@ -16,7 +13,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop  # 테스트마다 스키마 생성/제거
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
