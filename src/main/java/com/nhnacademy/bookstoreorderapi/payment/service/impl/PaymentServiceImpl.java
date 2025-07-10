@@ -10,6 +10,7 @@ import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.exception.*;
@@ -101,35 +102,37 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public void markSuccess(String paymentKey, String orderId, long amount) {
-        Payment payment = payRepo.findByPaymentKey(paymentKey)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
+    public PaymentApprovalRequestDto markSuccess(PaymentApprovalRequestDto dto) {
+        Payment payment = payRepo.findByPaymentKey(dto.getPaymentKey())
+                .orElseThrow(() -> new PaymentNotFoundException(dto.getPaymentKey()));
 
-        // ↓ 신규: 모든 결제 방식에 대해 orderId, amount 포함한 body 생성
-        Map<String, Object> confirmBody = Map.of(
-                "orderId", orderId,
-                "amount",  amount
-        );
+//        // ↓ 신규: 모든 결제 방식에 대해 orderId, amount 포함한 body 생성
+//        Map<String, Object> confirmBody = Map.of(
+//                "orderId", orderId,
+//                "amount",  amount
+//        );
 
-        Map<String, Object> confirmResp;
+        PaymentApprovalRequestDto confirmResp;
         try {
-            confirmResp = tossClient.confirmPayment(paymentKey, confirmBody);
+            confirmResp = tossClient.confirmPayment(dto);
         } catch (FeignException fe) {
             throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
         }
 
-        if (!"DONE".equals(confirmResp.get("status"))) {
-            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
-        }
+//        if (!"DONE".equals(confirmResp.get("status"))) {
+//            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
+//        }
 
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
-        payment.setPayAmount(amount);
+        payment.setPayAmount(dto.getAmount());
         payRepo.save(payment);
 
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
+        Order order = orderRepo.findByOrderId(dto.getOrderId())
+                .orElseThrow(() -> new OrderNotFoundException(dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING);
         orderRepo.save(order);
+
+        return confirmResp;
     }
 
     @Override
