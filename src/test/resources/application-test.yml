@@ -20,16 +20,16 @@ spring:
         highlight_sql: true       # Hibernate에서 SQL 로깅을 할 때 SQL 문을 강조(색상 추가)
     database-platform: org.hibernate.dialect.H2Dialect
 
-  payment:
-    toss:
-      base-url: http://localhost:8080
+
 
   h2:
     console:
       enabled: true               # 웹 콘솔 활성화
       path: /h2-console
 
-
+payment:
+  toss:
+    base-url: http://localhost:8080
 logging:
   level:
     com.nhnacademy.bookstoreorderapi.order: debug
