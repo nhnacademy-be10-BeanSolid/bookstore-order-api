@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
@@ -72,29 +73,48 @@ public class PaymentController {
     }
 
 
+//    @GetMapping("/success")
+//    public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
+//        String pk  = p.get("paymentKey");
+//        String oid = p.get("orderId");
+//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+//
+//        if (pk != null && oid != null && amt != null) {
+//            paymentService.markSuccess(pk, oid, amt);
+//        } else {
+//            log.warn("필수 파라미터 누락 {}", p);
+//        }
+//
+//        String target = UriComponentsBuilder
+//                .fromUriString(frontBase + "/payments/success")
+//                .queryParams(CollectionUtils.toMultiValueMap(Map.of(
+//                        "paymentKey", List.of(pk),
+//                        "orderId",    List.of(oid),
+//                        "amount",     List.of(String.valueOf(amt))
+//                )))
+//                .build()
+//                .toUriString();
+//
+//        return new RedirectView(target, false);
+//    }
+
     @GetMapping("/success")
-    public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
-        String pk  = p.get("paymentKey");
-        String oid = p.get("orderId");
-        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
+    public ResponseEntity<PaymentApprovalRequestDto> tossSuccess(@RequestParam("paymentKey") String paymentKey,
+                                                                 @RequestParam("orderId") String orderId,
+                                                                 @RequestParam("amount") long amount){
+//        String oid = d.get("orderId");
+//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
 
-        if (pk != null && oid != null && amt != null) {
-            paymentService.markSuccess(pk, oid, amt);
-        } else {
-            log.warn("필수 파라미터 누락 {}", p);
-        }
+//        if (pk != null && oid != null && amt != null) {
+//            paymentService.markSuccess(dto);
+//        } else {
+//            log.warn("필수 파라미터 누락 {}", p);
+//        }
 
-        String target = UriComponentsBuilder
-                .fromUriString(frontBase + "/payments/success")
-                .queryParams(CollectionUtils.toMultiValueMap(Map.of(
-                        "paymentKey", List.of(pk),
-                        "orderId",    List.of(oid),
-                        "amount",     List.of(String.valueOf(amt))
-                )))
-                .build()
-                .toUriString();
+        PaymentApprovalRequestDto dto = new PaymentApprovalRequestDto(paymentKey, orderId, amount);
 
-        return new RedirectView(target, false);
+        PaymentApprovalRequestDto requestDto = paymentService.markSuccess(dto);
+        return  ResponseEntity.ok(requestDto);
     }
 
 
