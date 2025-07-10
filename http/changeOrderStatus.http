@@ -17,13 +17,13 @@ GET localhost:10350/orders/1
 Content-Type: application/json
 
 ### 3) 주문 상태 변경: 대기 -> 배송중
-PATCH localhost:10350/orders/1/status
+PATCH localhost:10351/orders/202507-FPXtvI-ZFP0Ax/status
 Content-Type: application/json
+X-USER-ID: test
 
 {
   "newStatus": "SHIPPING",
-  "changedBy": 3,
-  "memo": "배송시작"
+  "memo": "배송중으로 변경"
 }
 
 ### 4) 배송 자동 종료 확인: '배송중 -> 완료'로 주문 상태 변경

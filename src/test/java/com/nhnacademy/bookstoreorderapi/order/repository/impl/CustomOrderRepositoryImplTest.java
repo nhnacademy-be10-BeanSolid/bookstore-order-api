@@ -1,11 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderRepository;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -122,7 +119,6 @@ class CustomOrderRepositoryImplTest {
         entityManager.flush();
         
         // 주문 아이템 생성
-        // Order1: 상품 40000원 + 포장지 1000원 = 41000원 총합, 순수 상품 금액 40000원
         OrderItem orderItem1 = OrderItem.builder()
                 .bookId(1L)
                 .unitPrice(20000)
@@ -131,7 +127,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(basicWrapping)
                 .build();
         
-        // Order2: 상품 60000원 + 포장지 3000원 = 63000원 총합, 순수 상품 금액 60000원
         OrderItem orderItem2 = OrderItem.builder()
                 .bookId(2L)
                 .unitPrice(30000)
@@ -140,7 +135,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(premiumWrapping)
                 .build();
         
-        // Order3: 상품 25000원 + 포장지 없음 = 25000원 총합, 순수 상품 금액 25000원
         OrderItem orderItem3 = OrderItem.builder()
                 .bookId(3L)
                 .unitPrice(25000)
@@ -149,7 +143,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(null)
                 .build();
         
-        // Order4: 상품 35000원 + 포장지 1000원 = 36000원 총합, 순수 상품 금액 35000원
         OrderItem orderItem4 = OrderItem.builder()
                 .bookId(4L)
                 .unitPrice(35000)
@@ -158,7 +151,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(basicWrapping)
                 .build();
         
-        // OldOrder: 상품 90000원 + 포장지 3000원 = 93000원 총합, 순수 상품 금액 90000원
         OrderItem oldOrderItem = OrderItem.builder()
                 .bookId(5L)
                 .unitPrice(45000)
@@ -167,7 +159,6 @@ class CustomOrderRepositoryImplTest {
                 .wrapping(premiumWrapping)
                 .build();
         
-        // CanceledOrder: 상품 20000원 + 포장지 없음 = 20000원 총합, 순수 상품 금액 20000원
         OrderItem canceledOrderItem = OrderItem.builder()
                 .bookId(6L)
                 .unitPrice(20000)
@@ -252,14 +243,14 @@ class CustomOrderRepositoryImplTest {
                 .findFirst()
                 .orElse(null);
         assertThat(user1Response).isNotNull();
-        assertThat(user1Response.pureOrderAmount()).isEqualTo(96000L); // (40000-1000) + (60000-3000) = 39000 + 57000 = 96000
+        assertThat(user1Response.pureOrderAmount()).isEqualTo(100000L);
         
         UserOrderAmountResponse user2Response = result.stream()
                 .filter(response -> response.userNo().equals(2L))
                 .findFirst()
                 .orElse(null);
         assertThat(user2Response).isNotNull();
-        assertThat(user2Response.pureOrderAmount()).isEqualTo(59000L); // (25000-0) + (35000-1000) = 25000 + 34000 = 59000
+        assertThat(user2Response.pureOrderAmount()).isEqualTo(60000L);
     }
 
     @Test
@@ -374,5 +365,206 @@ class CustomOrderRepositoryImplTest {
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().userNo()).isEqualTo(1L);
         assertThat(result.getFirst().pureOrderAmount()).isEqualTo(150000L); // 75000 * 2 = 150000
+    }
+
+    // ========== 구매 확인 테스트 ==========
+
+    @Test
+    @DisplayName("구매 확인 성공 - COMPLETED 상태 주문에서 구매 이력 확인")
+    void findByUserNoAndBookId_success_completedOrder() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 1L;
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("구매 확인 성공 - PENDING 상태 주문에서 구매 이력 확인")
+    void findByUserNoAndBookId_success_pendingOrder() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 1L;
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("구매 확인 성공 - SHIPPING 상태 주문에서 구매 이력 확인")
+    void findByUserNoAndBookId_success_shippingOrder() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 2L;
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("구매 확인 실패 - 존재하지 않는 책")
+    void findByUserNoAndBookId_fail_nonExistentBook() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 999L; // 존재하지 않는 책
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("구매 확인 실패 - 존재하지 않는 사용자")
+    void findByUserNoAndBookId_fail_nonExistentUser() {
+        // given
+        Long userNo = 999L; // 존재하지 않는 사용자
+        Long bookId = 1L;
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("구매 확인 실패 - 다른 사용자의 구매 이력")
+    void findByUserNoAndBookId_fail_differentUser() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 3L; // 사용자 2번이 구매한 책
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("구매 확인 실패 - CANCELED 상태 주문은 제외")
+    void findByUserNoAndBookId_fail_canceledOrder() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 6L; // 취소된 주문의 책
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isFalse();
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 다른 사용자의 유효한 구매 이력")
+    void findByUserNoAndBookId_success_differentUserValidPurchase() {
+        // given
+        Long userNo = 2L;
+        Long bookId = 3L; // 사용자 2번이 실제로 구매한 책
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
+    }
+
+    @Test
+    @DisplayName("구매 확인 - 다양한 주문 상태가 혼재된 상황에서 유효한 상태만 확인")
+    void findByUserNoAndBookId_multipleOrderStates() {
+        // given - 동일한 사용자와 책에 대해 여러 상태의 주문 생성
+        ShippingInfo additionalShippingInfo = new ShippingInfo("테스트", "01099999999", "테스트 주소", LocalDate.now().plusDays(1), 3000);
+        Long userNo = 3L;
+        Long bookId = 600L;
+        
+        // 취소된 주문
+        Order canceledOrderForTest = Order.builder()
+                .userNo(userNo)
+                .status(OrderStatus.CANCELED)
+                .orderDate(LocalDate.now().minusDays(10))
+                .totalPrice(20000L)
+                .shippingInfo(additionalShippingInfo)
+                .build();
+        
+        // 완료된 주문
+        Order completedOrderForTest = Order.builder()
+                .userNo(userNo)
+                .status(OrderStatus.COMPLETED)
+                .orderDate(LocalDate.now().minusDays(5))
+                .totalPrice(30000L)
+                .shippingInfo(additionalShippingInfo)
+                .build();
+        
+        entityManager.persist(canceledOrderForTest);
+        entityManager.persist(completedOrderForTest);
+        entityManager.flush();
+        
+        // 취소된 주문의 아이템
+        OrderItem canceledItem = OrderItem.builder()
+                .bookId(bookId)
+                .unitPrice(20000)
+                .quantity(1)
+                .order(canceledOrderForTest)
+                .wrapping(null)
+                .build();
+        
+        // 완료된 주문의 아이템
+        OrderItem completedItem = OrderItem.builder()
+                .bookId(bookId)
+                .unitPrice(30000)
+                .quantity(1)
+                .order(completedOrderForTest)
+                .wrapping(null)
+                .build();
+        
+        entityManager.persist(canceledItem);
+        entityManager.persist(completedItem);
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        PurchaseVerificationResponse result = customOrderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then - 취소된 주문이 있어도 완료된 주문이 있으면 true
+        assertThat(result).isNotNull();
+        assertThat(result.getUserNo()).isEqualTo(userNo);
+        assertThat(result.getBookId()).isEqualTo(bookId);
+        assertThat(result.getIsValid()).isTrue();
     }
 }

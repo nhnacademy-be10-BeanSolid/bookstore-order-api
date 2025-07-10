@@ -4,27 +4,21 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountRespon
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
 /**
  * 내부 서비스 간 통신할 때 쓰는 api를 모아놓은 클래스입니다.
  */
-@Controller
+@RestController
 @RequestMapping("/internal/orders")
 @RequiredArgsConstructor
 public class OrderInternalController {
 
     private final OrderInternalService orderInternalService;
-
-//    @GetMapping
-//    public ResponseEntity<PurchaseVerificationResponse> verifyPurchase(@RequestHeader("X-USER-ID") String xUserId,
-//                                                                       @RequestParam Long bookId) {
-//        return ResponseEntity.ok(orderInternalService.)
-//    }
 
     @GetMapping
     public ResponseEntity<List<UserOrderAmountResponse>> getOrderAmountGroupByUserLastThreeMonth() {
