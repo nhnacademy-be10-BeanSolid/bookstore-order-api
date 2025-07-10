@@ -4,6 +4,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.CancelOrderRequestDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.SuccessResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -42,18 +43,13 @@ public class OrderController {
         return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
     }
 
-//    // 주문 상태 변경
-//    @PatchMapping("/{orderId}/status")
-//    public StatusChangeResponseDto changeStatus(@PathVariable String orderId,
-//                                                @Valid @RequestBody StatusChangeRequest dto,
-//                                                @RequestHeader("X-USER-ID") String xUserId) {
-//        return orderService.changeStatus(
-//                orderId,
-//                dto.newStatus(),
-//                dto.memo(),
-//                xUserId
-//        );
-//    }
+    // 주문 상태 변경
+    @PatchMapping("/{orderId}/status")
+    public ResponseEntity<OrderResponse> changeOrderStatus(@PathVariable String orderId,
+                                                           @RequestBody StatusChangeRequest request,
+                                                           @RequestHeader("X-USER-ID") String xUserId) {
+        return ResponseEntity.ok(orderService.changeStatus(orderId, request, xUserId));
+    }
 
     @PostMapping("/{orderId}/cancel")
     public SuccessResponseDto cancelOrder(

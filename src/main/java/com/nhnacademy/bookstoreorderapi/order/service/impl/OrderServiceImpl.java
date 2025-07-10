@@ -7,12 +7,14 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.exception.Insufficient
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
+import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -21,6 +23,7 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.TaskScheduler;
@@ -29,7 +32,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -38,6 +43,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
+
+    private final XUserIdResolver xUserIdResolver;
 
     private final OrderValidationService orderValidationService;
 
@@ -51,8 +58,9 @@ public class OrderServiceImpl implements OrderService {
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
+    private final ApplicationContext applicationContext;
 
-    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(5);
+    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(10);
 
     // 주문 생성
     @Override
@@ -133,6 +141,55 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
     }
 
+    @Transactional
+    @Override
+    public OrderResponse changeStatus(String orderId, StatusChangeRequest request, String xUserId) {
+        // 사전 검증
+        if (orderId == null || orderId.isBlank()) {
+            log.debug("[Bad Request] 주문상태 변경 - orderId 누락: orderId={}", orderId);
+            throw new MissingRequiredParameterException("주문번호는 필수입니다.");
+        }
+        if (request == null) {
+            log.debug("[Bad Request] 주문상태 변경 요청 정보 누락: StatusChangeRequest=null");
+            throw new MissingRequiredParameterException("주문상태 변경 요청 정보는 필수입니다.");
+        }
+
+        // (userNo, orderId) 조합으로 주문 조회
+        Long createdBy = xUserIdResolver.resolveUserNo(xUserId);
+        Order order = orderRepository.findByOrderIdAndUserNo(orderId, createdBy)
+                .orElseThrow(() -> {
+                    log.warn("주문을 찾을 수 없습니다: orderId={}, userNo={}", orderId, createdBy);
+                    return new OrderNotFoundException(orderId);
+                });
+
+        log.debug("[사용자] 주문 상태 변경을 시작합니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
+                orderId, order.getStatus(), request.newStatus(), createdBy);
+
+        // 주문 상태 변경
+        OrderStatus oldStatus = order.getStatus();
+        OrderStatus newStatus = request.newStatus();
+        if (!oldStatus.canTransitionTo(newStatus)) {
+            log.warn("[Bad Request] 주문 상태 변경 불가능: {} -> {}", oldStatus, newStatus);
+            throw new InvalidOrderStatusChangeException(oldStatus.name() + " -> " + newStatus.name() + " 상태 변경이 불가능합니다.");
+        } else if (!oldStatus.equals(OrderStatus.COMPLETED)) {
+            log.warn("[Bad Request] 배송 완료된 상품만 주문 상태를 변경할 수 있습니다: oldStatus={}", oldStatus);
+            throw new InvalidOrderStatusChangeException("사용자는 배송 완료된 상품만 주문 상태를 변경할 수 있습니다: oldStatus=" + oldStatus);
+        }
+        OrderStatusLog statusLog = new OrderStatusLog(oldStatus, newStatus, createdBy, request.memo(), order);
+
+        order.setStatus(newStatus);
+        statusLogRepository.save(statusLog);
+        log.info("[사용자] 주문 상태가 변경되었습니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
+                statusLog.getOrder().getOrderId(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
+
+        // SHIPPING 상태로 변경 시 자동 배송 완료 스케줄링
+        if (newStatus == OrderStatus.SHIPPING) {
+            scheduleAutoDeliveryComplete(order.getOrderId());
+        }
+
+        return OrderResponse.from(order);
+    }
+
 //    // 주문 상태 변경
 //    @Override
 //    @Transactional
@@ -167,34 +224,37 @@ public class OrderServiceImpl implements OrderService {
 //        return StatusChangeResponseDto.createFrom(log);
 //    }
 
-//    private void scheduleAutoDeliveryComplete(Long orderId) {
-//
-//        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
-//        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
-//
-//        taskScheduler.schedule(() -> {
-//            try {
-//                completeDelivery(orderId);
-//            } catch (Exception e) {
-//                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
-//            }
-//        }, triggerTime);
-//    }
+    private void scheduleAutoDeliveryComplete(String orderId) {
 
-//    @Transactional
-//    public void completeDelivery(Long orderId) {
-//
-//        Order order = orderRepository.findById(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException(orderId));
-//
-//        if (order.getStatus() != OrderStatus.SHIPPING) {
-//            return;
-//        }
-//
-//        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
-//        order.setStatus(OrderStatus.COMPLETED);
-//        orderRepository.save(order);
-//    }
+        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
+        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
+
+        taskScheduler.schedule(() -> {
+            try {
+                // Spring 프록시를 통해 @Transactional 메서드 호출
+                OrderService orderService = applicationContext.getBean(OrderService.class);
+                orderService.completeDelivery(orderId);
+            } catch (Exception e) {
+                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
+            }
+        }, triggerTime);
+    }
+
+    @Transactional
+    @Override
+    public void completeDelivery(String orderId) {
+
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
+
+        if (order.getStatus() != OrderStatus.SHIPPING) {
+            return;
+        }
+
+        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
+        order.setStatus(OrderStatus.COMPLETED);
+        orderRepository.save(order);
+    }
 
     // 반품 요청
     @Override

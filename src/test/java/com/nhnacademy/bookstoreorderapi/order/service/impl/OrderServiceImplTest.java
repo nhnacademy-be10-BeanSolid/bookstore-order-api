@@ -8,7 +8,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.MissingRequiredParameterException;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
