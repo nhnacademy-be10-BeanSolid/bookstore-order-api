@@ -15,6 +15,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundExcep
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -108,13 +109,20 @@ public class OrderServiceImpl implements OrderService {
     }
 
     // 회원 주문 상세 조회
+    @Transactional
     @Override
-    public OrderResponse findByOrderId(String orderId, String xUserId) {
-        Long userNo = getUserNo(xUserId);
+    public OrderDetailResponse findByOrderId(String xUserId, String orderId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
         Order order = orderRepository.findByOrderIdAndUserNo(orderId, userNo)
                 .orElseThrow(() -> new OrderNotFoundException(orderId));
+        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
 
-        return OrderResponse.from(order);
+        List<Long> bookIds = orderItems.stream()
+                .map(OrderItem::getBookId)
+                .toList();
+        List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
+
+        return OrderDetailResponse.of(order, orderItems, books);
     }
 
     // 주문 취소

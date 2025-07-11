@@ -19,6 +19,8 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import static javax.management.Query.and;
+
 @Repository
 @RequiredArgsConstructor
 public class CustomOrderRepositoryImpl implements CustomOrderRepository {
@@ -36,7 +38,8 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                         order.shippingInfo.receiverName,
                         order.totalPrice))
                 .from(order)
-                .where(order.userNo.eq(userNo))
+                .where(order.userNo.eq(userNo)
+                        .and(order.status.isNotNull()))
                 .orderBy(order.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())

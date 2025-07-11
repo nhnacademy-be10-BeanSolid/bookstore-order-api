@@ -5,6 +5,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.SuccessResponseDto;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -41,8 +42,9 @@ public class OrderController {
 
     // 회원 주문 상세 조회
     @GetMapping("/{orderId}")
-    public ResponseEntity<OrderResponse> getOrder(@RequestHeader("X-USER-ID") String xUserId, @PathVariable String orderId) {
-        return ResponseEntity.ok().body(orderService.findByOrderId(orderId, xUserId));
+    public ResponseEntity<OrderDetailResponse> getOrder(@RequestHeader("X-USER-ID") String xUserId,
+                                                        @PathVariable String orderId) {
+        return ResponseEntity.ok().body(orderService.findByOrderId(xUserId, orderId));
     }
 
     // 주문 상태 변경

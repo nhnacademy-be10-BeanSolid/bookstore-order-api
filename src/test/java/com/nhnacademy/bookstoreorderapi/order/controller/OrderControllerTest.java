@@ -3,6 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -44,6 +45,7 @@ class OrderControllerTest {
     private ObjectMapper objectMapper;
     private OrderRequest validOrderRequest;
     private OrderResponse orderResponse;
+    private OrderDetailResponse detailResponse;
 
     @BeforeEach
     void setUp() {
@@ -60,23 +62,36 @@ class OrderControllerTest {
 
         validOrderRequest = new OrderRequest(
                 "홍길동",
-                "01012345678",
-                "[12345] 서울특별시 강남구 테헤란로 123 10층",
+                "010-1234-5678",
+                "00000 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 items
         );
 
         orderResponse = new OrderResponse(
-                1L, // id
-                "ORDER-20240101-001", // orderId
-                "PENDING", // status
-                LocalDate.now(), // orderDate
-                "홍길동", // receiverName
-                "01012345678", // receiverPhoneNumber
-                "서울특별시 강남구 테헤란로 123", // address
-                LocalDate.now().plusDays(3), // requestedDeliveryDate
-                3000, // deliveryFee
-                55000L // totalAmount
+                1L,
+                "202507-abcabc-123123",
+                "PENDING",
+                LocalDate.now(),
+                "홍길동",
+                "010-1234-5678",
+                "00000 서울특별시 강남구 테헤란로 123",
+                LocalDate.now().plusDays(3),
+                3000,
+                55000L
+        );
+
+        detailResponse = new OrderDetailResponse(
+                LocalDate.now(),
+                "202507-abcabc-123123",
+                "PENDING",
+                55000L,
+                null,
+                "홍길동",
+                "010-1234-5678",
+                "00000 서울특별시 강남구 테헤란로 123",
+                LocalDate.now().plusDays(3),
+                3000
         );
     }
 
@@ -94,10 +109,10 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validOrderRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.orderId").value("202507-abcabc-123123"))
                 .andExpect(jsonPath("$.receiverName").value("홍길동"))
-                .andExpect(jsonPath("$.receiverPhoneNumber").value("01012345678"))
-                .andExpect(jsonPath("$.address").value("서울특별시 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.receiverPhoneNumber").value("010-1234-5678"))
+                .andExpect(jsonPath("$.address").value("00000 서울특별시 강남구 테헤란로 123"))
                 .andExpect(jsonPath("$.totalAmount").value(55000))
                 .andExpect(jsonPath("$.deliveryFee").value(3000))
                 .andExpect(jsonPath("$.status").value("PENDING"));
@@ -119,7 +134,7 @@ class OrderControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(validOrderRequest)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.orderId").value("202507-abcabc-123123"))
                 .andExpect(jsonPath("$.receiverName").value("홍길동"));
 
         verify(orderService).createOrder(any(OrderRequest.class), eq(xUserId));
@@ -164,8 +179,8 @@ class OrderControllerTest {
         // given
         String xUserId = "testUser";
         List<OrderSummaryResponse> orderSummaries = List.of(
-                new OrderSummaryResponse(LocalDate.now(), "ORDER-20240101-001", "홍길동", 10_000L),
-                new OrderSummaryResponse(LocalDate.now().minusDays(1), "ORDER-20240101-002", "김철수", 10_000L)
+                new OrderSummaryResponse(LocalDate.now(), "202507-abcabc-123123", "홍길동", 10_000L),
+                new OrderSummaryResponse(LocalDate.now().minusDays(1), "202507-abcabc-123124", "김철수", 10_000L)
         );
         Page<OrderSummaryResponse> pageResult = new PageImpl<>(orderSummaries, PageRequest.of(0, 20), 10);
         
@@ -179,9 +194,9 @@ class OrderControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(2))
-                .andExpect(jsonPath("$.content[0].orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.content[0].orderId").value("202507-abcabc-123123"))
                 .andExpect(jsonPath("$.content[0].receiverName").value("홍길동"))
-                .andExpect(jsonPath("$.content[1].orderId").value("ORDER-20240101-002"))
+                .andExpect(jsonPath("$.content[1].orderId").value("202507-abcabc-123124"))
                 .andExpect(jsonPath("$.content[1].receiverName").value("김철수"));
 
         verify(orderService).findAllByUserId(xUserId, PageRequest.of(0, 20));
@@ -223,30 +238,30 @@ class OrderControllerTest {
     void getOrder_success() throws Exception {
         // given
         String xUserId = "testUser";
-        String orderId = "ORDER-20240101-001";
+        String orderId = "202507-abcabc-123123";
         
-        given(orderService.findByOrderId(orderId, xUserId)).willReturn(orderResponse);
+        given(orderService.findByOrderId(xUserId, orderId)).willReturn(detailResponse);
 
         // when & then
         mockMvc.perform(get("/orders/{orderId}", orderId)
                         .header("X-USER-ID", xUserId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orderId").value("ORDER-20240101-001"))
+                .andExpect(jsonPath("$.orderId").value("202507-abcabc-123123"))
                 .andExpect(jsonPath("$.receiverName").value("홍길동"))
-                .andExpect(jsonPath("$.receiverPhoneNumber").value("01012345678"))
-                .andExpect(jsonPath("$.address").value("서울특별시 강남구 테헤란로 123"))
+                .andExpect(jsonPath("$.receiverPhoneNumber").value("010-1234-5678"))
+                .andExpect(jsonPath("$.address").value("00000 서울특별시 강남구 테헤란로 123"))
                 .andExpect(jsonPath("$.totalAmount").value(55000))
                 .andExpect(jsonPath("$.deliveryFee").value(3000))
                 .andExpect(jsonPath("$.status").value("PENDING"));
 
-        verify(orderService).findByOrderId(orderId, xUserId);
+        verify(orderService).findByOrderId(xUserId, orderId);
     }
 
     @Test
     @DisplayName("회원 주문 상세 조회 시 X-USER-ID 헤더가 없으면 400 에러가 발생한다")
     void getOrder_missingXUserIdHeader_badRequest() throws Exception {
         // given
-        String orderId = "ORDER-20240101-001";
+        String orderId = "202507-abcabc-123123";
 
         // when & then
         mockMvc.perform(get("/orders/{orderId}", orderId))
