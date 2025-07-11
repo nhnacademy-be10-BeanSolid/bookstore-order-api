@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -46,7 +47,9 @@ class OrderControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(orderController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(orderController)
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
+                .build();
         objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
@@ -164,13 +167,15 @@ class OrderControllerTest {
                 new OrderSummaryResponse(LocalDate.now(), "ORDER-20240101-001", "홍길동", 10_000L),
                 new OrderSummaryResponse(LocalDate.now().minusDays(1), "ORDER-20240101-002", "김철수", 10_000L)
         );
-        Page<OrderSummaryResponse> pageResult = new PageImpl<>(orderSummaries, PageRequest.of(0, 10), 10);
+        Page<OrderSummaryResponse> pageResult = new PageImpl<>(orderSummaries, PageRequest.of(0, 20), 10);
         
-        given(orderService.findAllByUserId(xUserId)).willReturn(pageResult);
+        given(orderService.findAllByUserId(xUserId, PageRequest.of(0, 20))).willReturn(pageResult);
 
         // when & then
         mockMvc.perform(get("/orders")
-                        .header("X-USER-ID", xUserId))
+                        .header("X-USER-ID", xUserId)
+                        .param("page", "0")
+                        .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(2))
@@ -179,7 +184,7 @@ class OrderControllerTest {
                 .andExpect(jsonPath("$.content[1].orderId").value("ORDER-20240101-002"))
                 .andExpect(jsonPath("$.content[1].receiverName").value("김철수"));
 
-        verify(orderService).findAllByUserId(xUserId);
+        verify(orderService).findAllByUserId(xUserId, PageRequest.of(0, 20));
     }
 
     @Test
@@ -187,18 +192,20 @@ class OrderControllerTest {
     void getAllOrdersByUserId_emptyPage() throws Exception {
         // given
         String xUserId = "testUser";
-        Page<OrderSummaryResponse> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 10), 0);
+        Page<OrderSummaryResponse> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 20), 0);
         
-        given(orderService.findAllByUserId(xUserId)).willReturn(emptyPage);
+        given(orderService.findAllByUserId(eq(xUserId), any(PageRequest.class))).willReturn(emptyPage);
 
         // when & then
         mockMvc.perform(get("/orders")
-                        .header("X-USER-ID", xUserId))
+                        .header("X-USER-ID", xUserId)
+                        .param("page", "0")
+                        .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.content.length()").value(0));
 
-        verify(orderService).findAllByUserId(xUserId);
+        verify(orderService).findAllByUserId(eq(xUserId), any(PageRequest.class));
     }
 
     @Test
@@ -208,7 +215,7 @@ class OrderControllerTest {
         mockMvc.perform(get("/orders"))
                 .andExpect(status().isBadRequest());
 
-        verify(orderService, never()).findAllByUserId(anyString());
+        verify(orderService, never()).findAllByUserId(anyString(), any());
     }
 
     @Test

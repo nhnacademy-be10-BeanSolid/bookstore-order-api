@@ -7,11 +7,12 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 public interface OrderService {
 
     OrderResponse createOrder(OrderRequest orderRequest, String xUserId);
-    Page<OrderSummaryResponse> findAllByUserId(String xUserId);
+    Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable);
     OrderResponse findByOrderId(String orderId, String xUserId);
     void cancelOrder(String orderId, String reason);
     OrderResponse changeStatus(String orderId, StatusChangeRequest req, String xUserId);

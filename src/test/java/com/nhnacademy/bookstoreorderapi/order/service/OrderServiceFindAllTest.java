@@ -70,7 +70,7 @@ class OrderServiceFindAllTest {
         given(customOrderRepository.findOrderSummary(eq(userNo), any(Pageable.class))).willReturn(expectedPage);
 
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
 
         // then
         assertThat(result).isNotNull();
@@ -81,7 +81,7 @@ class OrderServiceFindAllTest {
         assertThat(result.getContent().get(1).receiverName()).isEqualTo("김철수");
         
         verify(userService).getUserInfo(xUserId);
-        verify(customOrderRepository).findOrderSummary(eq(userNo), eq(PageRequest.of(0, 10)));
+        verify(customOrderRepository).findOrderSummary(eq(userNo), eq(PageRequest.of(0, 20)));
     }
 
     @Test
@@ -112,14 +112,14 @@ class OrderServiceFindAllTest {
         given(customOrderRepository.findOrderSummary(eq(userNo), any(Pageable.class))).willReturn(emptyPage);
 
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).isEmpty();
         
         verify(userService).getUserInfo(xUserId);
-        verify(customOrderRepository).findOrderSummary(eq(userNo), eq(PageRequest.of(0, 10)));
+        verify(customOrderRepository).findOrderSummary(eq(userNo), eq(PageRequest.of(0, 20)));
     }
 
     @Test
@@ -132,13 +132,13 @@ class OrderServiceFindAllTest {
         given(customOrderRepository.findOrderSummary(eq(null), any(Pageable.class))).willReturn(emptyPage);
 
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).isEmpty();
         
-        verify(customOrderRepository).findOrderSummary(eq(null), eq(PageRequest.of(0, 10)));
+        verify(customOrderRepository).findOrderSummary(eq(null), eq(PageRequest.of(0, 20)));
     }
 
     @Test
@@ -151,12 +151,12 @@ class OrderServiceFindAllTest {
         given(customOrderRepository.findOrderSummary(eq(null), any(Pageable.class))).willReturn(emptyPage);
 
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
 
         // then
         assertThat(result).isNotNull();
         assertThat(result.getContent()).isEmpty();
         
-        verify(customOrderRepository).findOrderSummary(eq(null), eq(PageRequest.of(0, 10)));
+        verify(customOrderRepository).findOrderSummary(eq(null), eq(PageRequest.of(0, 20)));
     }
 }
