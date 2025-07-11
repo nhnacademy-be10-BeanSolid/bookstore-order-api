@@ -7,11 +7,11 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.exception.Insufficient
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.common.exception.InvalidOrderStatusChangeException;
-import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,10 +101,10 @@ public class OrderServiceImpl implements OrderService {
     // 회원 주문 전체 조회
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderSummaryResponse> findAllByUserId(String xUserId) {
+    public Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable) {
         Long userNo = getUserNo(xUserId);
 
-        return customOrderRepository.findOrderSummary(userNo, PageRequest.of(0, 10));
+        return customOrderRepository.findOrderSummary(userNo, pageable);
     }
 
     // 회원 주문 상세 조회

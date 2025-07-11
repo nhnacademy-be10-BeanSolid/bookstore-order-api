@@ -1,20 +1,22 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
+import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
-import com.nhnacademy.bookstoreorderapi.order.repository.*;
+import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -25,7 +27,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.TaskScheduler;
 
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -44,14 +45,6 @@ class OrderServiceImplTest {
     OrderRepository orderRepository;
     @Mock
     OrderItemRepository orderItemRepository;
-    @Mock
-    CanceledOrderRepository canceledOrderRepository;
-    @Mock
-    OrderStatusLogRepository statusLogRepository;
-    @Mock
-    TaskScheduler taskScheduler;
-    @Mock
-    ReturnsRepository returnRepository;
     @Mock
     BookService bookService;
     @Mock
@@ -79,7 +72,7 @@ class OrderServiceImplTest {
         validOrderRequest = new OrderRequest(
                 "홍길동",
                 "01012345678",
-                "[12345] 서울특별시 강남구 테헤란로 123 10층",
+                "12345 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 items
         );
@@ -233,8 +226,8 @@ class OrderServiceImplTest {
         
         OrderRequest requestWithDuplicates = new OrderRequest(
                 "홍길동",
-                "01012345678",
-                "[12345] 서울특별시 강남구 테헤란로 123 10층",
+                "010-1234-5678",
+                "12345 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 duplicateItems
         );
@@ -328,15 +321,15 @@ class OrderServiceImplTest {
         String xUserId = null;
         Page<OrderSummaryResponse> emptyPage = new org.springframework.data.domain.PageImpl<>(List.of());
         
-        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 10)))
+        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 20)))
                 .willReturn(emptyPage);
         
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
         
         // then
         assertThat(result.getContent()).isEmpty();
-        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 10));
+        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 20));
         verify(userService, never()).getUserInfo(anyString());
     }
 
@@ -347,15 +340,15 @@ class OrderServiceImplTest {
         String xUserId = "";
         Page<OrderSummaryResponse> emptyPage = new org.springframework.data.domain.PageImpl<>(List.of());
         
-        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 10)))
+        given(customOrderRepository.findOrderSummary(null, PageRequest.of(0, 20)))
                 .willReturn(emptyPage);
         
         // when
-        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId);
+        Page<OrderSummaryResponse> result = orderService.findAllByUserId(xUserId, PageRequest.of(0, 20));
         
         // then
         assertThat(result.getContent()).isEmpty();
-        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 10));
+        verify(customOrderRepository).findOrderSummary(null, PageRequest.of(0, 20));
         verify(userService, never()).getUserInfo(anyString());
     }
 

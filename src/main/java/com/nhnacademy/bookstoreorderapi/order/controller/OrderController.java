@@ -12,6 +12,7 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -33,8 +34,9 @@ public class OrderController {
 
     // 회원 주문 전체 조회
     @GetMapping
-    public ResponseEntity<Page<OrderSummaryResponse>> getAllOrdersByUserId(@RequestHeader("X-USER-ID") String xUserId) {
-        return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId));
+    public ResponseEntity<Page<OrderSummaryResponse>> getAllOrdersByUserId(@RequestHeader("X-USER-ID") String xUserId,
+                                                                           Pageable pageable) {
+        return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId, pageable));
     }
 
     // 회원 주문 상세 조회
