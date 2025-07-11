@@ -7,10 +7,13 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.exception.MissingRequiredParameterException;
+import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
@@ -53,6 +56,8 @@ class OrderServiceImplTest {
     OrderValidationService orderValidationService;
     @Mock
     CustomOrderRepository customOrderRepository;
+    @Mock
+    XUserIdResolver xUserIdResolver;
 
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -71,7 +76,7 @@ class OrderServiceImplTest {
 
         validOrderRequest = new OrderRequest(
                 "홍길동",
-                "01012345678",
+                "010-1234-5678",
                 "12345 서울특별시 강남구 테헤란로 123 10층",
                 LocalDate.now().plusDays(3),
                 items
@@ -257,20 +262,21 @@ class OrderServiceImplTest {
     void findByOrderId_success() {
         // given
         String xUserId = "testUser";
-        String orderId = "ORDER-20240101-001";
+        String orderId = "202507-abcabc-123123";
         Long userNo = 1L;
         
         Order mockOrder = Order.of(validOrderRequest, userNo);
+        mockOrder.setStatus(OrderStatus.PENDING);
         
-        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
         given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.of(mockOrder));
         
         // when
-        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        OrderDetailResponse result = orderService.findByOrderId(xUserId, orderId);
         
         // then
         assertThat(result).isNotNull();
-        verify(userService).getUserInfo(xUserId);
+        verify(xUserIdResolver).resolveUserNo(xUserId);
         verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
     }
 
@@ -279,19 +285,16 @@ class OrderServiceImplTest {
     void findByOrderId_orderNotFound_throwsException() {
         // given
         String xUserId = "testUser";
-        String orderId = "ORDER-20240101-001";
-        Long userNo = 1L;
-        
-        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        String orderId = "202507-abcabc-123123";
+        Long userNo = -1L;
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
         given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.empty());
         
         // when & then
-        assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
+        assertThatThrownBy(() -> orderService.findByOrderId(xUserId, orderId))
                 .isInstanceOf(OrderNotFoundException.class)
                 .hasMessage("주문을 찾을 수 없습니다: orderId=" + orderId);
-        
-        verify(userService).getUserInfo(xUserId);
-        verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
     }
 
     @Test
@@ -299,19 +302,16 @@ class OrderServiceImplTest {
     void findByOrderId_differentUser_throwsException() {
         // given
         String xUserId = "testUser";
-        String orderId = "ORDER-20240101-001";
-        Long userNo = 1L;
-        
-        given(userService.getUserInfo(xUserId)).willReturn(userResponse);
+        String orderId = "202507-abcabc-123123";
+        Long userNo = -1L;
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
         given(orderRepository.findByOrderIdAndUserNo(orderId, userNo)).willReturn(Optional.empty());
         
         // when & then
-        assertThatThrownBy(() -> orderService.findByOrderId(orderId, xUserId))
+        assertThatThrownBy(() -> orderService.findByOrderId(xUserId, orderId))
                 .isInstanceOf(OrderNotFoundException.class)
                 .hasMessage("주문을 찾을 수 없습니다: orderId=" + orderId);
-        
-        verify(userService).getUserInfo(xUserId);
-        verify(orderRepository).findByOrderIdAndUserNo(orderId, userNo);
     }
 
     @Test
@@ -357,19 +357,21 @@ class OrderServiceImplTest {
     void findByOrderId_withNullXUserId_success() {
         // given
         String xUserId = null;
-        String orderId = "ORDER-20240101-001";
+        String orderId = "202507-abcabc-123123";
         
         Order mockOrder = Order.of(validOrderRequest, null);
+        mockOrder.setStatus(OrderStatus.PENDING);
         
-        given(orderRepository.findByOrderIdAndUserNo(orderId, null))
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(0L);
+        given(orderRepository.findByOrderIdAndUserNo(orderId, 0L))
                 .willReturn(Optional.of(mockOrder));
         
         // when
-        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        OrderDetailResponse result = orderService.findByOrderId(xUserId, orderId);
         
         // then
         assertThat(result).isNotNull();
-        verify(orderRepository).findByOrderIdAndUserNo(orderId, null);
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, 0L);
         verify(userService, never()).getUserInfo(anyString());
     }
 
@@ -378,19 +380,21 @@ class OrderServiceImplTest {
     void findByOrderId_withBlankXUserId_success() {
         // given
         String xUserId = "";
-        String orderId = "ORDER-20240101-001";
+        String orderId = "202507-abcabc-123123";
         
         Order mockOrder = Order.of(validOrderRequest, null);
+        mockOrder.setStatus(OrderStatus.PENDING);
         
-        given(orderRepository.findByOrderIdAndUserNo(orderId, null))
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(0L);
+        given(orderRepository.findByOrderIdAndUserNo(orderId, 0L))
                 .willReturn(Optional.of(mockOrder));
         
         // when
-        OrderResponse result = orderService.findByOrderId(orderId, xUserId);
+        OrderDetailResponse result = orderService.findByOrderId(xUserId, orderId);
         
         // then
         assertThat(result).isNotNull();
-        verify(orderRepository).findByOrderIdAndUserNo(orderId, null);
+        verify(orderRepository).findByOrderIdAndUserNo(orderId, 0L);
         verify(userService, never()).getUserInfo(anyString());
     }
 
