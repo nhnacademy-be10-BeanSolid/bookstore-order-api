@@ -18,7 +18,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         "com.nhnacademy.bookstoreorderapi.order.client",
         "com.nhnacademy.bookstoreorderapi.payment.client"
 })
-@EnableJpaAuditing
 @EnableDiscoveryClient
 @EnableScheduling
 public class BookstoreOrderApiApplication {
