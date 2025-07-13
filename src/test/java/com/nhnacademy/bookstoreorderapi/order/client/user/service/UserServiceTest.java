@@ -3,7 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.client.user.service;
 import com.nhnacademy.bookstoreorderapi.common.exception.ExternalServiceException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.exception.UserNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.UserNotFoundException;
 import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

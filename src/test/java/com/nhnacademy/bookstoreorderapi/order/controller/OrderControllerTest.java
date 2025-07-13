@@ -6,7 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.exception.InvalidRequestException;
+import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
