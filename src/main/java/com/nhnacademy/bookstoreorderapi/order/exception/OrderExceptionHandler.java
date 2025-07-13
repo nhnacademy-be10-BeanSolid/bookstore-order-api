@@ -1,7 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.exception;
 
 import com.nhnacademy.bookstoreorderapi.common.dto.ErrorResponse;
-import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
+import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;

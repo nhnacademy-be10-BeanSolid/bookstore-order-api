@@ -26,6 +26,30 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
     private final JPAQueryFactory factory;
 
     @Override
+    public Page<OrderSummaryResponse> findAllOrderSummary(Pageable pageable) {
+        QOrder order = QOrder.order;
+
+        List<OrderSummaryResponse> content = factory
+                .select(Projections.constructor(OrderSummaryResponse.class,
+                        order.orderDate,
+                        order.orderNumber,
+                        order.shippingInfo.receiverName,
+                        order.totalPrice,
+                        order.status.stringValue()))
+                .from(order)
+                .orderBy(order.createdAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        JPAQuery<Long> countQuery = factory
+                .select(order.count())
+                .from(order);
+
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+    }
+
+    @Override
     public Page<OrderSummaryResponse> findOrderSummary(Long userNo, Pageable pageable) {
         QOrder order = QOrder.order;
 

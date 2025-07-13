@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
-import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,7 +19,7 @@ import static org.mockito.Mockito.verify;
 class OrderInternalServiceImplTest {
 
     @Mock
-    private CustomOrderRepository customOrderRepository;
+    private OrderRepository orderRepository;
 
     @InjectMocks
     private OrderInternalServiceImpl orderInternalService;
@@ -34,7 +34,7 @@ class OrderInternalServiceImplTest {
                 new UserOrderAmountResponse(3L, 45000L)
         );
 
-        given(customOrderRepository.findOrderAmountGroupByUserLastThreeMonths())
+        given(orderRepository.findOrderAmountGroupByUserLastThreeMonths())
                 .willReturn(expectedResponses);
 
         // when
@@ -50,7 +50,7 @@ class OrderInternalServiceImplTest {
         assertThat(result.get(2).userNo()).isEqualTo(3L);
         assertThat(result.get(2).pureOrderAmount()).isEqualTo(45000L);
 
-        verify(customOrderRepository).findOrderAmountGroupByUserLastThreeMonths();
+        verify(orderRepository).findOrderAmountGroupByUserLastThreeMonths();
     }
 
     @Test
@@ -59,7 +59,7 @@ class OrderInternalServiceImplTest {
         // given
         List<UserOrderAmountResponse> emptyResponse = List.of();
 
-        given(customOrderRepository.findOrderAmountGroupByUserLastThreeMonths())
+        given(orderRepository.findOrderAmountGroupByUserLastThreeMonths())
                 .willReturn(emptyResponse);
 
         // when
@@ -69,7 +69,7 @@ class OrderInternalServiceImplTest {
         assertThat(result).isEqualTo(emptyResponse);
         assertThat(result).isEmpty();
 
-        verify(customOrderRepository).findOrderAmountGroupByUserLastThreeMonths();
+        verify(orderRepository).findOrderAmountGroupByUserLastThreeMonths();
     }
 
     @Test
@@ -80,7 +80,7 @@ class OrderInternalServiceImplTest {
                 new UserOrderAmountResponse(1L, 200000L)
         );
 
-        given(customOrderRepository.findOrderAmountGroupByUserLastThreeMonths())
+        given(orderRepository.findOrderAmountGroupByUserLastThreeMonths())
                 .willReturn(singleUserResponse);
 
         // when
@@ -92,6 +92,6 @@ class OrderInternalServiceImplTest {
         assertThat(result.get(0).userNo()).isEqualTo(1L);
         assertThat(result.get(0).pureOrderAmount()).isEqualTo(200000L);
 
-        verify(customOrderRepository).findOrderAmountGroupByUserLastThreeMonths();
+        verify(orderRepository).findOrderAmountGroupByUserLastThreeMonths();
     }
 }
