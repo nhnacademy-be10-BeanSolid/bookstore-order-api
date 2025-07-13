@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
@@ -58,17 +58,17 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @Transactional
-    public PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto) {
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new OrderNotFoundException(orderId));
+    public PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto) {
+        Order order = orderRepo.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
 
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
-                .ifPresent(p -> { throw new AlreadyPaidException(orderId); });
+                .ifPresent(p -> { throw new AlreadyPaidException(orderNumber); });
 
         Map<String, Object> body = Map.of(
                 "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
-                "orderId", orderId,
+                "orderId", orderNumber,
                 "orderName", dto.getPayName(),
                 "amount", dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
@@ -90,7 +90,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         return PaymentResDto.builder()
                 .paymentKey(key)
-                .orderId(orderId)
+                .orderId(orderNumber)
                 .payType(dto.getPayType().name())
                 .payName(dto.getPayName())
                 .payAmount(dto.getPayAmount())
@@ -127,7 +127,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPayAmount(dto.getAmount());
         payRepo.save(payment);
 
-        Order order = orderRepo.findByOrderId(dto.getOrderId())
+        Order order = orderRepo.findByOrderNumber(dto.getOrderId())
                 .orElseThrow(() -> new OrderNotFoundException(dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING);
         orderRepo.save(order);

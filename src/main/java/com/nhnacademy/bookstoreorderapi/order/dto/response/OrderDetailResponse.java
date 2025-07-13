@@ -62,7 +62,7 @@ public class OrderDetailResponse {
         
         return new OrderDetailResponse(
                 order.getOrderDate(),
-                order.getOrderId(),
+                order.getOrderNumber(),
                 order.getStatus().name(),
                 order.getTotalPrice(),
                 itemInfos,
@@ -70,7 +70,7 @@ public class OrderDetailResponse {
                 order.getShippingInfo().getReceiverPhoneNumber(),
                 order.getShippingInfo().getAddress(),
                 order.getShippingInfo().getRequestedDeliveryDate(),
-                order.getShippingInfo().getDeliveryFee()
+                order.getShippingInfo().getShippingFee()
         );
     }
 }

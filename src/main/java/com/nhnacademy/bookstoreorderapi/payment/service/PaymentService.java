@@ -10,7 +10,7 @@ import java.util.Map;
 public interface PaymentService {
 
      //Toss 결제 요청: DB 저장 → Toss API 호출 → paymentKey 저장 → DTO 반환
-    PaymentResDto requestTossPayment(String orderId, PaymentReqDto dto);
+    PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto);
 
      //결제 성공 콜백 처리
     PaymentApprovalRequestDto markSuccess(PaymentApprovalRequestDto dto);

@@ -19,11 +19,11 @@ public class PaymentViewController {
      * - Model 에 orderId와 totalPrice를 담아서 Thymeleaf 로 렌더링
      */
     @GetMapping("/payments/toss/{orderId}")
-    public String paymentPage(@PathVariable String orderId, Model model) {
-        Order order = orderRepo.findByOrderId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderId));
+    public String paymentPage(@PathVariable String orderNumber, Model model) {
+        Order order = orderRepo.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new IllegalArgumentException("주문 없음: " + orderNumber));
 
-        model.addAttribute("orderId",    orderId);
+        model.addAttribute("orderId",    orderNumber);
         model.addAttribute("totalPrice", order.getTotalPrice());
         return "paymentForm";   // → src/main/resources/templates/payment.html
     }

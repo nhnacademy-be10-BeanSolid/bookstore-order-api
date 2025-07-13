@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
@@ -35,7 +35,7 @@ public class OrderAdminServiceImpl implements OrderAdminService {
         }
 
         Long createdBy = xUserIdResolver.resolveUserNo(xUserId);
-        Order order = orderRepository.findByOrderId(orderId)
+        Order order = orderRepository.findByOrderNumber(orderId)
                 .orElseThrow(() -> {
                     log.warn("주문을 찾을 수 없습니다: orderId={}", orderId);
                     return new OrderNotFoundException(orderId);
@@ -52,7 +52,7 @@ public class OrderAdminServiceImpl implements OrderAdminService {
         order.setStatus(newStatus);
         orderStatusLogRepository.save(statusLog);
         log.info("[관리자] 주문 상태가 변경되었습니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
-                statusLog.getOrder().getOrderId(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
+                statusLog.getOrder().getOrderNumber(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
 
         return OrderResponse.from(order);
     }
