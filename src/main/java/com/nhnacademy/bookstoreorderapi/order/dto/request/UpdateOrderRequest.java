@@ -31,6 +31,7 @@ public record UpdateOrderRequest(
             @NotNull @Positive
             Long bookId,
 
+            @Positive
             Long wrappingId
     ) {}
 }
