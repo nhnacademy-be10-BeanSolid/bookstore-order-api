@@ -5,7 +5,7 @@ import org.springframework.http.ResponseEntity;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
