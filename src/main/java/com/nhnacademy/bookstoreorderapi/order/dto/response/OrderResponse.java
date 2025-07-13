@@ -10,31 +10,31 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class OrderResponse {
 
-    private Long id; // 주문 내부 PK
-    private String orderId; // 주문번호
+    private String orderNumber;
+    private Long userNo;
     private String status;
     private LocalDate orderDate;
+    private Long totalPrice;
     private String receiverName;
     private String receiverPhoneNumber;
     private String address;
     private LocalDate requestedDeliveryDate;
-    private Integer deliveryFee;
-    private Long totalAmount;
+    private Integer shippingFee;
 
     public static OrderResponse from(Order o) {
         String statusName = o.getStatus() == null ? null : o.getStatus().name();
 
         return new OrderResponse(
-                o.getId(),
                 o.getOrderNumber(),
+                o.getUserNo(),
                 statusName,
                 o.getOrderDate(),
+                o.getTotalPrice(),
                 o.getShippingInfo().getReceiverName(),
                 o.getShippingInfo().getReceiverPhoneNumber(),
                 o.getShippingInfo().getAddress(),
                 o.getShippingInfo().getRequestedDeliveryDate(),
-                o.getShippingInfo().getDeliveryFee(),
-                o.getTotalPrice()
+                o.getShippingInfo().getShippingFee()
         );
     }
 }

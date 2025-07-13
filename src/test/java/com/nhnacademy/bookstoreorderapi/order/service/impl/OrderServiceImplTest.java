@@ -2,14 +2,17 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,18 +35,15 @@ class OrderServiceImplTest {
     @Mock
     OrderItemRepository orderItemRepository;
     @Mock
-    BookService bookService;
+    WrappingRepository wrappingRepository;
     @Mock
-    UserService userService;
+    BookService bookService;
     @Mock
     XUserIdResolver xUserIdResolver;
 //    @Mock
 //    OrderValidationService orderValidationService;
 //    @Mock
 //    CustomOrderRepository customOrderRepository;
-//    @Mock
-//    XUserIdResolver xUserIdResolver;
-//
     @InjectMocks
     private OrderServiceImpl orderService;
 
@@ -149,6 +150,90 @@ class OrderServiceImplTest {
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
         verify(orderItemRepository, times(1)).findAllByOrder(order);
         verify(bookService, times(1)).getBookOrderResponse(List.of(1L));
+    }
+
+    @Test
+    @DisplayName("주문 업데이트에 성공한다")
+    void updateOrder_success() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(
+                        new UpdateOrderRequest.WrappingRequest(1L, 1L),
+                        new UpdateOrderRequest.WrappingRequest(2L, null)
+                ),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(null);
+        List<OrderItem> orderItems = List.of(
+                new OrderItem(1L, "책제목1", 10000, 1, order),
+                new OrderItem(2L, "책제목2", 20000, 1, order)
+        );
+        Wrapping wrapping = new Wrapping("포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
+        given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any(Order.class))).willReturn(orderItems);
+        given(wrappingRepository.findById(anyLong())).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, null);
+
+        // then
+        assertThat(result.getReceiverName()).isEqualTo("받는 사람");
+        assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
+        assertThat(result.getAddress()).isEqualTo("우주");
+        assertThat(result.getRequestedDeliveryDate()).isEqualTo(LocalDate.now().plusDays(3));
+        assertThat(result.getShippingFee()).isEqualTo(5_000);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(null);
+        verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, null);
+        verify(orderItemRepository, times(1)).findAllByOrder(order);
+        verify(wrappingRepository, times(1)).findById(anyLong());
+    }
+
+    @Test
+    @DisplayName("회원은 30000원 이상 주문 시 배송비 무료")
+    void updateOrder_freeShippingFee() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(new UpdateOrderRequest.WrappingRequest(1L, 1L)),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(null);
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목1", 30000, 1, order));
+        Wrapping wrapping = new Wrapping("포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(any())).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any(Order.class))).willReturn(orderItems);
+        given(wrappingRepository.findById(anyLong())).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result.getReceiverName()).isEqualTo("받는 사람");
+        assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
+        assertThat(result.getAddress()).isEqualTo("우주");
+        assertThat(result.getRequestedDeliveryDate()).isEqualTo(LocalDate.now().plusDays(3));
+        assertThat(result.getShippingFee()).isEqualTo(0);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
+        verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
+        verify(orderItemRepository, times(1)).findAllByOrder(order);
+        verify(wrappingRepository, times(1)).findById(anyLong());
     }
 //
 //    @Test

@@ -1,14 +1,19 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.exception.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
@@ -39,6 +44,7 @@ public class OrderServiceImpl implements OrderService {
     private final CustomOrderRepository customOrderRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
+    private final WrappingRepository wrappingRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
@@ -67,6 +73,7 @@ public class OrderServiceImpl implements OrderService {
         return CreateOrderResponse.of(saved, savedItems, books);
     }
 
+    @Transactional(readOnly = true)
     @Override
     public CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
@@ -80,6 +87,25 @@ public class OrderServiceImpl implements OrderService {
         List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
 
         return CreateOrderResponse.of(order, orderItems, books);
+    }
+
+    @Transactional
+    @Override
+    public OrderResponse updateOrder(String orderNumber, UpdateOrderRequest request, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
+                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
+
+        updateOrderItemsWithWrapping(orderItems, request.wrappingRequests());
+        long totalPrice = calculateTotalPrice(orderItems);
+        Integer shippingFee = calculateShippingFee(totalPrice, userNo);
+        ShippingInfo shippingInfo = new ShippingInfo(request, shippingFee);
+        
+        order.setTotalPrice(totalPrice);
+        order.setShippingInfo(shippingInfo);
+
+        return OrderResponse.from(order);
     }
 
     private List<OrderItem> createOrderItems(List<BookResponse> books, Map<Long, Integer> quantityMap, Order order) {
@@ -106,6 +132,43 @@ public class OrderServiceImpl implements OrderService {
         log.debug("책 조회 완료: {}권, bookIds={}", books.size(), bookIds);
 
         return books;
+    }
+
+    private void updateOrderItemsWithWrapping(List<OrderItem> orderItems, List<UpdateOrderRequest.WrappingRequest> wrappingRequests) {
+        Map<Long, Long> wrappingMap = wrappingRequests.stream()
+                .filter(req -> req.wrappingId() != null)
+                .collect(Collectors.toMap(
+                        UpdateOrderRequest.WrappingRequest::bookId,
+                        UpdateOrderRequest.WrappingRequest::wrappingId
+                ));
+
+        for (OrderItem orderItem : orderItems) {
+            Long wrappingId = wrappingMap.get(orderItem.getBookId());
+            if (wrappingId != null) {
+                Wrapping wrapping = wrappingRepository.findById(wrappingId)
+                        .orElseThrow(() -> new WrappingNotFoundException("포장지를 찾을 수 없습니다: wrappingId=" + wrappingId));
+                orderItem.setWrapping(wrapping);
+            }
+        }
+    }
+
+    private long calculateTotalPrice(List<OrderItem> orderItems) {
+        return orderItems.stream()
+                .mapToLong(orderItem -> {
+                    long itemPrice = (long) orderItem.getUnitPrice() * orderItem.getQuantity();
+                    if (orderItem.getWrapping() != null) {
+                        itemPrice += orderItem.getWrapping().getPrice();
+                    }
+                    return itemPrice;
+                })
+                .sum();
+    }
+
+    private Integer calculateShippingFee(long totalPrice, Long userNo) {
+        if (userNo == null) {
+            return (int) ShippingInfo.DEFAULT_SHIPPING_FEE;
+        }
+        return totalPrice >= ShippingInfo.FREE_SHIPPING_THRESHOLD ? 0 : ShippingInfo.DEFAULT_SHIPPING_FEE;
     }
 
     private List<CreateOrderRequest.CreateOrderItemRequest> mergeQuantitiesByBookId(List<CreateOrderRequest.CreateOrderItemRequest> itemRequests) {

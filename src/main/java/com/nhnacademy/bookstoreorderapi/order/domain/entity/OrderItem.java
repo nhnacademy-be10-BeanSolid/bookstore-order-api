@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "order_items")
@@ -21,6 +22,7 @@ public class OrderItem {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(updatable = false)
+    @Setter
     private Wrapping wrapping;
 
     @Column(nullable = false, updatable = false)
@@ -30,10 +32,10 @@ public class OrderItem {
     private String bookTitle;
 
     @Column(nullable = false, updatable = false)
-    private int unitPrice;
+    private Integer unitPrice;
 
     @Column(nullable = false, updatable = false)
-    private int quantity;
+    private Integer quantity;
 
     public OrderItem(Long bookId, String bookTitle, int unitPrice, int quantity, Order order) {
         this.bookId = bookId;

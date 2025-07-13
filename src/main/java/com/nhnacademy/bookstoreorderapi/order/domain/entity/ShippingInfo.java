@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;
@@ -16,7 +17,8 @@ import java.time.LocalDate;
 @AllArgsConstructor //TODO: 코드 리팩토링 후 쓸 일 없다면 제거 예정
 public class ShippingInfo {
 
-    public static final Integer DEFAULT_DELIVERY_FEE = 5_000;
+    public static final Integer FREE_SHIPPING_THRESHOLD = 30_000;
+    public static final Integer DEFAULT_SHIPPING_FEE = 5_000;
 
     //TODO: 배송 관련 정보는 배송 시작 전까지만 수정할 수 있도록 구현 예정.
     @Column(length = 20)
@@ -32,9 +34,17 @@ public class ShippingInfo {
     private LocalDate requestedDeliveryDate;
 
     @Column(updatable = false)
-    private Integer deliveryFee;
+    private Integer shippingFee;
 
-    public static ShippingInfo of(OrderRequest req, int deliveryFee) {
+    public ShippingInfo(UpdateOrderRequest request, Integer shippingFee) {
+        this.receiverName = request.receiverName();
+        this.receiverPhoneNumber = request.receiverPhoneNumber();
+        this.address = request.address();
+        this.requestedDeliveryDate = request.requestedDeliveryDate();
+        this.shippingFee = shippingFee;
+    }
+
+    public static ShippingInfo of(OrderRequest req, int shippingFee) {
         LocalDate requestedDeliveryDate = req.requestedDeliveryDate() != null
                 ? req.requestedDeliveryDate()
                 : LocalDate.now().plusDays(1);
@@ -44,6 +54,6 @@ public class ShippingInfo {
                 req.receiverPhoneNumber(),
                 req.deliveryAddress(),
                 requestedDeliveryDate,
-                deliveryFee);
+                shippingFee);
     }
 }

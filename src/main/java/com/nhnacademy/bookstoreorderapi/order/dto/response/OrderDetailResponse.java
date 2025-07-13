@@ -70,7 +70,7 @@ public class OrderDetailResponse {
                 order.getShippingInfo().getReceiverPhoneNumber(),
                 order.getShippingInfo().getAddress(),
                 order.getShippingInfo().getRequestedDeliveryDate(),
-                order.getShippingInfo().getDeliveryFee()
+                order.getShippingInfo().getShippingFee()
         );
     }
 }

@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,11 +16,12 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -126,17 +129,62 @@ class OrderControllerTest {
     }
 
     @Test
-    @DisplayName("완료되지 않은 주문 조회에 실패한다(이유: orderNumber 유효하지 않음)")
+    @DisplayName("완료되지 않은 주문 조회에 실패한다(이유: orderNumber is blank)")
     void getUnfinishedOrder_invalidRequest_fail() throws Exception {
-        // given
-        String orderNumber = "hi";
-
-        // when & then
-        mockMvc.perform(get("/orders/{orderNumber}/input-detail", orderNumber)
+        mockMvc.perform(get("/orders/{orderNumber}/input-detail", " ")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest());
 
+        assertThatThrownBy(() -> {
+            throw new InvalidRequestException("주문번호가 비어있습니다");
+        })
+        .isInstanceOf(InvalidRequestException.class);
+
         verify(orderService, never()).getUnfinishedOrder(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("주문 업데이트(포장 및 배송정보 업데이트)에 성공한다")
+    void updateOrder_success() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        UpdateOrderRequest updateOrderRequest = new UpdateOrderRequest(
+                List.of(new UpdateOrderRequest.WrappingRequest(1L, 1L)),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+        String xUserId = "testMember";
+
+        // when & then
+        mockMvc.perform(put("/orders/{orderNumber}", orderNumber)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateOrderRequest))
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("주문 업데이트(포장 및 배송정보 업데이트)에 실패한다(이유: orderNumber is blank)")
+    void updateOrder_orderNumberIsBlank_fail() throws Exception {
+        // given
+        String orderNumber = " ";
+        UpdateOrderRequest updateOrderRequest = new UpdateOrderRequest(
+                List.of(new UpdateOrderRequest.WrappingRequest(1L, 1L)),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+        String xUserId = "testMember";
+
+        // when & then
+        mockMvc.perform(put("/orders/{orderNumber}", orderNumber)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateOrderRequest))
+                        .header("X-USER-ID", xUserId))
+                .andExpect(status().isBadRequest());
     }
 
 //

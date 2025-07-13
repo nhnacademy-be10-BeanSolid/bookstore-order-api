@@ -6,7 +6,6 @@ import lombok.*;
 @Entity
 @Table(name = "wrappings")
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Wrapping {
 
@@ -21,5 +20,11 @@ public class Wrapping {
     private Integer price;
 
     @Column(nullable = false)
-    private Boolean isActive;
+    private Boolean active;
+
+    public Wrapping(String name, Integer price, Boolean active) {
+        this.name = name;
+        this.price = price;
+        this.active = active;
+    }
 }

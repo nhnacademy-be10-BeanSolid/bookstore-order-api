@@ -5,10 +5,10 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminExce
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
 import java.util.stream.Collectors;
 
@@ -24,9 +24,9 @@ public class OrderExceptionHandler {
     }
 
     @ExceptionHandler({
-            HandlerMethodValidationException.class, // @PathVariable, @RequestParam 등에 직접 검증 어노테이션이 있을 때
-            InvalidRequestException.class, // Request 객체가 null일 때
-            HttpMessageNotReadableException.class // Request 객체의 직렬화 문제가 발생했을 때
+            InvalidRequestException.class,
+            HttpMessageNotReadableException.class, // 직렬화 실패
+            HttpRequestMethodNotSupportedException.class
     })
     public ResponseEntity<ErrorResponse> handleBadRequestExceptions(Exception ex) {
         return createBadRequestResponse(ex.getMessage());

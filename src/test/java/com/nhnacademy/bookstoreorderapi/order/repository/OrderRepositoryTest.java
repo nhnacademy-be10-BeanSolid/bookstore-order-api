@@ -1,10 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import org.aspectj.weaver.ast.Or;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -17,6 +19,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnableJpaAuditing
 class OrderRepositoryTest {
 
+    @Autowired
+    private TestEntityManager entityManager;
     @Autowired
     private OrderRepository orderRepository;
 
@@ -48,6 +52,25 @@ class OrderRepositoryTest {
         // then
         assertThat(found).isPresent();
         assertThat(found.get().getOrderNumber()).isEqualTo(saved.getOrderNumber());
+    }
+
+    @Test
+    @DisplayName("주문 데이터 수정 테스트")
+    void shouldUpdateOrder() {
+        // given
+        Long userNo = 1L;
+        Order order = new Order(1L);
+        Order saved = orderRepository.save(order);
+
+        // when
+        Order found = orderRepository.findByOrderNumberAndUserNo(saved.getOrderNumber(), userNo)
+                .orElseThrow();
+        found.setTotalPrice(10_000L);
+
+        // then
+        Order result = orderRepository.findByOrderNumberAndUserNo(found.getOrderNumber(), userNo)
+                .orElseThrow();
+        assertThat(result.getTotalPrice()).isEqualTo(10_000L);
     }
 //
 //    @Test

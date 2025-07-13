@@ -31,12 +31,15 @@ public class Order extends BaseTimeEntity {
     private OrderStatus status;
 
     @Column
+    @Setter
     private LocalDate orderDate;
 
     @Column
+    @Setter
     private Long totalPrice;
 
     @Embedded
+    @Setter
     private ShippingInfo shippingInfo;
 
     public Order(Long userNo) {
