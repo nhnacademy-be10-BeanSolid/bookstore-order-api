@@ -1,18 +1,21 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
-import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderAdminService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +24,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class OrderAdminServiceImpl implements OrderAdminService {
 
+    private final XUserIdResolver xUserIdResolver;
     private final OrderRepository orderRepository;
     private final OrderStatusLogRepository orderStatusLogRepository;
-    private final XUserIdResolver xUserIdResolver;
 
+    @Transactional
+    @Override
+    public Page<OrderSummaryResponse> getAllOrders(String xUserId, Pageable pageable) {
+        return orderRepository.findAllOrderSummary(pageable);
+    }
 
     @Transactional
     @Override

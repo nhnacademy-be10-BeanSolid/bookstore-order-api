@@ -8,12 +8,12 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
-import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
@@ -41,7 +41,6 @@ public class OrderServiceImpl implements OrderService {
     private final BookService bookService;
     private final UserService userService;
 
-    private final CustomOrderRepository customOrderRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final WrappingRepository wrappingRepository;

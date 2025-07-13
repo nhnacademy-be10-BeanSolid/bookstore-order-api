@@ -1,12 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
+import com.nhnacademy.bookstoreorderapi.order.common.config.QuerydslConfig;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import org.aspectj.weaver.ast.Or;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -17,10 +17,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @DataJpaTest
 @EnableJpaAuditing
+@Import(QuerydslConfig.class)
 class OrderRepositoryTest {
 
-    @Autowired
-    private TestEntityManager entityManager;
     @Autowired
     private OrderRepository orderRepository;
 

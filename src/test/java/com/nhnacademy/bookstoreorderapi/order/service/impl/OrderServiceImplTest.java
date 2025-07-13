@@ -31,15 +31,15 @@ import static org.mockito.BDDMockito.*;
 class OrderServiceImplTest {
 
     @Mock
-    OrderRepository orderRepository;
+    private OrderRepository orderRepository;
     @Mock
-    OrderItemRepository orderItemRepository;
+    private OrderItemRepository orderItemRepository;
     @Mock
-    WrappingRepository wrappingRepository;
+    private WrappingRepository wrappingRepository;
     @Mock
-    BookService bookService;
+    private BookService bookService;
     @Mock
-    XUserIdResolver xUserIdResolver;
+    private XUserIdResolver xUserIdResolver;
 //    @Mock
 //    OrderValidationService orderValidationService;
 //    @Mock
