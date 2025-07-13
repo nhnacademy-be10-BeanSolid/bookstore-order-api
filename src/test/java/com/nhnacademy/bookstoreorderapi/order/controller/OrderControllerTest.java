@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.BDDMockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -35,56 +36,6 @@ class OrderControllerTest {
     private UserService userService;
     @Autowired
     private ObjectMapper objectMapper;
-//
-//    private ObjectMapper objectMapper;
-//    private OrderRequest validOrderRequest;
-//    private OrderResponse orderResponse;
-//    private OrderDetailResponse detailResponse;
-//
-//    @BeforeEach
-//    void setUp() {
-//        objectMapper = new ObjectMapper();
-//        objectMapper.registerModule(new JavaTimeModule());
-//
-//        List<OrderRequest.OrderItemRequest> items = List.of(
-//                new OrderRequest.OrderItemRequest(1L, 2, 15000L, 1L),
-//                new OrderRequest.OrderItemRequest(2L, 1, 25000L, 2L)
-//        );
-//
-//        validOrderRequest = new OrderRequest(
-//                "홍길동",
-//                "010-1234-5678",
-//                "00000 서울특별시 강남구 테헤란로 123 10층",
-//                LocalDate.now().plusDays(3),
-//                items
-//        );
-//
-//        orderResponse = new OrderResponse(
-//                1L,
-//                "202507-abcabc-123123",
-//                "PENDING",
-//                LocalDate.now(),
-//                "홍길동",
-//                "010-1234-5678",
-//                "00000 서울특별시 강남구 테헤란로 123",
-//                LocalDate.now().plusDays(3),
-//                3000,
-//                55000L
-//        );
-//
-//        detailResponse = new OrderDetailResponse(
-//                LocalDate.now(),
-//                "202507-abcabc-123123",
-//                "PENDING",
-//                55000L,
-//                null,
-//                "홍길동",
-//                "010-1234-5678",
-//                "00000 서울특별시 강남구 테헤란로 123",
-//                LocalDate.now().plusDays(3),
-//                3000
-//        );
-//    }
 
     @Test
     @DisplayName("회원 주문 생성에 성공한다")
@@ -133,7 +84,7 @@ class OrderControllerTest {
 
     @Test
     @DisplayName("Bean Validation에 실패한다")
-    void createOrder_fail_beanValidation() throws Exception {
+    void createOrder_beanValidation_fail() throws Exception {
         // given (bookId가 양수가 아닐 때)
         CreateOrderRequest.CreateOrderItemRequest itemRequest = new CreateOrderRequest.CreateOrderItemRequest(0L, 1);
         CreateOrderRequest request = new CreateOrderRequest(List.of(itemRequest));
@@ -145,6 +96,47 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest());
 
         verify(orderService, never()).createOrder(any(CreateOrderRequest.class), anyString());
+    }
+
+    @Test
+    @DisplayName("CreateOrderRequest가 null 이면 주문 생성에 실패한다")
+    void createOrder_paramIsNull_fail() throws Exception {
+        // given
+        CreateOrderRequest request = null;
+
+        // when & then
+        mockMvc.perform(post("/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).createOrder(any(CreateOrderRequest.class), anyString());
+    }
+
+    @Test
+    @DisplayName("완료되지 않은 주문 조회에 성공한다")
+    void getUnfinishedOrder_success() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+
+        // when & then
+        mockMvc.perform(get("/orders/{orderNumber}/input-detail", orderNumber)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    @DisplayName("완료되지 않은 주문 조회에 실패한다(이유: orderNumber 유효하지 않음)")
+    void getUnfinishedOrder_invalidRequest_fail() throws Exception {
+        // given
+        String orderNumber = "hi";
+
+        // when & then
+        mockMvc.perform(get("/orders/{orderNumber}/input-detail", orderNumber)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest());
+
+        verify(orderService, never()).getUnfinishedOrder(anyString(), anyString());
     }
 
 //

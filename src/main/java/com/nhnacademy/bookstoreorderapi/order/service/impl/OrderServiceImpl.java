@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
@@ -8,7 +9,6 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.exception.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
@@ -49,9 +49,6 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     @Override
     public CreateOrderResponse createOrder(CreateOrderRequest request, String xUserId) {
-        if (request == null) {
-            throw new InvalidRequestException("CreateOrderRequest가 null 입니다");
-        }
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
 
         List<CreateOrderRequest.CreateOrderItemRequest> mergedItems = mergeQuantitiesByBookId(request.createItemRequests());
@@ -70,9 +67,24 @@ public class OrderServiceImpl implements OrderService {
         return CreateOrderResponse.of(saved, savedItems, books);
     }
 
+    @Override
+    public CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
+                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
+
+        List<Long> bookIds = orderItems.stream()
+                .map(OrderItem::getBookId)
+                .toList();
+        List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
+
+        return CreateOrderResponse.of(order, orderItems, books);
+    }
+
     private List<OrderItem> createOrderItems(List<BookResponse> books, Map<Long, Integer> quantityMap, Order order) {
         return books.stream()
-                .map(book -> new OrderItem(book.id(), book.salePrice(), quantityMap.get(book.id()), order))
+                .map(book -> new OrderItem(book.id(), book.title(), book.salePrice(), quantityMap.get(book.id()), order))
                 .toList();
     }
 

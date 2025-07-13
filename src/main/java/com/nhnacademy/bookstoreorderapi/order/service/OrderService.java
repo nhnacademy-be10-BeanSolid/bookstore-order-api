@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
 public interface OrderService {
 
     CreateOrderResponse createOrder(CreateOrderRequest request, String xUserId);
+    CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId);
 //    Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable);
 //    OrderDetailResponse findByOrderId(String xUserId, String orderId);
 //    void cancelOrder(String orderId, String reason);

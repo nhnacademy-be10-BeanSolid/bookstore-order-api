@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.exception.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;

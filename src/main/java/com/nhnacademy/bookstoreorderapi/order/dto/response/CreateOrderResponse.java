@@ -42,7 +42,7 @@ public class CreateOrderResponse {
         public static CreateOrderItemResponse of(OrderItem orderItem, BookResponse book) {
             return new CreateOrderItemResponse(
                     orderItem.getBookId(),
-                    book.title(),
+                    orderItem.getBookTitle(),
                     orderItem.getUnitPrice(),
                     orderItem.getQuantity(),
                     book.wrappable()

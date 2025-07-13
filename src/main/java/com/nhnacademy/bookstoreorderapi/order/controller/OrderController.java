@@ -6,13 +6,17 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.*;
+import com.nhnacademy.bookstoreorderapi.order.exception.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -28,6 +32,17 @@ public class OrderController {
                                                            @RequestHeader(value = "X-USER-ID", required = false) String xUserId) {
         CreateOrderResponse order = orderService.createOrder(request, xUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(order);
+    }
+
+    // 주문서 작성 페이지
+    @GetMapping("/{orderNumber}/input-detail")
+    public ResponseEntity<CreateOrderResponse> getUnfinishedOrder(@PathVariable
+                                                                  @NotNull(message = "주문번호는 필수입니다")
+                                                                  @Pattern(regexp = "^\\d{6}-[a-zA-Z0-9]{6}-[a-zA-Z0-9]{6}$",
+                                                                          message = "주문번호 형식이 올바르지 않습니다")
+                                                                  String orderNumber,
+                                                                  @RequestHeader(value = "X-USER-ID", required = false) String xUserId) {
+        return ResponseEntity.ok(orderService.getUnfinishedOrder(orderNumber, xUserId));
     }
 //
 //    // 회원 주문 전체 조회

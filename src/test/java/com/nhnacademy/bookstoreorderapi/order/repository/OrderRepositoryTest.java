@@ -1,9 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,9 +8,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,49 +19,9 @@ class OrderRepositoryTest {
 
     @Autowired
     private OrderRepository orderRepository;
-//
-//    private List<Order> orders = new ArrayList<>();
-//
-//    @BeforeEach
-//    void setUp() {
-//        ShippingInfo shippingInfo = new ShippingInfo(
-//                "홍길동",
-//                "01012345678",
-//                "서울특별시 강남구 테헤란로 123",
-//                LocalDate.now().plusDays(3),
-//                3000
-//        );
-//
-//        Order memberOrder1 = Order.builder()
-//                .userNo(1L)
-//                .totalPrice(10_000L)
-//                .status(OrderStatus.PENDING)
-//                .shippingInfo(shippingInfo)
-//                .build();
-//
-//        Order memberOrder2 = Order.builder()
-//                .userNo(1L)
-//                .totalPrice(5_000L)
-//                .status(OrderStatus.PENDING)
-//                .shippingInfo(shippingInfo)
-//                .build();
-//
-//        Order guestOrder1 = Order.builder()
-//                .totalPrice(7_000L)
-//                .status(OrderStatus.PENDING)
-//                .shippingInfo(shippingInfo)
-//                .build();
-//
-//        Order guestOrder2 = Order.builder()
-//                .totalPrice(3_000L)
-//                .status(OrderStatus.PENDING)
-//                .shippingInfo(shippingInfo)
-//                .build();
-//
-//        orders.addAll(List.of(memberOrder1, memberOrder2, guestOrder1, guestOrder2));
-//    }
 
     @Test
+    @DisplayName("주문 데이터 저장 테스트('구매하기' 버튼을 눌렀을 때)")
     void shouldSaveOrder() {
         // given
         Order order = new Order(1L);
@@ -78,6 +32,22 @@ class OrderRepositoryTest {
         // then
         assertThat(saved.getOrderNumber()).isNotNull();
         assertThat(saved.getOrderNumber()).containsPattern("^\\d{6}-\\w{6}-\\w{6}$");
+    }
+
+    @Test
+    @DisplayName("주문 데이터 조회 테스트('완료되지 않은 주문' 조회)")
+    void shouldFindOrder() {
+        // given
+        Long userNo = 1L;
+        Order order = new Order(userNo);
+
+        // when
+        Order saved = orderRepository.save(order);
+        Optional<Order> found = orderRepository.findByOrderNumberAndUserNo(saved.getOrderNumber(), userNo);
+
+        // then
+        assertThat(found).isPresent();
+        assertThat(found.get().getOrderNumber()).isEqualTo(saved.getOrderNumber());
     }
 //
 //    @Test

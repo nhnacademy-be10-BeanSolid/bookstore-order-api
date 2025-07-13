@@ -8,7 +8,6 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.exception.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -19,9 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,100 +45,58 @@ class OrderServiceImplTest {
 //
     @InjectMocks
     private OrderServiceImpl orderService;
-//
-//    private OrderRequest validOrderRequest;
-//    private Map<Long, BookResponse> bookMap;
-//    private Map<Long, Wrapping> wrappingMap;
-//    private UserResponse userResponse;
-//
-//    @BeforeEach
-//    void setUp() {
-//        List<OrderRequest.OrderItemRequest> items = List.of(
-//                new OrderRequest.OrderItemRequest(1L, 2, 15000L, 1L),
-//                new OrderRequest.OrderItemRequest(2L, 1, 25000L, 2L)
-//        );
-//
-//        validOrderRequest = new OrderRequest(
-//                "홍길동",
-//                "010-1234-5678",
-//                "12345 서울특별시 강남구 테헤란로 123 10층",
-//                LocalDate.now().plusDays(3),
-//                items
-//        );
-//
-//        bookMap = new HashMap<>();
-//        bookMap.put(1L, BookResponse.builder()
-//                .id(1L)
-//                .title("테스트 도서 1")
-//                .salePrice(15000)
-//                .stock(10)
-//                .build());
-//        bookMap.put(2L, BookResponse.builder()
-//                .id(2L)
-//                .title("테스트 도서 2")
-//                .salePrice(25000)
-//                .stock(5)
-//                .build());
-//
-//        wrappingMap = new HashMap<>();
-//        Wrapping wrapping1 = new Wrapping();
-//        wrapping1.setId(1L);
-//        wrapping1.setName("기본 포장지");
-//        wrapping1.setPrice(1000);
-//
-//        Wrapping wrapping2 = new Wrapping();
-//        wrapping2.setId(2L);
-//        wrapping2.setName("프리미엄 포장지");
-//        wrapping2.setPrice(3000);
-//
-//        wrappingMap.put(1L, wrapping1);
-//        wrappingMap.put(2L, wrapping2);
-//
-//        userResponse = UserResponse.builder()
-//                .userNo(1L)
-//                .userId("testUser")
-//                .build();
-//    }
 
     @Test
-    @DisplayName("회원/비회원 주문 생성에 성공한다")
+    @DisplayName("회원 주문 생성에 성공한다")
     void createOrder_member_success() {
         // given
         String memberXUserId = "testUser"; // 회원
         CreateOrderRequest orderRequest =
                 new CreateOrderRequest(List.of(new CreateOrderRequest.CreateOrderItemRequest(1L, 1)));
-        Order order = new Order(1L);
-        List<OrderItem> orderItems = List.of(new OrderItem(1L, 100, 1, order));
+        Order memberOrder = new Order(1L);
+        List<OrderItem> memberItems = List.of(new OrderItem(1L, "책제목", 100, 1, memberOrder));
 
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(1L);
-        given(orderRepository.save(any())).willReturn(order);
-        given(orderItemRepository.saveAll(anyList())).willReturn(orderItems);
+        given(orderRepository.save(any(Order.class))).willReturn(memberOrder);
+        given(orderItemRepository.saveAll(anyList())).willReturn(memberItems);
         given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
 
         // when
         CreateOrderResponse memberResult = orderService.createOrder(orderRequest, memberXUserId);
-        CreateOrderResponse guestResult = orderService.createOrder(orderRequest, null);
 
         // then
         assertThat(memberResult.getOrderItems().size()).isEqualTo(1);
-        assertThat(guestResult.getOrderItems().size()).isEqualTo(1);
 
-        verify(xUserIdResolver, times(2)).resolveUserNo(any());
-        verify(orderRepository, times(2)).save(any());
-        verify(orderItemRepository, times(2)).saveAll(anyList());
-        verify(bookService, times(2)).getBookOrderResponse(anyList());
+        verify(xUserIdResolver, times(1)).resolveUserNo(any());
+        verify(orderRepository, times(1)).save(any());
+        verify(orderItemRepository, times(1)).saveAll(anyList());
+        verify(bookService, times(1)).getBookOrderResponse(anyList());
     }
 
     @Test
-    @DisplayName("CreateOrderRequest가 null이면 예외가 발생한다")
-    void createOrder_parameter_null() {
+    @DisplayName("비회원 주문 생성에 성공한다")
+    void createOrder_guest_success() {
         // given
-        String xUserId = "testUser";
+        CreateOrderRequest orderRequest =
+                new CreateOrderRequest(List.of(new CreateOrderRequest.CreateOrderItemRequest(1L, 1)));
+        Order guestOrder = new Order(null);
+        List<OrderItem> guestItems = List.of(new OrderItem(1L, "책제목", 100, 1, guestOrder));
 
-        // when & then
-        assertThatThrownBy(() -> orderService.createOrder(null, xUserId))
-                .isInstanceOf(InvalidRequestException.class)
-                .hasMessage("CreateOrderRequest가 null 입니다");
+        given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
+        given(orderRepository.save(any(Order.class))).willReturn(guestOrder);
+        given(orderItemRepository.saveAll(anyList())).willReturn(guestItems);
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+
+        // when
+        CreateOrderResponse guestResult = orderService.createOrder(orderRequest, null);
+
+        // then
+        assertThat(guestResult.getOrderItems().size()).isEqualTo(1);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(any());
+        verify(orderRepository, times(1)).save(any());
+        verify(orderItemRepository, times(1)).saveAll(anyList());
+        verify(bookService, times(1)).getBookOrderResponse(anyList());
     }
 
     @Test
@@ -152,7 +109,7 @@ class OrderServiceImplTest {
                 new CreateOrderRequest.CreateOrderItemRequest(1L, 2)
         ));
         Order order = new Order(1L);
-        List<OrderItem> orderItems = List.of(new OrderItem(1L, 100, 3, order));
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목", 100, 3, order));
 
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(1L);
         given(orderRepository.save(any())).willReturn(order);
@@ -165,6 +122,33 @@ class OrderServiceImplTest {
         // then
         assertThat(result.getOrderItems().size()).isEqualTo(1);
         assertThat(result.getOrderItems().getFirst().getQuantity()).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("완료되지 않은 주문 조회에 성공한다")
+    void getUnfinishedOrder_success() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        Order order = new Order(userNo);
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목", 100, 1, order));
+
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(anyString(), anyLong())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any())).willReturn(orderItems);
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+
+        // when
+        CreateOrderResponse unfinishedOrder = orderService.getUnfinishedOrder(orderNumber, xUserId);
+
+        // then
+        assertThat(unfinishedOrder.getOrderItems().size()).isEqualTo(1);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
+        verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
+        verify(orderItemRepository, times(1)).findAllByOrder(order);
+        verify(bookService, times(1)).getBookOrderResponse(List.of(1L));
     }
 //
 //    @Test
