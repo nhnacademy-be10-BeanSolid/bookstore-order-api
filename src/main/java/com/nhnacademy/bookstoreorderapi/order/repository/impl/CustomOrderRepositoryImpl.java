@@ -19,8 +19,6 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
-import static javax.management.Query.and;
-
 @Repository
 @RequiredArgsConstructor
 public class CustomOrderRepositoryImpl implements CustomOrderRepository {
@@ -34,7 +32,7 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
         List<OrderSummaryResponse> content = factory
                 .select(Projections.constructor(OrderSummaryResponse.class,
                         order.orderDate,
-                        order.orderId,
+                        order.orderNumber,
                         order.shippingInfo.receiverName,
                         order.totalPrice))
                 .from(order)

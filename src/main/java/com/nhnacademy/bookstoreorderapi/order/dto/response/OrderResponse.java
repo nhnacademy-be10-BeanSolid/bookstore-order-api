@@ -26,7 +26,7 @@ public class OrderResponse {
 
         return new OrderResponse(
                 o.getId(),
-                o.getOrderId(),
+                o.getOrderNumber(),
                 statusName,
                 o.getOrderDate(),
                 o.getShippingInfo().getReceiverName(),
