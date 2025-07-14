@@ -114,4 +114,15 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
 
         return new PurchaseVerificationResponse(userNo, bookId, exists);
     }
+
+    @Override
+    public Long findIdByOrderNumber(String orderNumber) {
+        QOrder order = QOrder.order;
+
+        return factory
+                .select(order.id)
+                .from(order)
+                .where(order.orderNumber.eq(orderNumber))
+                .fetchOne();
+    }
 }

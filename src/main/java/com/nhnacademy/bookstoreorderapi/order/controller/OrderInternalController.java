@@ -5,6 +5,7 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,5 +24,15 @@ public class OrderInternalController {
     @GetMapping
     public ResponseEntity<List<UserOrderAmountResponse>> getOrderAmountGroupByUserLastThreeMonth() {
         return ResponseEntity.ok(orderInternalService.findOrderAmountGroupByUserLastThreeMonths());
+    }
+
+    @GetMapping("/{orderNumber}")
+    public ResponseEntity<Long> getIdByOrderNumber(@PathVariable String orderNumber) {
+        return ResponseEntity.ok(orderInternalService.findIdByOrderNumber(orderNumber));
+    }
+
+    @GetMapping("/{orderId}")
+    public ResponseEntity<String> getOrderNumberById(@PathVariable Long orderId) {
+        return ResponseEntity.ok(orderInternalService.findOrderNumberById(orderId));
     }
 }
