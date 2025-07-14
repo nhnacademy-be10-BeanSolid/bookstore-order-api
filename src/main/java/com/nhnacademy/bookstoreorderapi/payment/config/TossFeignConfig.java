@@ -1,28 +1,33 @@
 package com.nhnacademy.bookstoreorderapi.payment.config;
 
 import feign.RequestInterceptor;
-
+import feign.RequestTemplate;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Collections;
-
 @Configuration
+@RequiredArgsConstructor
 public class TossFeignConfig {
-    private final TossPaymentConfig props;
 
-    public TossFeignConfig(TossPaymentConfig props) {
-        this.props = props;
-    }
+    private final TossPaymentConfig props;
 
     @Bean
     public RequestInterceptor tossAuthInterceptor() {
-        return template -> {
+        return (RequestTemplate template) -> {
             template.header("Authorization", props.getBasicAuthHeader());
-            template.header("X-Client-Api-Key", props.getClientApiKey());
             template.header("Content-Type", "application/json");
             template.header("User-Agent", "BookstoreOrderApi/1.0");
+
+            String url    = template.url();
+            String method = template.method();
+
+            boolean isCreatePayment = "POST".equals(method) && url.matches(".*/payments$");
+            if (isCreatePayment) {
+                template.header("X-Client-Api-Key", props.getClientApiKey());
+            } else {
+                template.removeHeader("X-Client-Api-Key");
+            }
         };
     }
-
 }

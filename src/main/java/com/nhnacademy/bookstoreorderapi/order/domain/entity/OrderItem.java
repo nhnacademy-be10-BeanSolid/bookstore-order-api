@@ -1,59 +1,72 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import jakarta.persistence.*;
-import lombok.*;
-
-import java.util.List;
-import java.util.Map;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "order_items")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor
-@Builder
 public class OrderItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long bookId;
-
-    private int unitPrice;
-
-    private int quantity;
-
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(nullable = false, updatable = false)
     private Order order;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(updatable = false)
+    @Setter
     private Wrapping wrapping;
 
-    public static OrderItem of(BookResponse book, int quantity, Order order, Wrapping wrapping) {
+    @Column(nullable = false, updatable = false)
+    private Long bookId;
 
-        return OrderItem.builder()
-                .bookId(book.id())
-                .unitPrice(book.salePrice())
-                .quantity(quantity)
-                .order(order)
-                .wrapping(wrapping)
-                .build();
+    @Column(nullable = false, updatable = false)
+    private String bookTitle;
+
+    @Column(nullable = false, updatable = false)
+    private Integer unitPrice;
+
+    @Column(nullable = false, updatable = false)
+    private Integer quantity;
+
+    public OrderItem(Long bookId, String bookTitle, int unitPrice, int quantity, Order order) {
+        this.bookId = bookId;
+        this.bookTitle = bookTitle;
+        this.unitPrice = unitPrice;
+        this.quantity = quantity;
+        this.order = order;
     }
 
-    public static List<OrderItem> createItems(Order order,
-                                              List<OrderRequest.OrderItemRequest> requests,
-                                              Map<Long, BookResponse> bookMap,
-                                              Map<Long, Wrapping> wrappingMap) {
-        return requests.stream()
-                .map(req ->
-                        of(bookMap.get(req.bookId()),
-                                req.quantity(),
-                                order,
-                                wrappingMap.get(req.wrappingId()))
-                )
-                .toList();
-    }
+//    public static OrderItem of(BookResponse book, int quantity, Order order, Wrapping wrapping) {
+//
+//        return OrderItem.builder()
+//                .bookId(book.id())
+//                .unitPrice(book.salePrice())
+//                .quantity(quantity)
+//                .order(order)
+//                .wrapping(wrapping)
+//                .build();
+//    }
+
+//    public static List<OrderItem> createItems(Order order,
+//                                              List<OrderRequest.OrderItemRequest> requests,
+//                                              Map<Long, BookResponse> bookMap,
+//                                              Map<Long, Wrapping> wrappingMap) {
+//        return requests.stream()
+//                .map(req ->
+//                        of(bookMap.get(req.bookId()),
+//                                req.quantity(),
+//                                order,
+//                                wrappingMap.get(req.wrappingId()))
+//                )
+//                .toList();
+//    }
 }

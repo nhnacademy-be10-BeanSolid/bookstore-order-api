@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -8,29 +9,31 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "order_status_logs")
 @Getter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class OrderStatusLog extends BaseCreatedAtEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
+    @JoinColumn(nullable = false, updatable = false)
+    private Order order;
+
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, updatable = false)
     private OrderStatus oldStatus;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, updatable = false)
     private OrderStatus newStatus;
 
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private Long createdBy;
 
     @Lob
+    @Column(updatable = false)
     private String memo;
-
-    @ManyToOne
-    private Order order;
 
     @Builder
     public OrderStatusLog (OrderStatus oldStatus,

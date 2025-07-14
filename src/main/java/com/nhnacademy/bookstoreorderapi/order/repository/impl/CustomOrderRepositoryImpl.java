@@ -3,7 +3,6 @@ package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrder;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.QWrapping;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
@@ -16,7 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -27,7 +25,30 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
 
     private final JPAQueryFactory factory;
 
-    @Transactional(readOnly = true)
+    @Override
+    public Page<OrderSummaryResponse> findAllOrderSummary(Pageable pageable) {
+        QOrder order = QOrder.order;
+
+        List<OrderSummaryResponse> content = factory
+                .select(Projections.constructor(OrderSummaryResponse.class,
+                        order.orderDate,
+                        order.orderNumber,
+                        order.shippingInfo.receiverName,
+                        order.totalPrice,
+                        order.status.stringValue()))
+                .from(order)
+                .orderBy(order.createdAt.desc())
+                .offset(pageable.getOffset())
+                .limit(pageable.getPageSize())
+                .fetch();
+
+        JPAQuery<Long> countQuery = factory
+                .select(order.count())
+                .from(order);
+
+        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+    }
+
     @Override
     public Page<OrderSummaryResponse> findOrderSummary(Long userNo, Pageable pageable) {
         QOrder order = QOrder.order;
@@ -35,11 +56,12 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
         List<OrderSummaryResponse> content = factory
                 .select(Projections.constructor(OrderSummaryResponse.class,
                         order.orderDate,
-                        order.orderId,
+                        order.orderNumber,
                         order.shippingInfo.receiverName,
                         order.totalPrice))
                 .from(order)
-                .where(order.userNo.eq(userNo))
+                .where(order.userNo.eq(userNo)
+                        .and(order.status.isNotNull()))
                 .orderBy(order.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -53,12 +75,10 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
     }
 
-    @Transactional(readOnly = true)
     @Override
     public List<UserOrderAmountResponse> findOrderAmountGroupByUserLastThreeMonths() {
         QOrder order = QOrder.order;
         QOrderItem orderItem = QOrderItem.orderItem;
-        QWrapping wrapping = QWrapping.wrapping;
 
         LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
 
@@ -67,12 +87,10 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                         order.userNo,
                         orderItem.unitPrice.longValue()
                                 .multiply(orderItem.quantity.longValue())
-                                .subtract(wrapping.price.longValue().coalesce(0L))
                                 .sum()
                                 .as("pureOrderAmount")))
                 .from(orderItem)
                 .join(orderItem.order, order)
-                .leftJoin(orderItem.wrapping, wrapping)
                 .where(order.orderDate.goe(threeMonthsAgo)
                         .and(order.status.in(OrderStatus.PENDING, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
                 .groupBy(order.userNo)
