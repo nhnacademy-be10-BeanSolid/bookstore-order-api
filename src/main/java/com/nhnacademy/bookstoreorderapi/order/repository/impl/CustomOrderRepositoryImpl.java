@@ -37,6 +37,7 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                         order.totalPrice,
                         order.status.stringValue()))
                 .from(order)
+                .where(order.status.isNotNull())
                 .orderBy(order.createdAt.desc())
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())

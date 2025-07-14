@@ -89,7 +89,6 @@
 //
 //        // then
 //        verify(paymentService).markSuccess("pk-123", "order-1", 1000L);
-//        assertThat(redirectView.getUrl()).isEqualTo("/success.html");
 //    }
 //
 //    @Test
@@ -102,7 +101,6 @@
 //        RedirectView redirectView = paymentController.tossFail(params);
 //
 //        verify(paymentService).markFail("pk-999", "카드 오류");
-//        assertThat(redirectView.getUrl()).isEqualTo("/fail.html");
 //    }
 //
 //    @Test
