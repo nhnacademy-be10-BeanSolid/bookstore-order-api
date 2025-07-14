@@ -32,9 +32,6 @@ public class OrderInternalServiceImpl implements OrderInternalService {
 
     @Override
     public String findOrderNumberById(Long orderId) {
-        Order order = orderRepository.findOrderNumberById(orderId)
-                .orElseThrow(() -> new OrderNotFoundException("" + orderId + "가 없습니다"));
-
-        return order.getOrderNumber();
+        return orderRepository.findOrderNumberById(orderId);
     }
 }

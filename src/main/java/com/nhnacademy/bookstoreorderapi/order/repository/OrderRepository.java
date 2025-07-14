@@ -10,6 +10,4 @@ public interface OrderRepository extends JpaRepository<Order, Long>, CustomOrder
 
     Optional<Order> findByOrderNumber(String orderNumber);
     Optional<Order> findByOrderNumberAndUserNo(String orderNumber, Long userNo);
-    Optional<Order> findOrderNumberById(Long id);
-    //TODO: findOrderNumberById
 }

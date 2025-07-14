@@ -125,4 +125,15 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                 .where(order.orderNumber.eq(orderNumber))
                 .fetchOne();
     }
+
+    @Override
+    public String findOrderNumberById(Long orderId) {
+        QOrder order = QOrder.order;
+
+        return factory
+                .select(order.orderNumber)
+                .from(order)
+                .where(order.id.eq(orderId))
+                .fetchOne();
+    }
 }
