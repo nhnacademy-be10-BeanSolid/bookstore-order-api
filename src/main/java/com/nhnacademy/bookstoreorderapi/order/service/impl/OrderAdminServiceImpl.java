@@ -41,7 +41,7 @@ public class OrderAdminServiceImpl implements OrderAdminService {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> {
                     log.warn("주문을 찾을 수 없습니다: orderNumber={}", orderNumber);
-                    return new OrderNotFoundException(orderNumber);
+                    return new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber);
                 });
 
         log.debug("[관리자] 주문 상태 변경을 시작합니다: orderNumber={}, oldStatus={}, newStatus={}, createdBy={}",
