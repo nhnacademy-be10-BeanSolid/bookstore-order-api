@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
+import org.aspectj.weaver.ast.Or;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,5 +65,33 @@ class CustomOrderRepositoryImplTest {
         assertThat(result).isNotNull();
         assertThat(result.getTotalElements()).isEqualTo(2);
         assertThat(result.getTotalPages()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("주문번호로 주문ID 조회 테스트")
+    void shouldFindOrderId() {
+        // given
+        Order order = new Order(1L);
+        Order saved = orderRepository.save(order);
+
+        // when
+        Long result = orderRepository.findIdByOrderNumber(saved.getOrderNumber());
+
+        // then
+        assertThat(result).isEqualTo(saved.getId());
+    }
+
+    @Test
+    @DisplayName("주문ID로 주문번호 조회 테스트")
+    void shouldFindOrderNumber() {
+        // given
+        Order order = new Order(1L);
+        Order saved = orderRepository.save(order);
+
+        // when
+        String result = orderRepository.findOrderNumberById(saved.getId());
+
+        // then
+        assertThat(result).containsPattern("^\\d{6}-\\w{6}-\\w{6}$");
     }
 }

@@ -22,4 +22,14 @@ public class OrderInternalServiceImpl implements OrderInternalService {
     public List<UserOrderAmountResponse> findOrderAmountGroupByUserLastThreeMonths() {
         return orderRepository.findOrderAmountGroupByUserLastThreeMonths();
     }
+
+    @Override
+    public Long findIdByOrderNumber(String orderNumber) {
+        return orderRepository.findIdByOrderNumber(orderNumber);
+    }
+
+    @Override
+    public String findOrderNumberById(Long orderId) {
+        return orderRepository.findOrderNumberById(orderId);
+    }
 }

@@ -14,4 +14,6 @@ public interface CustomOrderRepository {
     Page<OrderSummaryResponse> findOrderSummary(Long userNo, Pageable pageable);
     List<UserOrderAmountResponse> findOrderAmountGroupByUserLastThreeMonths();
     PurchaseVerificationResponse findByUserNoAndBookId(Long userNo, Long bookId);
+    Long findIdByOrderNumber(String orderNumber);
+    String findOrderNumberById(Long orderId);
 }
