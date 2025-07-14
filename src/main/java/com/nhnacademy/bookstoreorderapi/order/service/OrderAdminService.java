@@ -10,6 +10,6 @@ import java.util.List;
 
 public interface OrderAdminService {
 
-    Page<OrderSummaryResponse> getAllOrders(String xUserId, Pageable pageable);
-    OrderResponse changeStatus(String orderId, StatusChangeRequest request, String xUserId);
+    Page<OrderSummaryResponse> getAllOrders(Pageable pageable);
+    OrderResponse changeStatusToShipping(String orderNumber, String xUserId);
 }

@@ -25,17 +25,21 @@ public class OrderAdminController {
     @GetMapping
     public ResponseEntity<Page<OrderSummaryResponse>> getAllOrders(@RequestHeader("X-USER-ID") String xUserId,
                                                                    Pageable pageable) {
+        validateAdminAccess(xUserId);
+        return ResponseEntity.ok(orderAdminService.getAllOrders(pageable));
+    }
+
+    @PutMapping("/{orderNumber}/status")
+    public ResponseEntity<OrderResponse> changeStatusToShipping(@PathVariable String orderNumber,
+                                                                @RequestHeader("X-USER-ID") String xUserId) {
+        validateAdminAccess(xUserId);
+        return ResponseEntity.ok(orderAdminService.changeStatusToShipping(orderNumber, xUserId));
+    }
+
+    private void validateAdminAccess(String xUserId) {
         if (!xUserIdResolver.isAdmin(xUserId)) {
             log.warn("관리자가 아닌 사용자가 접근했습니다: xUserId={}", xUserId);
             throw new NotAdminException("관리자 권한이 필요합니다.");
         }
-        return ResponseEntity.ok(orderAdminService.getAllOrders(xUserId, pageable));
-    }
-
-    @PatchMapping("/{orderId}/status")
-    public ResponseEntity<OrderResponse> changeOrderStatus(@PathVariable String orderId,
-                                                           @RequestBody StatusChangeRequest request,
-                                                           @RequestHeader("X-USER-ID") String xUserId) {
-        return ResponseEntity.ok(orderAdminService.changeStatus(orderId, request, xUserId));
     }
 }

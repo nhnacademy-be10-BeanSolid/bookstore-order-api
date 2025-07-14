@@ -30,36 +30,31 @@ public class OrderAdminServiceImpl implements OrderAdminService {
 
     @Transactional
     @Override
-    public Page<OrderSummaryResponse> getAllOrders(String xUserId, Pageable pageable) {
+    public Page<OrderSummaryResponse> getAllOrders(Pageable pageable) {
         return orderRepository.findAllOrderSummary(pageable);
     }
 
     @Transactional
     @Override
-    public OrderResponse changeStatus(String orderId, StatusChangeRequest request, String xUserId) {
-        if (!xUserIdResolver.isAdmin(xUserId)) {
-            log.warn("[접근 제한] 관리자만 실행할 수 있는 기능입니다: xUserId={}", xUserId);
-            throw new NotAdminException("관리자만 실행할 수 있는 기능입니다");
-        }
-
+    public OrderResponse changeStatusToShipping(String orderNumber, String xUserId) {
         Long createdBy = xUserIdResolver.resolveUserNo(xUserId);
-        Order order = orderRepository.findByOrderNumber(orderId)
+        Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> {
-                    log.warn("주문을 찾을 수 없습니다: orderId={}", orderId);
-                    return new OrderNotFoundException(orderId);
+                    log.warn("주문을 찾을 수 없습니다: orderNumber={}", orderNumber);
+                    return new OrderNotFoundException(orderNumber);
                 });
 
-        log.debug("[관리자] 주문 상태 변경을 시작합니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
-                orderId, order.getStatus(), request.newStatus(), createdBy);
+        log.debug("[관리자] 주문 상태 변경을 시작합니다: orderNumber={}, oldStatus={}, newStatus={}, createdBy={}",
+                orderNumber, order.getStatus(), OrderStatus.SHIPPING, createdBy);
 
         // 주문 상태 변경
         OrderStatus oldStatus = order.getStatus();
-        OrderStatus newStatus = request.newStatus();
-        OrderStatusLog statusLog = new OrderStatusLog(oldStatus, newStatus, createdBy, request.memo(), order);
+        OrderStatus newStatus = OrderStatus.SHIPPING;
+        OrderStatusLog statusLog = new OrderStatusLog(oldStatus, newStatus, createdBy, null, order);
 
         order.setStatus(newStatus);
         orderStatusLogRepository.save(statusLog);
-        log.info("[관리자] 주문 상태가 변경되었습니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
+        log.info("[관리자] 주문 상태가 변경되었습니다: orderNumber={}, oldStatus={}, newStatus={}, createdBy={}",
                 statusLog.getOrder().getOrderNumber(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
 
         return OrderResponse.from(order);
