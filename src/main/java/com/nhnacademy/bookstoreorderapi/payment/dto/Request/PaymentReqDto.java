@@ -8,7 +8,7 @@ import lombok.Data;
 @Data
 
 public class PaymentReqDto {
-   @NotNull
+
    private String orderId;
 
    @NotNull(message = "결제 금액(payAmount)는 필수입니다.")
