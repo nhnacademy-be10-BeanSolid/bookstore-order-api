@@ -1,14 +1,15 @@
-package com.nhnacademy.bookstoreorderapi.payment.service.impl;
+package com.nhnacademy.bookstoreorderapi.payment.service.Impl;
 
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
@@ -16,6 +17,7 @@ import com.nhnacademy.bookstoreorderapi.payment.exception.AlreadyPaidException;
 import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentCreationException;
 import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentNotFoundException;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
+import com.nhnacademy.bookstoreorderapi.payment.service.impl.PaymentServiceImpl;
 import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +25,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +38,7 @@ import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class PaymentServiceImplTest {
 
     @Mock
@@ -60,7 +65,7 @@ class PaymentServiceImplTest {
     @BeforeEach
     void setUp() {
         // Setup mocked order
-        lenient().when(order.getOrderId()).thenReturn("testOrderId");
+        lenient().when(order.getOrderNumber()).thenReturn("testOrderId");
 
         // Setup payment entity
         payment = new Payment();
@@ -69,6 +74,7 @@ class PaymentServiceImplTest {
         payment.setPayAmount(10000L);
         payment.setPayType(PayType.CARD);
         payment.setPayName("Test Payment");
+        when(payRepo.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
 
         // Setup DTO
         paymentReqDto = new PaymentReqDto();
@@ -79,7 +85,7 @@ class PaymentServiceImplTest {
 
     @Test
     void requestTossPayment_Success() {
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(payRepo.findByOrder(order)).thenReturn(Optional.empty());
         when(tossProps.getSuccessUrl()).thenReturn("successUrl");
         when(tossProps.getFailUrl()).thenReturn("failUrl");
@@ -95,21 +101,21 @@ class PaymentServiceImplTest {
 
     @Test
     void requestTossPayment_OrderNotFound() {
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.empty());
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.empty());
         assertThrows(OrderNotFoundException.class, () -> paymentService.requestTossPayment("testOrderId", paymentReqDto));
     }
 
     @Test
     void requestTossPayment_AlreadyPaid() {
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(payRepo.findByOrder(order)).thenReturn(Optional.of(payment));
         assertThrows(AlreadyPaidException.class, () -> paymentService.requestTossPayment("testOrderId", paymentReqDto));
     }
 
     @Test
     void requestTossPayment_PaymentCreationException() {
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(payRepo.findByOrder(order)).thenReturn(Optional.empty());
         when(tossProps.getSuccessUrl()).thenReturn("https://example.com/success");
         when(tossProps.getFailUrl()).thenReturn("https://example.com/fail");
@@ -119,10 +125,10 @@ class PaymentServiceImplTest {
 
     @Test
     void markSuccess_Success() {
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(payRepo.findByOrder(order)).thenReturn(Optional.of(payment));
         // Mock the confirmPayment call
-        doNothing().when(tossClient).confirmPayment(anyString(), anyMap());
+        when(tossClient.confirmPayment(any(PaymentApprovalRequestDto.class))).thenReturn(mock(PaymentApprovalRequestDto.class));
 
         paymentService.markSuccess("testPaymentKey", "testOrderId", 10000L);
 
@@ -133,12 +139,11 @@ class PaymentServiceImplTest {
 
     @Test
     void markSuccess_FeignExceptionNotFound() {
-        when(orderRepo.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepo.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(payRepo.findByOrder(order)).thenReturn(Optional.of(payment));
         // Mock the confirmPayment call to throw a 404 FeignException
         FeignException.NotFound notFoundException = mock(FeignException.NotFound.class);
-        doThrow(notFoundException).when(tossClient).confirmPayment(anyString(), anyMap());
-
+        doThrow(notFoundException).when(tossClient).confirmPayment(any(PaymentApprovalRequestDto.class));
         paymentService.markSuccess("testPaymentKey", "testOrderId", 10000L);
 
         assertEquals(PaymentStatus.SUCCESS, payment.getPaymentStatus());
@@ -148,7 +153,7 @@ class PaymentServiceImplTest {
 
     @Test
     void markFail_Success() {
-        when(payRepo.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
+        when(payRepo.findByOrder(order)).thenReturn(Optional.of(payment));
         paymentService.markFail("testPaymentKey", "Test Reason");
         assertEquals(PaymentStatus.FAIL, payment.getPaymentStatus());
         verify(payRepo).save(payment);
@@ -162,7 +167,7 @@ class PaymentServiceImplTest {
 
     @Test
     void refundCardPayment_Success() {
-        when(payRepo.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
+        when(payRepo.findByOrder(order)).thenReturn(Optional.of(payment));
         // Mock the cancelPayment call
         when(tossClient.cancelPayment(anyString(), anyMap())).thenReturn(Map.of());
         CancelPaymentRequest cancelRequest = new CancelPaymentRequest("testOrderId", 10000L, "Cancel Reason");

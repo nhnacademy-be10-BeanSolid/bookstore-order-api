@@ -1,14 +1,14 @@
-package com.nhnacademy.bookstoreorderapi.payment.service.impl;
+package com.nhnacademy.bookstoreorderapi.payment.service;
 
-import com.nhnacademy.bookstoreorderapi.common.exception.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
@@ -18,6 +18,7 @@ import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentCreationExcepti
 import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentNotFoundException;
 import com.nhnacademy.bookstoreorderapi.payment.exception.RedirectUrlNotFoundException;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
+import com.nhnacademy.bookstoreorderapi.payment.service.impl.PaymentServiceImpl;
 import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,8 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Field;
+
 import java.lang.reflect.Method;
 
 import java.lang.reflect.InvocationTargetException;
@@ -58,20 +58,15 @@ class PaymentServiceTest {
     @InjectMocks
     private PaymentServiceImpl paymentService;
 
+    @Mock
     private Order order;
+
     private PaymentReqDto paymentReqDto;
     private Payment payment;
 
     @BeforeEach
-    void setUp() throws Exception {
-        // Using reflection to bypass protected constructor
-        Constructor<Order> constructor = Order.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        order = constructor.newInstance();
-        
-        Field field = order.getClass().getDeclaredField("orderId");
-        field.setAccessible(true);
-        field.set(order, "testOrderId");
+    void setUp() {
+        lenient().when(order.getOrderNumber()).thenReturn("testOrderId");
 
         paymentReqDto = new PaymentReqDto();
         paymentReqDto.setPayType(PayType.CARD);
@@ -89,7 +84,7 @@ class PaymentServiceTest {
 
     @Test
     void requestTossPayment_Success() {
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(paymentRepository.findByOrder(order)).thenReturn(Optional.empty());
         when(tossPaymentConfig.getSuccessUrl()).thenReturn("http://localhost/success");
         when(tossPaymentConfig.getFailUrl()).thenReturn("http://localhost/fail");
@@ -104,7 +99,7 @@ class PaymentServiceTest {
 
     @Test
     void requestTossPayment_OrderNotFound() {
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.empty());
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.empty());
 
         assertThrows(OrderNotFoundException.class, () -> paymentService.requestTossPayment("testOrderId", paymentReqDto));
     }
@@ -112,7 +107,7 @@ class PaymentServiceTest {
     @Test
     void requestTossPayment_AlreadyPaid() {
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(paymentRepository.findByOrder(order)).thenReturn(Optional.of(payment));
 
         assertThrows(AlreadyPaidException.class, () -> paymentService.requestTossPayment("testOrderId", paymentReqDto));
@@ -120,7 +115,7 @@ class PaymentServiceTest {
 
     @Test
     void requestTossPayment_PaymentKeyIsBlank() {
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(paymentRepository.findByOrder(order)).thenReturn(Optional.empty());
         when(tossPaymentConfig.getSuccessUrl()).thenReturn("http://localhost/success");
         when(tossPaymentConfig.getFailUrl()).thenReturn("http://localhost/fail");
@@ -132,7 +127,7 @@ class PaymentServiceTest {
     @Test
     void requestTossPayment_PayTypeAccount() {
         paymentReqDto.setPayType(PayType.ACCOUNT);
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(paymentRepository.findByOrder(order)).thenReturn(Optional.empty());
         when(tossPaymentConfig.getSuccessUrl()).thenReturn("http://localhost/success");
         when(tossPaymentConfig.getFailUrl()).thenReturn("http://localhost/fail");
@@ -147,7 +142,7 @@ class PaymentServiceTest {
 
     @Test
     void requestTossPayment_ReuseExistingPayment() {
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
         when(paymentRepository.findByOrder(order)).thenReturn(Optional.of(payment)); // Return existing payment
         when(tossPaymentConfig.getSuccessUrl()).thenReturn("http://localhost/success");
         when(tossPaymentConfig.getFailUrl()).thenReturn("http://localhost/fail");
@@ -162,8 +157,9 @@ class PaymentServiceTest {
 
     @Test
     void markSuccess_Success() {
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
-        when(paymentRepository.findByOrder(order)).thenReturn(Optional.of(payment));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
+        when(paymentRepository.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
+        when(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).thenReturn(mock(PaymentApprovalRequestDto.class));
 
         paymentService.markSuccess("testPaymentKey", "testOrderId", 1000L);
 
@@ -173,9 +169,9 @@ class PaymentServiceTest {
 
     @Test
     void markSuccess_FeignExceptionNotFound() {
-        doThrow(mock(FeignException.NotFound.class)).when(tossPaymentClient).confirmPayment(eq("testPaymentKey"), any());
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
-        when(paymentRepository.findByOrder(order)).thenReturn(Optional.of(payment));
+        doThrow(mock(FeignException.NotFound.class)).when(tossPaymentClient).confirmPayment(any(PaymentApprovalRequestDto.class));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
+        when(paymentRepository.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
 
         paymentService.markSuccess("testPaymentKey", "testOrderId", 1000L);
 
@@ -185,26 +181,27 @@ class PaymentServiceTest {
 
     @Test
     void markSuccess_FeignException() {
-        doThrow(mock(FeignException.class)).when(tossPaymentClient).confirmPayment(eq("testPaymentKey"), any());
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
-        when(paymentRepository.findByOrder(order)).thenReturn(Optional.of(payment));
+        doThrow(mock(FeignException.class)).when(tossPaymentClient).confirmPayment(any(PaymentApprovalRequestDto.class));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
+        when(paymentRepository.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
 
         assertThrows(PaymentConfirmationException.class, () -> paymentService.markSuccess("testPaymentKey", "testOrderId", 1000L));
     }
 
     @Test
     void markSuccess_OrderNotFound() {
-        doNothing().when(tossPaymentClient).confirmPayment(eq("testPaymentKey"), any());
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.empty());
+        when(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).thenReturn(mock(PaymentApprovalRequestDto.class));
+        when(paymentRepository.findByPaymentKey("testPaymentKey")).thenReturn(Optional.of(payment));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.empty());
 
         assertThrows(OrderNotFoundException.class, () -> paymentService.markSuccess("testPaymentKey", "testOrderId", 1000L));
     }
 
     @Test
     void markSuccess_PaymentNotFound() {
-        doNothing().when(tossPaymentClient).confirmPayment(eq("testPaymentKey"), any());
-        when(orderRepository.findByOrderId("testOrderId")).thenReturn(Optional.of(order));
-        when(paymentRepository.findByOrder(order)).thenReturn(Optional.empty());
+        when(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).thenReturn(mock(PaymentApprovalRequestDto.class));
+        when(orderRepository.findByOrderNumber("testOrderId")).thenReturn(Optional.of(order));
+        when(paymentRepository.findByPaymentKey("testPaymentKey")).thenReturn(Optional.empty());
 
         assertThrows(PaymentNotFoundException.class, () -> paymentService.markSuccess("testPaymentKey", "testOrderId", 1000L));
     }
