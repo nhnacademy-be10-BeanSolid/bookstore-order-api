@@ -8,11 +8,13 @@ import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderStatusLogRep
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.QPayment;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.Optional;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class CustomOrderStatusLogRepositoryImpl implements CustomOrderStatusLogRepository {
@@ -27,12 +29,16 @@ public class CustomOrderStatusLogRepositoryImpl implements CustomOrderStatusLogR
                 LocalDate.now().minusDays(30) :
                 LocalDate.now().minusDays(10);
 
-        return factory
+        log.debug("createdAt: {}", orderStatusLog.createdAt.after(cutOffDate.atStartOfDay()).isTrue());
+
+        boolean b = factory
                 .selectFrom(orderStatusLog)
                 .where(orderStatusLog.order.eq(order)
                         .and(orderStatusLog.newStatus.eq(OrderStatus.SHIPPING))
                         .and(orderStatusLog.createdAt.after(cutOffDate.atStartOfDay())))
                 .fetchFirst() != null;
+
+        return b;
     }
 
     @Override

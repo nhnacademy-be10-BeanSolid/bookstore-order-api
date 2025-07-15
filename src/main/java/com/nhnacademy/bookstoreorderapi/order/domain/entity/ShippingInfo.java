@@ -43,17 +43,4 @@ public class ShippingInfo {
         this.requestedDeliveryDate = request.requestedDeliveryDate();
         this.shippingFee = shippingFee;
     }
-
-    public static ShippingInfo of(OrderRequest req, int shippingFee) {
-        LocalDate requestedDeliveryDate = req.requestedDeliveryDate() != null
-                ? req.requestedDeliveryDate()
-                : LocalDate.now().plusDays(1);
-
-        return new ShippingInfo(
-                req.receiverName(),
-                req.receiverPhoneNumber(),
-                req.deliveryAddress(),
-                requestedDeliveryDate,
-                shippingFee);
-    }
 }

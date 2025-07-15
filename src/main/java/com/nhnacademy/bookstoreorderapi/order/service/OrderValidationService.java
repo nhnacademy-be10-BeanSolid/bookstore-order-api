@@ -3,7 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.service;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
-import com.nhnacademy.bookstoreorderapi.order.domain.exception.BookNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.BookNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
