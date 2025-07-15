@@ -184,14 +184,4 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    @Override
-    @Transactional
-    public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
-        return Map.of("data", refundCardPayment(paymentKey,
-                new CancelPaymentRequest(
-                        Objects.toString(req.get("orderId"), ""),
-                        ((Number) req.getOrDefault("amount", 0)).longValue(),
-                        Objects.toString(req.get("cancelReason"), "")
-                )));
-    }
 }

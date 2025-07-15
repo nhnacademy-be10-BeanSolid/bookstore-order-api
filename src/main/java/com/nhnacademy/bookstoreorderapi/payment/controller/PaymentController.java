@@ -33,7 +33,6 @@ public class PaymentController {
     private String frontBase;
 
 
-    @CrossOrigin(origins = "*")
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable String orderId,
@@ -46,7 +45,6 @@ public class PaymentController {
     }
 
 
-    @CrossOrigin(origins = "*")
     @GetMapping(path = "/toss/{orderId}/create")
     public ResponseEntity<PaymentResDto> requestPaymentViaGet(
             @PathVariable String orderId,
