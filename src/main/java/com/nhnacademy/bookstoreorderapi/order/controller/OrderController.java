@@ -24,7 +24,6 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
-    private final XUserIdResolver xUserIdResolver;
 
     // 주문 생성(회원, 비회원 둘 다 가능)
     @PostMapping
@@ -72,13 +71,8 @@ public class OrderController {
                                                         @Valid @RequestBody ReturnsRequest request,
                                                         @RequestHeader("X-USER-ID") String xUserId) {
         validateOrderNumber(orderNumber);
-        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        if (userNo == null) {
-            log.warn("[경고] 비회원이 반품 기능에 접근함");
-            throw new NotMemberException("회원이 아닙니다");
-        }
 
-        return ResponseEntity.ok(orderService.changeStatusToReturned(orderNumber, request, userNo));
+        return ResponseEntity.ok(orderService.changeStatusToReturned(orderNumber, request, xUserId));
     }
 //
 //    @PostMapping("/{orderId}/cancel")

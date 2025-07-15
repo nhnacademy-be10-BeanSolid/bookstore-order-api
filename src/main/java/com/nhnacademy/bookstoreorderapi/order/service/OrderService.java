@@ -15,7 +15,7 @@ public interface OrderService {
 //    Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable);
     OrderDetailResponse findByOrderNumber(String orderNumber, String xUserId);
 //    void cancelOrder(String orderId, String reason);
-    OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, Long userNo);
+    OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, String xUserId);
 //    int requestReturn(String orderId, ReturnRequest req);
 //    List<OrderStatusLogDto> getStatusLog(String orderId, String xUserId);
 //    PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId);

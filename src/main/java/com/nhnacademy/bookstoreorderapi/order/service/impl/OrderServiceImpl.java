@@ -15,6 +15,7 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
@@ -103,7 +104,12 @@ public class OrderServiceImpl implements OrderService {
     // 반품 요청
     @Transactional
     @Override
-    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, Long userNo) {
+    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        if (userNo == null) {
+            log.warn("[경고] 비회원이 반품 기능에 접근함");
+            throw new NotMemberException("회원이 아닙니다");
+        }
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
 
