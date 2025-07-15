@@ -1,23 +1,30 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
+import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 public class OrderController {
 
     private final OrderService orderService;
+    private final XUserIdResolver xUserIdResolver;
 
     // 주문 생성(회원, 비회원 둘 다 가능)
     @PostMapping
@@ -31,9 +38,7 @@ public class OrderController {
     @GetMapping("/{orderNumber}/input-detail")
     public ResponseEntity<CreateOrderResponse> getUnfinishedOrder(@PathVariable String orderNumber,
                                                                   @RequestHeader(value = "X-USER-ID", required = false) String xUserId) {
-        if (orderNumber.isBlank()) {
-            throw new InvalidRequestException("주문번호가 비어있습니다.");
-        }
+        validateOrderNumber(orderNumber);
         return ResponseEntity.ok(orderService.getUnfinishedOrder(orderNumber, xUserId));
     }
 
@@ -42,9 +47,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> updateOrder(@PathVariable String orderNumber,
                                                      @Valid @RequestBody UpdateOrderRequest request,
                                                      @RequestHeader(value = "X-USER-ID", required = false) String xUserId) {
-        if (orderNumber.isBlank()) {
-            throw new InvalidRequestException("주문번호가 비어있습니다.");
-        }
+        validateOrderNumber(orderNumber);
         return ResponseEntity.ok(orderService.updateOrder(orderNumber, request, xUserId));
     }
 //
@@ -55,20 +58,28 @@ public class OrderController {
 //        return ResponseEntity.ok().body(orderService.findAllByUserId(xUserId, pageable));
 //    }
 //
-//    // 회원 주문 상세 조회
-//    @GetMapping("/{orderId}")
-//    public ResponseEntity<OrderDetailResponse> getOrder(@RequestHeader("X-USER-ID") String xUserId,
-//                                                        @PathVariable String orderId) {
-//        return ResponseEntity.ok().body(orderService.findByOrderId(xUserId, orderId));
-//    }
+    // 주문 상세 조회
+    @GetMapping("/{orderNumber}")
+    public ResponseEntity<OrderDetailResponse> getOrder(@PathVariable String orderNumber,
+                                                        @RequestHeader(value = "X-USER-ID", required = false) String xUserId) {
+        validateOrderNumber(orderNumber);
+        return ResponseEntity.ok().body(orderService.findByOrderNumber(orderNumber, xUserId));
+    }
 
-//    // 주문 상태 변경
-//    @PatchMapping("/{orderId}/status")
-//    public ResponseEntity<OrderResponse> changeOrderStatus(@PathVariable String orderId,
-//                                                           @RequestBody StatusChangeRequest request,
-//                                                           @RequestHeader("X-USER-ID") String xUserId) {
-//        return ResponseEntity.ok(orderService.changeStatus(orderId, request, xUserId));
-//    }
+    // 반품 요청
+    @PutMapping("/{orderNumber}/status")
+    public ResponseEntity<OrderResponse> requestReturns(@PathVariable String orderNumber,
+                                                        @Valid @RequestBody ReturnsRequest request,
+                                                        @RequestHeader("X-USER-ID") String xUserId) {
+        validateOrderNumber(orderNumber);
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        if (userNo == null) {
+            log.warn("[경고] 비회원이 반품 기능에 접근함");
+            throw new NotMemberException("회원이 아닙니다");
+        }
+
+        return ResponseEntity.ok(orderService.changeStatusToReturned(orderNumber, request, userNo));
+    }
 //
 //    @PostMapping("/{orderId}/cancel")
 //    public SuccessResponseDto cancelOrder(
@@ -99,4 +110,9 @@ public class OrderController {
 //                                                                       @RequestParam Long bookId) {
 //        return ResponseEntity.ok(orderService.verifyPurchase(xUserId, bookId));
 //    }
+    private void validateOrderNumber(String orderNumber) {
+        if (orderNumber.isBlank()) {
+            throw new InvalidRequestException("주문번호가 비어있습니다.");
+        }
+    }
 }

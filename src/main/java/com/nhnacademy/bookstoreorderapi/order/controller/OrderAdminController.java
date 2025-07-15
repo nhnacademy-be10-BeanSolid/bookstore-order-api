@@ -1,7 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;

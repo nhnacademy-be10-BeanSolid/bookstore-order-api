@@ -4,10 +4,8 @@ import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.StatusChangeRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
-import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
@@ -41,7 +39,7 @@ public class OrderAdminServiceImpl implements OrderAdminService {
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> {
                     log.warn("주문을 찾을 수 없습니다: orderNumber={}", orderNumber);
-                    return new OrderNotFoundException(orderNumber);
+                    return new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber);
                 });
 
         log.debug("[관리자] 주문 상태 변경을 시작합니다: orderNumber={}, oldStatus={}, newStatus={}, createdBy={}",

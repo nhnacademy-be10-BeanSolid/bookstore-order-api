@@ -60,7 +60,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
 
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
@@ -128,7 +128,7 @@ public class PaymentServiceImpl implements PaymentService {
         payRepo.save(payment);
 
         Order order = orderRepo.findByOrderNumber(dto.getOrderId())
-                .orElseThrow(() -> new OrderNotFoundException(dto.getOrderId()));
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING);
         orderRepo.save(order);
 

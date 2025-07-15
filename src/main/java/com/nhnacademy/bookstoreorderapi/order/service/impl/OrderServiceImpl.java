@@ -4,14 +4,15 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderData;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
@@ -19,6 +20,7 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
@@ -76,16 +78,8 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
-                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
-        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
-
-        List<Long> bookIds = orderItems.stream()
-                .map(OrderItem::getBookId)
-                .toList();
-        List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
-
-        return CreateOrderResponse.of(order, orderItems, books);
+        OrderData unfinished = getOrderDetail(orderNumber, userNo);
+        return CreateOrderResponse.of(unfinished.order(), unfinished.orderItems(), unfinished.books());
     }
 
     @Transactional
@@ -93,7 +87,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrder(String orderNumber, UpdateOrderRequest request, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
         Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
-                .orElseThrow(() -> new OrderNotFoundException(orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
 
         updateOrderItemsWithWrapping(orderItems, request.wrappingRequests());
@@ -105,6 +99,48 @@ public class OrderServiceImpl implements OrderService {
         order.setShippingInfo(shippingInfo);
 
         return OrderResponse.from(order);
+    }
+
+    @Transactional
+    @Override
+    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, Long userNo) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        if (!statusLogRepository.canReturnOrder(order, request.damaged())) {
+            throw new InvalidOrderStatusChangeException("반품 가능한 기간이 지났습니다.");
+        }
+
+        statusLogRepository.getCompletedOrderPaymentAmount(order)
+                .orElseThrow(() -> new InvalidOrderStatusChangeException("배송 완료된 주문이 아닙니다."));
+
+        //TODO: 파손, 파본 여부 확인 후 포인트 적립할 금액 계산하기
+        //TODO: 포인트 적립 api 호출 (min: 반품택배비 차감후 남은 결제금액, max: 결제금액)
+        OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.RETURNED, userNo, request.memo(), order);
+
+
+        return null;
+    }
+
+    // 주문 상세 조회
+    @Transactional(readOnly = true)
+    @Override
+    public OrderDetailResponse findByOrderNumber(String orderNumber, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        OrderData data = getOrderDetail(orderNumber, userNo);
+        return OrderDetailResponse.of(data.order(), data.orderItems(), data.books());
+    }
+
+    private OrderData getOrderDetail(String orderNumber, Long userNo) {
+        Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
+
+        List<Long> bookIds = orderItems.stream()
+                .map(OrderItem::getBookId)
+                .toList();
+        List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
+        return new OrderData(order, orderItems, books);
     }
 
     private List<OrderItem> createOrderItems(List<BookResponse> books, Map<Long, Integer> quantityMap, Order order) {
@@ -180,42 +216,6 @@ public class OrderServiceImpl implements OrderService {
                 .map(entry -> new CreateOrderRequest.CreateOrderItemRequest(entry.getKey(), entry.getValue()))
                 .toList();
     }
-
-//    // 주문 생성
-//    @Override
-//    @Transactional
-//    public OrderResponse createOrder99(CreateOrderRequest request, String xUserId) {
-//        // 사전 검증
-//        if (request == null) {
-//            throw new InvalidRequestException("CreateOrderRequest is null");
-//        }
-//        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-////        log.debug("주문 생성 시작: item's size={}, userNo={}", request.createItemRequests().size(), userNo);
-//
-//        // 도서 및 포장지 검증 및 조회
-//        List<OrderRequest.OrderItemRequest> itemRequests = request.orderItems();
-//        Map<Long, BookResponse> bookMap = orderValidationService.fetchAndValidateBooks(itemRequests);
-//        Map<Long, Wrapping> wrappingMap = orderValidationService.fetchAndValidateWrappings(itemRequests);
-//
-//        //TODO: 포장비 포함시켜서 총 금액 계산해야됨.
-//        // 주문 생성
-//        Order order = Order.of(request, userNo);
-//        List<OrderItem> items = OrderItem.createItems(order, itemRequests, bookMap, wrappingMap);
-//        orderRepository.save(order);
-//        orderItemRepository.saveAll(items);
-//
-//        reduceStock(itemRequests, bookMap);
-//
-//        log.info("주문 완료: id={}, orderId={}, userNo={}, totalPrice={}, deliveryFee={}, address={}",
-//                order.getId(),
-//                order.getOrderId(),
-//                userNo,
-//                order.getTotalPrice(),
-//                order.getShippingInfo().getDeliveryFee(),
-//                order.getShippingInfo().getAddress());
-//
-//        return OrderResponse.from(order);
-//    }
 //
 //    // 회원 주문 전체 조회
 //    @Override
@@ -226,22 +226,6 @@ public class OrderServiceImpl implements OrderService {
 //        return customOrderRepository.findOrderSummary(userNo, pageable);
 //    }
 //
-//    // 회원 주문 상세 조회
-//    @Transactional
-//    @Override
-//    public OrderDetailResponse findByOrderId(String xUserId, String orderId) {
-//        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-//        Order order = orderRepository.findByOrderIdAndUserNo(orderId, userNo)
-//                .orElseThrow(() -> new OrderNotFoundException(orderId));
-//        List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
-//
-//        List<Long> bookIds = orderItems.stream()
-//                .map(OrderItem::getBookId)
-//                .toList();
-//        List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
-//
-//        return OrderDetailResponse.of(order, orderItems, books);
-//    }
 //
 //    // 주문 취소
 //    @Override
