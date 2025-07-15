@@ -33,7 +33,7 @@ public class ShippingInfo {
     @Column
     private LocalDate requestedDeliveryDate;
 
-    @Column(updatable = false)
+    @Column
     private Integer shippingFee;
 
     public ShippingInfo(UpdateOrderRequest request, Integer shippingFee) {
