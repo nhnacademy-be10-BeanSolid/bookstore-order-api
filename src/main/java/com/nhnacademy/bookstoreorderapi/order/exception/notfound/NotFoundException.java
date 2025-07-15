@@ -9,10 +9,6 @@ public class NotFoundException extends OrderException {
         super(message);
     }
 
-    public NotFoundException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     @Override
     public HttpStatus getHttpStatus() {
         return HttpStatus.NOT_FOUND;

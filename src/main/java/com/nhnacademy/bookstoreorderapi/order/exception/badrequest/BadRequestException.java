@@ -9,10 +9,6 @@ public class BadRequestException extends OrderException {
         super(message);
     }
 
-    public BadRequestException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     @Override
     public HttpStatus getHttpStatus() {
         return HttpStatus.BAD_REQUEST;

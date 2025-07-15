@@ -9,10 +9,6 @@ public class UnauthorizedException extends OrderException {
         super(message);
     }
 
-    public UnauthorizedException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     @Override
     public HttpStatus getHttpStatus() {
         return HttpStatus.UNAUTHORIZED;

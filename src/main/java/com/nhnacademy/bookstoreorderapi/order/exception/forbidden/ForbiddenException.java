@@ -9,10 +9,6 @@ public class ForbiddenException extends OrderException {
         super(message);
     }
 
-    public ForbiddenException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     @Override
     public HttpStatus getHttpStatus() {
         return HttpStatus.FORBIDDEN;
