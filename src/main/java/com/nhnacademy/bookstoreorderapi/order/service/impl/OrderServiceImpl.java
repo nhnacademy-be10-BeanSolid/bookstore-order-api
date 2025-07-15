@@ -20,7 +20,6 @@ import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
@@ -101,6 +100,7 @@ public class OrderServiceImpl implements OrderService {
         return OrderResponse.from(order);
     }
 
+    // 반품 요청
     @Transactional
     @Override
     public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, Long userNo) {
@@ -111,15 +111,18 @@ public class OrderServiceImpl implements OrderService {
             throw new InvalidOrderStatusChangeException("반품 가능한 기간이 지났습니다.");
         }
 
-        statusLogRepository.getCompletedOrderPaymentAmount(order)
-                .orElseThrow(() -> new InvalidOrderStatusChangeException("배송 완료된 주문이 아닙니다."));
+        Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, request.damaged())
+                .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
+        userService.plusPoint(userNo, refundAmount.intValue());
 
-        //TODO: 파손, 파본 여부 확인 후 포인트 적립할 금액 계산하기
-        //TODO: 포인트 적립 api 호출 (min: 반품택배비 차감후 남은 결제금액, max: 결제금액)
-        OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.RETURNED, userNo, request.memo(), order);
+        OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
+        returnRepository.save(orderReturn);
 
+        OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.RETURNED, userNo, request.reason(), order);
+        order.setStatus(OrderStatus.RETURNED);
+        statusLogRepository.save(statusLog);
 
-        return null;
+        return OrderResponse.from(order);
     }
 
     // 주문 상세 조회
@@ -226,113 +229,7 @@ public class OrderServiceImpl implements OrderService {
 //        return customOrderRepository.findOrderSummary(userNo, pageable);
 //    }
 //
-//
-//    // 주문 취소
-//    @Override
-//    @Transactional
-//    public void cancelOrder(String orderId, String reason) {
-//
-//        Order order = orderRepository.findByOrderId(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException(orderId));
-//
-//        if (order.getStatus() != OrderStatus.PENDING) {
-//            throw new InvalidOrderStatusChangeException("배송 전(PENDING) 상태만 취소 가능합니다.");
-//        }
-//
-//        order.setStatus(OrderStatus.CANCELED);
-//
-//        canceledOrderRepository.save(
-//                CanceledOrder.builder()
-//                        .orderId(order.getId())
-//                        .canceledAt(LocalDateTime.now())
-//                        .reason(reason)
-//                        .build());
-//
-//        orderRepository.save(order);
-//    }
 
-//    @Transactional
-//    @Override
-//    public OrderResponse changeStatus(String orderId, StatusChangeRequest request, String xUserId) {
-//        // 사전 검증
-//        if (orderId == null || orderId.isBlank()) {
-//            log.debug("[Bad Request] 주문상태 변경 - orderId 누락: orderId={}", orderId);
-//            throw new MissingRequiredParameterException("주문번호는 필수입니다.");
-//        }
-//        if (request == null) {
-//            log.debug("[Bad Request] 주문상태 변경 요청 정보 누락: StatusChangeRequest=null");
-//            throw new MissingRequiredParameterException("주문상태 변경 요청 정보는 필수입니다.");
-//        }
-//
-//        // (userNo, orderId) 조합으로 주문 조회
-//        Long createdBy = xUserIdResolver.resolveUserNo(xUserId);
-//        Order order = orderRepository.findByOrderIdAndUserNo(orderId, createdBy)
-//                .orElseThrow(() -> {
-//                    log.warn("주문을 찾을 수 없습니다: orderId={}, userNo={}", orderId, createdBy);
-//                    return new OrderNotFoundException(orderId);
-//                });
-//
-//        log.debug("[사용자] 주문 상태 변경을 시작합니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
-//                orderId, order.getStatus(), request.newStatus(), createdBy);
-//
-//        // 주문 상태 변경
-//        OrderStatus oldStatus = order.getStatus();
-//        OrderStatus newStatus = request.newStatus();
-//        if (!oldStatus.canTransitionTo(newStatus)) {
-//            log.warn("[Bad Request] 주문 상태 변경 불가능: {} -> {}", oldStatus, newStatus);
-//            throw new InvalidOrderStatusChangeException(oldStatus.name() + " -> " + newStatus.name() + " 상태 변경이 불가능합니다.");
-//        } else if (!oldStatus.equals(OrderStatus.COMPLETED)) {
-//            log.warn("[Bad Request] 배송 완료된 상품만 주문 상태를 변경할 수 있습니다: oldStatus={}", oldStatus);
-//            throw new InvalidOrderStatusChangeException("사용자는 배송 완료된 상품만 주문 상태를 변경할 수 있습니다: oldStatus=" + oldStatus);
-//        }
-//        OrderStatusLog statusLog = new OrderStatusLog(oldStatus, newStatus, createdBy, request.memo(), order);
-//
-//        order.setStatus(newStatus);
-//        statusLogRepository.save(statusLog);
-//        log.info("[사용자] 주문 상태가 변경되었습니다: orderId={}, oldStatus={}, newStatus={}, createdBy={}",
-//                statusLog.getOrder().getOrderId(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
-//
-//        // SHIPPING 상태로 변경 시 일정 시간 후 자동 배송 완료 스케줄링
-//        if (newStatus == OrderStatus.SHIPPING) {
-//            scheduleAutoDeliveryComplete(order.getOrderId());
-//        }
-//
-//        return OrderResponse.from(order);
-//    }
-
-//    // 주문 상태 변경
-//    @Override
-//    @Transactional
-//    public StatusChangeResponseDto changeStatus(String orderId,
-//                                                OrderStatus newStatus,
-//                                                String memo,
-//                                                String xUserId) {
-//        if (!userService.getUserInfo(xUserId).isAuth()) {
-//            throw new NotAdminException("관리자만 주문 상태를 변경할 수 있습니다");
-//        }
-//        Long changedBy = getUserNo(xUserId);
-//
-//        Order order = orderRepository.findByOrderId(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-//
-//        OrderStatus oldStatus = order.getStatus();
-//        if (!oldStatus.canTransitionTo(newStatus)) {
-//            throw new InvalidOrderStatusChangeException(
-//                    String.format("상태 전이 불가 : %s → %s", oldStatus, newStatus));
-//        }
-//
-//        OrderStatusLog log = new OrderStatusLog(oldStatus, newStatus, changedBy, memo, order);
-//        statusLogRepository.save(log);
-//
-//        order.setStatus(newStatus);
-//        orderRepository.save(order);
-//
-//        if (newStatus == OrderStatus.SHIPPING) {
-//            scheduleAutoDeliveryComplete(order.getId()); //TODO 주문: 자동으로 배송 완료 처리 되는 것도 로그 변경 이력을 남겨야하는데...
-//        }
-//
-//        return StatusChangeResponseDto.createFrom(log);
-//    }
 //
 //    private void scheduleAutoDeliveryComplete(String orderId) {
 //
@@ -364,40 +261,6 @@ public class OrderServiceImpl implements OrderService {
 //        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
 //        order.setStatus(OrderStatus.COMPLETED);
 //        orderRepository.save(order);
-//    }
-//
-//    // 반품 요청
-//    @Override
-//    @Transactional
-//    public int requestReturn(String orderId, ReturnRequest dto) {
-//        Order order = orderRepository.findByOrderId(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException(orderId));
-//
-//        if (order.getStatus() == OrderStatus.RETURNED) {
-//            throw new InvalidOrderStatusChangeException("이미 반품 처리된 주문입니다.");
-//        }
-//
-//        order.setStatus(OrderStatus.RETURNED);
-//        orderRepository.save(order);
-//
-//        OrderReturn orderReturn = OrderReturn.createFrom(order, dto);
-//        returnRepository.save(orderReturn);
-//
-//        return (int) (order.getTotalPrice() - OrderReturn.RETURNS_FEE);
-//    }
-
-    //TODO: 변경 이력 조회는 관리자 말고 쓸 일이 없을듯? 사용자에게는 현재 주문 상태만 보여주면 됨.
-//    // 상태 변경 이력 조회
-//    @Override
-//    @Transactional(readOnly = true)
-//    public List<OrderStatusLogDto> getStatusLog(String orderId, String xUserId) {
-//
-//        Order order = orderRepository.findByOrderId(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다."));
-//
-//        return statusLogRepository.findByOrderId(order.getId()).stream() //TODO 주문: 다른 엔티티에 주문ID가 orderid로 들어가 있어서 주문번호와 헷갈림.
-//                .map(OrderStatusLogDto::createFrom)
-//                .collect(Collectors.toList());
 //    }
 //
 //    @Transactional(readOnly = true)

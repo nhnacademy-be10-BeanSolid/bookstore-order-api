@@ -3,16 +3,16 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Wrapping;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.WrappingRepository;
+import org.aspectj.weaver.ast.Or;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -235,6 +235,40 @@ class OrderServiceImplTest {
         verify(orderItemRepository, times(1)).findAllByOrder(order);
         verify(wrappingRepository, times(1)).findById(anyLong());
     }
+
+    @Test
+    @DisplayName("주문 상세 조회에 성공한다")
+    void findByOrderNumber_success() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+
+        Order order = new Order(userNo);
+        order.setStatus(OrderStatus.PENDING);
+        order.setShippingInfo(new ShippingInfo("받는사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목", 1_000, 1, order));
+
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(anyString(), anyLong())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any(Order.class))).willReturn(orderItems);
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+
+        // when
+        OrderDetailResponse result = orderService.findByOrderNumber(orderNumber, xUserId);
+
+        // then
+        assertThat(result.getReceiverName()).isEqualTo("받는사람");
+        assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
+        assertThat(result.getAddress()).isEqualTo("주소");
+        assertThat(result.getDeliveryFee()).isEqualTo(3_000);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
+        verify(orderRepository, times(1)).findByOrderNumberAndUserNo(anyString(), anyLong());
+        verify(orderItemRepository, times(1)).findAllByOrder(any(Order.class));
+        verify(bookService, times(1)).getBookOrderResponse(anyList());
+    }
+
 //
 //    @Test
 //    @DisplayName("회원 주문 생성에 성공한다")

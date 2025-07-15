@@ -7,5 +7,5 @@ import java.util.Optional;
 public interface CustomOrderStatusLogRepository {
 
     boolean canReturnOrder(Order order, boolean damaged);
-    Optional<Long> getCompletedOrderPaymentAmount(Order order);
+    Optional<Long> getCompletedOrderPaymentAmount(Order order, boolean damaged);
 }

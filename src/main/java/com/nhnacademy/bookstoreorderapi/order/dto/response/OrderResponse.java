@@ -10,6 +10,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class OrderResponse {
 
+    private Long orderId;
     private String orderNumber;
     private Long userNo;
     private String status;
@@ -25,6 +26,7 @@ public class OrderResponse {
         String statusName = o.getStatus() == null ? null : o.getStatus().name();
 
         return new OrderResponse(
+                o.getId(),
                 o.getOrderNumber(),
                 o.getUserNo(),
                 statusName,

@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 public record ReturnsRequest(
 
         @NotBlank
-        String memo,
+        String reason,
 
         @NotNull
         Boolean damaged
