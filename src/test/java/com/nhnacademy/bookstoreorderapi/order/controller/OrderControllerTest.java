@@ -3,6 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
+import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
@@ -39,6 +40,8 @@ class OrderControllerTest {
     private BookService bookService;
     @MockBean
     private UserService userService;
+    @MockBean
+    private XUserIdResolver xUserIdResolver;
     @Autowired
     private ObjectMapper objectMapper;
 

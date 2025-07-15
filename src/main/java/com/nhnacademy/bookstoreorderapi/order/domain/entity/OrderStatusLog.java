@@ -2,7 +2,6 @@ package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -35,12 +34,11 @@ public class OrderStatusLog extends BaseCreatedAtEntity {
     @Column(updatable = false)
     private String memo;
 
-    @Builder
     public OrderStatusLog (OrderStatus oldStatus,
-                                    OrderStatus newStatus,
-                                    Long userNo,
-                                    String memo,
-                                    Order order) {
+                           OrderStatus newStatus,
+                           Long userNo,
+                           String memo,
+                           Order order) {
         this.oldStatus = oldStatus;
         this.newStatus = newStatus;
         this.createdBy = userNo;

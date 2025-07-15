@@ -16,4 +16,5 @@ public interface CustomOrderRepository {
     PurchaseVerificationResponse findByUserNoAndBookId(Long userNo, Long bookId);
     Long findIdByOrderNumber(String orderNumber);
     String findOrderNumberById(Long orderId);
+
 }
