@@ -91,25 +91,6 @@ public class OrderController {
 //        return new SuccessResponseDto("주문이 정상적으로 취소되었습니다.");
 //    }
 
-    //TODO: 사용자만 가능한 주문 상태 변경 api로 리팩토링하기
-//    @GetMapping("/{orderId}/status-log")
-//    public List<OrderStatusLogDto> getStatusLog(@PathVariable String orderId,
-//                                                @RequestHeader("X-USER-ID") String xUserId) {
-//        return orderService.getStatusLog(orderId, xUserId);
-//    }
-//
-//    @PostMapping("/{orderId}/returns")
-//    public ResponseEntity<Integer> requestReturn(@PathVariable String orderId, @RequestBody ReturnRequest dto) {
-//
-//        int returnsAmount = orderService.requestReturn(orderId, dto);
-//        return ResponseEntity.ok(returnsAmount);
-//    }
-//
-//    @GetMapping("/verify-purchase")
-//    public ResponseEntity<PurchaseVerificationResponse> verifyPurchase(@RequestHeader("X-USER-ID") String xUserId,
-//                                                                       @RequestParam Long bookId) {
-//        return ResponseEntity.ok(orderService.verifyPurchase(xUserId, bookId));
-//    }
     private void validateOrderNumber(String orderNumber) {
         if (orderNumber.isBlank()) {
             throw new InvalidRequestException("주문번호가 비어있습니다.");

@@ -1,6 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderReturn;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderStatusLogRepository;
@@ -35,18 +36,31 @@ public class CustomOrderStatusLogRepositoryImpl implements CustomOrderStatusLogR
     }
 
     @Override
-    public Optional<Long> getCompletedOrderPaymentAmount(Order order) {
+    public Optional<Long> getCompletedOrderPaymentAmount(Order order, boolean damaged) {
         QPayment payment = QPayment.payment;
         QOrderStatusLog orderStatusLog = QOrderStatusLog.orderStatusLog;
+
+        if (order.getStatus().equals(OrderStatus.COMPLETED)) {
+            return Optional.empty();
+        }
 
         Long payAmount = factory
                 .select(payment.payAmount)
                 .from(payment)
                 .join(orderStatusLog).on(orderStatusLog.order.eq(payment.order))
                 .where(payment.order.eq(order)
-                        .and(orderStatusLog.newStatus.eq(OrderStatus.COMPLETED)))
+                        .and(orderStatusLog.newStatus.eq(OrderStatus.COMPLETED))
+                        .and(orderStatusLog.createdAt.eq(
+                                factory.select(orderStatusLog.createdAt.max())
+                                        .from(orderStatusLog)
+                                        .where(orderStatusLog.order.eq(order))
+                        )))
                 .fetchFirst();
+        if (payAmount == null) {
+            return Optional.empty();
+        }
 
-        return Optional.ofNullable(payAmount);
+        long refundAmount = damaged ? payAmount : payAmount - OrderReturn.RETURNS_FEE;
+        return Optional.of(refundAmount);
     }
 }

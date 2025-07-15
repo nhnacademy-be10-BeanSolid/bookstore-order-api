@@ -192,6 +192,22 @@ class OrderControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    @DisplayName("주문 상세 조회에 성공하면 200을 응답한다")
+    void getOrder_success() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+
+        // when & then
+        mockMvc.perform(get("/orders/{orderNumber}", orderNumber)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-USER-ID", xUserId))
+                .andExpect(status().isOk());
+
+        verify(orderService, times(1)).findByOrderNumber(anyString(), anyString());
+    }
+
 //
 //    @Test
 //    @DisplayName("회원 주문 생성에 성공한다")

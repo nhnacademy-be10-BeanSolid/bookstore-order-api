@@ -11,9 +11,8 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "order_returns")
 @Getter
-@Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class OrderReturn extends BaseTimeEntity {
+public class OrderReturn extends BaseCreatedAtEntity {
 
     public static final int RETURNS_FEE = 2_500;
 
@@ -30,21 +29,11 @@ public class OrderReturn extends BaseTimeEntity {
     private String reason;
 
     @Column(nullable = false)
-    private LocalDateTime requestedAt;
-
-    @Column(nullable = false)
     private Boolean damaged;
 
-    @Column(nullable = false)
-    private Boolean refundedAsPoints;
-
-//    public static OrderReturn createFrom(Order order, ReturnRequest dto) {
-//
-//        return OrderReturn.builder()
-//                .order(order)
-//                .reason(dto.reason())
-//                .damaged(dto.damaged())
-//                .requestedAt(dto.requestedAt())
-//                .build();
-//    }
+    public OrderReturn(Order order, String reason, Boolean damaged) {
+        this.order = order;
+        this.reason = reason;
+        this.damaged = damaged;
+    }
 }

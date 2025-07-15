@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 public class OrderDetailResponse {
 
     private LocalDate orderDate;
-    private String orderId;
+    private String orderNumber;
     private String status;
     private Long totalAmount;
     private List<ItemInfo> itemInfos;
