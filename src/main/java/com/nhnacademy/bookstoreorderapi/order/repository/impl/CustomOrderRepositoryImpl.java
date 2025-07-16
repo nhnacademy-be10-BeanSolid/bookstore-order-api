@@ -1,10 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrder;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.QOrder;
+import com.nhnacademy.bookstoreorderapi.order.domain.QOrderItem;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderRepository;
 import com.querydsl.core.types.Projections;
@@ -94,26 +93,24 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                 .from(orderItem)
                 .join(orderItem.order, order)
                 .where(order.orderDate.goe(threeMonthsAgo)
-                        .and(order.status.in(OrderStatus.PENDING, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
+                        .and(order.status.in(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
                 .groupBy(order.userNo)
                 .fetch();
     }
 
     @Override
-    public PurchaseVerificationResponse findByUserNoAndBookId(Long userNo, Long bookId) {
+    public boolean findByUserNoAndBookId(Long userNo, Long bookId) {
         QOrder order = QOrder.order;
         QOrderItem orderItem = QOrderItem.orderItem;
 
-        boolean exists = factory
+        return factory
                 .selectOne()
                 .from(orderItem)
                 .join(orderItem.order, order)
                 .where(order.userNo.eq(userNo)
                         .and(orderItem.bookId.eq(bookId))
-                        .and(order.status.in(OrderStatus.PENDING, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
+                        .and(order.status.in(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
                 .fetchFirst() != null;
-
-        return new PurchaseVerificationResponse(userNo, bookId, exists);
     }
 
     @Override

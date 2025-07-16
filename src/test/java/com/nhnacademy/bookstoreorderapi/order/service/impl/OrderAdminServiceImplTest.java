@@ -5,6 +5,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.dto.internal.ScheduledOrderCompletion;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
@@ -21,8 +22,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import java.lang.reflect.Field;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +57,7 @@ class OrderAdminServiceImplTest {
         Page<OrderSummaryResponse> responsePage = new PageImpl<>(responses, pageable, responses.size());
 
         given(orderRepository.findAllOrderSummary(any())).willReturn(responsePage);
+        given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
 
         // when
         Page<OrderSummaryResponse> result = orderAdminService.getAllOrders(pageable, xUserId);
@@ -81,6 +86,7 @@ class OrderAdminServiceImplTest {
 
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
         given(statusLogRepository.save(any(OrderStatusLog.class))).willReturn(statusLog);
+        given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
 
         // when
         OrderResponse result = orderAdminService.changeStatusToShipping(orderNumber, xUserId);
@@ -100,12 +106,134 @@ class OrderAdminServiceImplTest {
         String xUserId = "admin";
 
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.empty());
+        given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> orderAdminService.changeStatusToShipping(orderNumber, xUserId))
                 .isInstanceOf(OrderNotFoundException.class);
 
         verify(orderRepository, times(1)).findByOrderNumber(anyString());
+        verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("주문 자동 완료 스케줄링이 정상적으로 등록된다")
+    void scheduleOrderCompletion_success() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "admin";
+        Long createdBy = 99L;
+        
+        Order order = new Order(1L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(createdBy);
+        given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
+
+        // when
+        orderAdminService.changeStatusToShipping(orderNumber, xUserId);
+
+        // then
+        Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, ScheduledOrderCompletion> scheduledCompletions = 
+            (Map<String, ScheduledOrderCompletion>) field.get(orderAdminService);
+        
+        assertThat(scheduledCompletions).containsKey(orderNumber);
+        ScheduledOrderCompletion completion = scheduledCompletions.get(orderNumber);
+        assertThat(completion.orderNumber()).isEqualTo(orderNumber);
+        assertThat(completion.createdBy()).isEqualTo(createdBy);
+        assertThat(completion.completionTime()).isAfter(LocalDateTime.now().plusSeconds(5));
+    }
+
+    @Test
+    @DisplayName("스케줄된 주문 자동 완료가 정상적으로 처리된다")
+    void processScheduledCompletions_success() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        Long createdBy = 99L;
+        LocalDateTime pastTime = LocalDateTime.now().minusSeconds(1);
+        
+        Order order = new Order(1L);
+        order.setStatus(OrderStatus.SHIPPING);
+        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+
+        Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, ScheduledOrderCompletion> scheduledCompletions = 
+            (Map<String, ScheduledOrderCompletion>) field.get(orderAdminService);
+        scheduledCompletions.put(orderNumber, new ScheduledOrderCompletion(orderNumber, createdBy, pastTime));
+
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+
+        // when
+        orderAdminService.processScheduledCompletions();
+
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.COMPLETED);
+        assertThat(scheduledCompletions).doesNotContainKey(orderNumber);
+        verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
+        verify(statusLogRepository, times(1)).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("자동 완료 대상이 SHIPPING 상태가 아니면 완료 처리를 건너뛴다")
+    void processScheduledCompletions_skipIfNotShipping() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        Long createdBy = 99L;
+        LocalDateTime pastTime = LocalDateTime.now().minusSeconds(1);
+        
+        Order order = new Order(1L);
+        order.setStatus(OrderStatus.PENDING);
+        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+
+        Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, ScheduledOrderCompletion> scheduledCompletions = 
+            (Map<String, ScheduledOrderCompletion>) field.get(orderAdminService);
+        scheduledCompletions.put(orderNumber, new ScheduledOrderCompletion(orderNumber, createdBy, pastTime));
+
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+
+        // when
+        orderAdminService.processScheduledCompletions();
+
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(scheduledCompletions).doesNotContainKey(orderNumber);
+        verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
+        verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("자동 완료 처리 중 주문을 찾을 수 없으면 스케줄에서 제거된다")
+    void processScheduledCompletions_removeIfOrderNotFound() throws Exception {
+        // given
+        String orderNumber = "unknown-order";
+        Long createdBy = 99L;
+        LocalDateTime pastTime = LocalDateTime.now().minusSeconds(1);
+
+        Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, ScheduledOrderCompletion> scheduledCompletions = 
+            (Map<String, ScheduledOrderCompletion>) field.get(orderAdminService);
+        scheduledCompletions.put(orderNumber, new ScheduledOrderCompletion(orderNumber, createdBy, pastTime));
+
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
+
+        // when
+        orderAdminService.processScheduledCompletions();
+
+        // then
+        assertThat(scheduledCompletions).doesNotContainKey(orderNumber);
+        verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
         verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
     }
 }
