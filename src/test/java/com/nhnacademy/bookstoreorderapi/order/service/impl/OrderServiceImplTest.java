@@ -189,7 +189,7 @@ class OrderServiceImplTest {
                 new OrderItem(1L, "책제목1", 10000, 1, order),
                 new OrderItem(2L, "책제목2", 20000, 1, order)
         );
-        Wrapping wrapping = new Wrapping("포장지", 50, true);
+        Wrapping wrapping = new Wrapping(99L, "포장지", 50, true);
 
         given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
@@ -229,7 +229,7 @@ class OrderServiceImplTest {
 
         Order order = new Order(null);
         List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목1", 30000, 1, order));
-        Wrapping wrapping = new Wrapping("포장지", 50, true);
+        Wrapping wrapping = new Wrapping(99L,"포장지", 50, true);
 
         given(xUserIdResolver.resolveUserNo(any())).willReturn(userNo);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
