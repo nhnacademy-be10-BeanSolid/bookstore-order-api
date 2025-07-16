@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
 import com.nhnacademy.bookstoreorderapi.order.common.config.QuerydslConfig;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

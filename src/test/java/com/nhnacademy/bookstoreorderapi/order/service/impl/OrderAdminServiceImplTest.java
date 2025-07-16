@@ -1,13 +1,15 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.dto.internal.ScheduledOrderCompletion;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
@@ -45,11 +47,15 @@ class OrderAdminServiceImplTest {
     @InjectMocks
     private OrderAdminServiceImpl orderAdminService;
 
+    private final ShippingInfo shippingInfo = new ShippingInfo(
+            new UpdateOrderRequest(null, "받는 사람", "010-1234-5678", "주소", LocalDate.now().plusDays(1)),
+            ShippingInfo.DEFAULT_SHIPPING_FEE);
+
     @Test
     @DisplayName("전체 주문 조회에 성공한다")
     void getAllOrders_success() {
         // given
-        String xUserId = "testUser";
+        String xUserId = "admin";
         Pageable pageable = PageRequest.of(0, 1);
         List<OrderSummaryResponse> responses = List.of(
                 new OrderSummaryResponse(LocalDate.now(), "202507-abcdef-123456", "받는 사람", 100L, "PENDING"),
@@ -71,6 +77,24 @@ class OrderAdminServiceImplTest {
     }
 
     @Test
+    @DisplayName("관리자가 아니면 전체 주문 조회에 실패한다")
+    void getAllOrders_notAdmin_fail() {
+        // given
+        String xUserId = "testUser";
+        Pageable pageable = PageRequest.of(0, 1);
+
+        given(xUserIdResolver.isAdmin(anyString())).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> orderAdminService.getAllOrders(pageable, xUserId))
+                .isInstanceOf(NotAdminException.class)
+                .hasMessage("관리자 권한이 필요합니다.");
+
+        verify(xUserIdResolver, times(1)).isAdmin(xUserId);
+        verify(orderRepository, never()).findAllOrderSummary(any());
+    }
+
+    @Test
     @DisplayName("주문상태 변경(대기 -> 배송)에 성공한다")
     void changeStatusToShipping_success() {
         // given
@@ -79,8 +103,8 @@ class OrderAdminServiceImplTest {
 
         Long createdBy = 99L;
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        order.setStatus(OrderStatus.PENDING_PAY);
+        order.setShippingInfo(shippingInfo);
 
         OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.SHIPPING, createdBy, null, order);
 
@@ -125,8 +149,8 @@ class OrderAdminServiceImplTest {
         Long createdBy = 99L;
         
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        order.setStatus(OrderStatus.PENDING_PAY);
+        order.setShippingInfo(shippingInfo);
 
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(createdBy);
@@ -159,7 +183,7 @@ class OrderAdminServiceImplTest {
         
         Order order = new Order(1L);
         order.setStatus(OrderStatus.SHIPPING);
-        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        order.setShippingInfo(shippingInfo);
 
         Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
         field.setAccessible(true);
@@ -189,8 +213,8 @@ class OrderAdminServiceImplTest {
         LocalDateTime pastTime = LocalDateTime.now().minusSeconds(1);
         
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        order.setStatus(OrderStatus.PENDING_PAY);
+        order.setShippingInfo(shippingInfo);
 
         Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
         field.setAccessible(true);
@@ -205,7 +229,7 @@ class OrderAdminServiceImplTest {
         orderAdminService.processScheduledCompletions();
 
         // then
-        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING_PAY);
         assertThat(scheduledCompletions).doesNotContainKey(orderNumber);
         verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
         verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
@@ -234,6 +258,30 @@ class OrderAdminServiceImplTest {
         // then
         assertThat(scheduledCompletions).doesNotContainKey(orderNumber);
         verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
+        verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("완료 시간이 아직 되지 않은 주문은 스케줄에서 제거되지 않는다")
+    void processScheduledCompletions_notYetTime() throws Exception {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        Long createdBy = 99L;
+        LocalDateTime futureTime = LocalDateTime.now().plusMinutes(1);
+
+        Field field = OrderAdminServiceImpl.class.getDeclaredField("scheduledCompletions");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        Map<String, ScheduledOrderCompletion> scheduledCompletions = 
+            (Map<String, ScheduledOrderCompletion>) field.get(orderAdminService);
+        scheduledCompletions.put(orderNumber, new ScheduledOrderCompletion(orderNumber, createdBy, futureTime));
+
+        // when
+        orderAdminService.processScheduledCompletions();
+
+        // then
+        assertThat(scheduledCompletions).containsKey(orderNumber);
+        verify(orderRepository, never()).findByOrderNumber(anyString());
         verify(statusLogRepository, never()).save(any(OrderStatusLog.class));
     }
 }

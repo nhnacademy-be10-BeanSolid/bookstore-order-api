@@ -1,9 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderReturn;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.QOrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderReturn;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.QOrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.repository.CustomOrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.QPayment;
 import com.querydsl.jpa.impl.JPAQueryFactory;

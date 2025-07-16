@@ -1,12 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.client.book.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.Builder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Builder
 public record BookResponse(
         Long id,
         String title,

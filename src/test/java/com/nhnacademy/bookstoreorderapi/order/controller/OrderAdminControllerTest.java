@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderAdminService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -65,13 +66,14 @@ class OrderAdminControllerTest {
     @ParameterizedTest(name = "X-USER-ID 헤더가 빈 값이거나 공백이면 전체 주문 조회에 실패한다")
     @ValueSource(strings = {"", " "})
     void getAllOrders_blankXUserIdHeader_fail(String xUserId) throws Exception {
+        // given
+        given(orderAdminService.getAllOrders(any(), anyString()))
+                .willThrow(NotAdminException.class);
         // when & then
         mockMvc.perform(get("/admin/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("X-USER-ID", xUserId))
                 .andExpect(status().isForbidden());
-
-        verify(orderAdminService, never()).getAllOrders(any(), anyString());
     }
 
     @Test
@@ -97,7 +99,8 @@ class OrderAdminControllerTest {
         String orderNumber = "202507-abcdef-123456";
         String xUserId = "notAdmin";
 
-        given(xUserIdResolver.isAdmin(anyString())).willReturn(false);
+        given(orderAdminService.changeStatusToShipping(anyString(), anyString()))
+                .willThrow(NotAdminException.class);
 
         // when & then
         mockMvc.perform(put("/admin/orders/{orderNumber}/status", orderNumber)

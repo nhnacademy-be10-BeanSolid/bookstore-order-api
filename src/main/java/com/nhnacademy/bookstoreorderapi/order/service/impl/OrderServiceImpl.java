@@ -37,7 +37,6 @@ public class OrderServiceImpl implements OrderService {
 
     private final XUserIdResolver xUserIdResolver;
 
-
     private final BookService bookService;
     private final UserService userService;
 
@@ -46,7 +45,6 @@ public class OrderServiceImpl implements OrderService {
     private final WrappingRepository wrappingRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final ReturnsRepository returnRepository;
-
 
     // CREATE (생성)
     // 주문 생성

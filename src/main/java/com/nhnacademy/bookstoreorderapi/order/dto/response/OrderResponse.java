@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.dto.response;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 

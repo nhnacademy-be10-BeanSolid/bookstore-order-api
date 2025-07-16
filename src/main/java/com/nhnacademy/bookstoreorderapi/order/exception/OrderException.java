@@ -8,9 +8,5 @@ public abstract class OrderException extends RuntimeException {
         super(message);
     }
 
-    public OrderException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
     public abstract HttpStatus getHttpStatus();
 }

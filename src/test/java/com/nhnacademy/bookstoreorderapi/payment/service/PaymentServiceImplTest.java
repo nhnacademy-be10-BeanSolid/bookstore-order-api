@@ -1,6 +1,6 @@
 //package com.nhnacademy.bookstoreorderapi.payment.service;
 //
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+//import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 //import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 //import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 //import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;

@@ -1,12 +1,12 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.common.config.QuerydslConfig;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderItem;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderItem;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.PurchaseVerificationResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -37,21 +37,25 @@ class CustomOrderRepositoryImplTest {
     @Autowired
     private OrderRepository orderRepository;
 
+    private final ShippingInfo shippingInfo = new ShippingInfo(
+            new UpdateOrderRequest(null, "받는 사람", "010-1234-5678", "주소", LocalDate.now().plusDays(1)),
+            ShippingInfo.DEFAULT_SHIPPING_FEE);
+
     @Test
     @DisplayName("전체 주문 조회 테스트")
     void shouldFindAllOrders() {
         // given
         Order order1 = new Order(1L);
         order1.setOrderDate(LocalDate.now());
-        order1.setShippingInfo(new ShippingInfo("받는이1", "010-1234-5678", "주소", LocalDate.now(), 500));
+        order1.setShippingInfo(shippingInfo);
         order1.setTotalPrice(10_000L);
         order1.setStatus(OrderStatus.SHIPPING);
 
         Order order2 = new Order(2L);
         order2.setOrderDate(LocalDate.now().minusDays(1));
-        order2.setShippingInfo(new ShippingInfo("받는이2", "010-1234-5678", "주소", LocalDate.now(), 500));
+        order2.setShippingInfo(shippingInfo);
         order2.setTotalPrice(5_000L);
-        order2.setStatus(OrderStatus.PENDING);
+        order2.setStatus(OrderStatus.PENDING_PAY);
 
         orderRepository.saveAll(List.of(order1, order2));
 
@@ -104,19 +108,19 @@ class CustomOrderRepositoryImplTest {
         Long userNo = 1L;
         Order order1 = new Order(userNo);
         order1.setOrderDate(LocalDate.now());
-        order1.setShippingInfo(new ShippingInfo("받는이1", "010-1234-5678", "주소", LocalDate.now(), 500));
+        order1.setShippingInfo(shippingInfo);
         order1.setTotalPrice(10_000L);
         order1.setStatus(OrderStatus.SHIPPING);
 
         Order order2 = new Order(userNo);
         order2.setOrderDate(LocalDate.now().minusDays(1));
-        order2.setShippingInfo(new ShippingInfo("받는이2", "010-1234-5678", "주소", LocalDate.now(), 500));
+        order2.setShippingInfo(shippingInfo);
         order2.setTotalPrice(5_000L);
-        order2.setStatus(OrderStatus.PENDING);
+        order2.setStatus(OrderStatus.PENDING_PAY);
 
         Order order3 = new Order(2L); // 다른 사용자의 주문
         order3.setOrderDate(LocalDate.now());
-        order3.setShippingInfo(new ShippingInfo("받는이3", "010-1234-5678", "주소", LocalDate.now(), 500));
+        order3.setShippingInfo(shippingInfo);
         order3.setTotalPrice(3_000L);
         order3.setStatus(OrderStatus.COMPLETED);
 
@@ -207,13 +211,10 @@ class CustomOrderRepositoryImplTest {
         entityManager.clear();
 
         // when
-        PurchaseVerificationResponse result = orderRepository.findByUserNoAndBookId(userNo, bookId);
+        boolean result = orderRepository.findByUserNoAndBookId(userNo, bookId);
 
         // then
-        assertThat(result).isNotNull();
-        assertThat(result.getUserNo()).isEqualTo(userNo);
-        assertThat(result.getBookId()).isEqualTo(bookId);
-        assertThat(result.getIsValid()).isTrue();
+        assertThat(result).isTrue();
     }
 
     @Test
@@ -224,13 +225,10 @@ class CustomOrderRepositoryImplTest {
         Long bookId = 100L;
 
         // when
-        PurchaseVerificationResponse result = orderRepository.findByUserNoAndBookId(userNo, bookId);
+        boolean result = orderRepository.findByUserNoAndBookId(userNo, bookId);
 
         // then
-        assertThat(result).isNotNull();
-        assertThat(result.getUserNo()).isEqualTo(userNo);
-        assertThat(result.getBookId()).isEqualTo(bookId);
-        assertThat(result.getIsValid()).isFalse();
+        assertThat(result).isFalse();
     }
 
     @Test

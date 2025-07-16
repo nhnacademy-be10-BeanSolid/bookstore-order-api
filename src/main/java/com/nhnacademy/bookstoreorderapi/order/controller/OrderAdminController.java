@@ -28,6 +28,7 @@ public class OrderAdminController {
 
     // UPDATE (수정)
     // 주문 상태 변경("PENDING" -> "SHIPPING")
+    //TODO: "COMPLETED" -> "RETURNED"도 관리자가 변경할 수 있게 구현 예정.
     @PutMapping("/{orderNumber}/status")
     public ResponseEntity<OrderResponse> changeStatusToShipping(@PathVariable String orderNumber,
                                                                 @RequestHeader("X-USER-ID") String xUserId) {
