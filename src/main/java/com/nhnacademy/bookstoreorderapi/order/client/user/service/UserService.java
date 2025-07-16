@@ -23,12 +23,6 @@ public class UserService {
         return userServiceClient.getUserInfo(userId);
     }
 
-    @CircuitBreaker(name = "user-service", fallbackMethod = "fallbackPlusPoint")
-    public UserResponse plusPoint(Long userNo, int point) {
-        log.debug("포인트 적립 api를 호출합니다: userNo={}, point={}", userNo, point);
-        return userServiceClient.plusPoint(userNo, point);
-    }
-
     public UserResponse fallbackGetUserInfo(String userId, Throwable t) {
         if (t instanceof FeignException.NotFound) {
             log.debug("유저를 찾을 수 없습니다 - userId: {}", userId);

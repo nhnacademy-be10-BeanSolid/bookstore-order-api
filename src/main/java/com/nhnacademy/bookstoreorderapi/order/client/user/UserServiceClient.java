@@ -1,6 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user;
 
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.ResponsePointType;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointMinusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProcessRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,6 +13,20 @@ public interface UserServiceClient {
     @GetMapping("/users/me")
     UserResponse getUserInfo(@RequestHeader("X-USER-ID") String userId);
 
-    @PutMapping("/{userNo}/plus-point")
-    UserResponse plusPoint(@PathVariable Long userNo, @RequestParam int point);
+    @PostMapping("/users/order-point/{userNo}/minus")
+    void orderPointMinusProcess(@PathVariable("userNo") Long userNo,
+                                @RequestBody OrderPointMinusProcessRequest request);
+
+    @PostMapping("/users/order-point/{userNo}/plus")
+    void orderPointPlusProcess(@PathVariable("userNo") Long userNo,
+                               @RequestBody OrderPointPlusProcessRequest request);
+
+    @GetMapping("/users/{userNo}/earning-rate")
+    ResponsePointType getEarningRateByUserNo(@PathVariable("userNo") Long userNo);
+
+    @GetMapping("/users/me/my-point")
+    Integer getUserPoint(@RequestHeader("X-USER-ID") String userId);
+
+    @GetMapping("/users/{userNo}/my-point")
+    Integer getUserPointByUserNo(@PathVariable("userNo") Long userNo);
 }

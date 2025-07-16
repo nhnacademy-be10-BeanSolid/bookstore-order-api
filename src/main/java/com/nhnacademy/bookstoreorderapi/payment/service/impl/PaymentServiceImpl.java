@@ -1,17 +1,18 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.ResponsePointType;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PointType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.*;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.exception.*;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
@@ -36,6 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
+    private final UserServiceClient userServiceClient;
 
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
@@ -66,6 +68,19 @@ public class PaymentServiceImpl implements PaymentService {
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new AlreadyPaidException(orderNumber); });
 
+        // 포인트 유효성 검사
+        if (dto.getUsedPoint() > 0) {
+            Long userNo = order.getUserNo();
+            if (userNo == null) { // 비회원이 포인트를 사용하려는 경우
+                throw new NonMemberPointUsageAttemptException("비회원은 포인트를 사용할 수 없습니다.");
+            }
+            // 회원인 경우에만 포인트 검사
+            Integer currentUserPoint = userServiceClient.getUserPointByUserNo(userNo);
+            if (currentUserPoint == null || currentUserPoint < dto.getUsedPoint()) {
+                throw new NotEnoughPointException("사용하려는 포인트가 부족합니다.");
+            }
+        }
+
         Map<String, Object> body = Map.of(
                 "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
                 "orderId", orderNumber,
@@ -85,6 +100,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPayType(dto.getPayType());
         payment.setPayAmount(dto.getPayAmount());
         payment.setPayName(dto.getPayName());
+        payment.setUsedPoint(dto.getUsedPoint());
         payment.setPaymentStatus(PaymentStatus.PENDING);
         payRepo.save(payment);
 
@@ -131,6 +147,33 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING);
         orderRepo.save(order);
+
+        // 결제 금액에 대한 포인트 적립 로직
+        Long userNo = order.getUserNo();
+        if (userNo != null) {
+            ResponsePointType earningRateResponse = userServiceClient.getEarningRateByUserNo(userNo);
+            int earningRate = earningRateResponse.getEarningRate();
+            int earnedPoint = (int) (payment.getPayAmount() * (earningRate / 100.0));
+
+            if (earnedPoint > 0) {
+                OrderPointPlusProcessRequest pointPlusRequest = new OrderPointPlusProcessRequest(
+                        order.getId(),
+                        earnedPoint,
+                        PointType.ORDER
+                );
+                userServiceClient.orderPointPlusProcess(userNo, pointPlusRequest);
+            }
+        }
+
+        // 포인트 차감 로직
+        if (payment.getUsedPoint() > 0) {
+            OrderPointMinusProcessRequest pointMinusRequest = new OrderPointMinusProcessRequest(
+                    order.getId(),
+                    payment.getUsedPoint(),
+                    PointType.ORDER
+            );
+            userServiceClient.orderPointMinusProcess(userNo, pointMinusRequest);
+        }
 
         return confirmResp;
     }

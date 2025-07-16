@@ -2,7 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
+import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderData;
@@ -20,6 +20,9 @@ import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberEx
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PointType;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -44,7 +47,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderValidationService orderValidationService;
 
     private final BookService bookService;
-    private final UserService userService;
+    private final UserServiceClient userServiceClient;
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -53,6 +56,7 @@ public class OrderServiceImpl implements OrderService {
     private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
     private final ApplicationContext applicationContext;
+    private final PaymentRepository paymentRepository;
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(10);
 
@@ -144,7 +148,26 @@ public class OrderServiceImpl implements OrderService {
 
         Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, request.damaged())
                 .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
-        userService.plusPoint(userNo, refundAmount.intValue());
+
+        // 포인트 반환 로직
+        OrderPointPlusProcessRequest pointPlusRequest = new OrderPointPlusProcessRequest(
+                order.getId(),
+                refundAmount.intValue(),
+                PointType.RETURN
+        );
+        userServiceClient.orderPointPlusProcess(userNo, pointPlusRequest);
+
+        // 사용된 포인트 반환 로직
+        paymentRepository.findByOrder(order).ifPresent(payment -> {
+            if (payment.getUsedPoint() > 0) {
+                OrderPointPlusProcessRequest usedPointPlusRequest = new OrderPointPlusProcessRequest(
+                        order.getId(),
+                        payment.getUsedPoint(),
+                        PointType.RETURN
+                );
+                userServiceClient.orderPointPlusProcess(userNo, usedPointPlusRequest);
+            }
+        });
 
         OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
         returnRepository.save(orderReturn);
