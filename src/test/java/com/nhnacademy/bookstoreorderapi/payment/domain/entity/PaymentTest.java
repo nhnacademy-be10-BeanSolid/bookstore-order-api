@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PaymentStatus;
 import org.junit.jupiter.api.BeforeEach;

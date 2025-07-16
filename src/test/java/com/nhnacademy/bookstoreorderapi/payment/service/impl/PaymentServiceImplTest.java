@@ -1,7 +1,7 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
@@ -156,7 +156,7 @@ class PaymentServiceImplTest {
 
         // then
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
-        verify(order).setStatus(OrderStatus.PENDING);
+        verify(order).setStatus(OrderStatus.PENDING_PAY);
         verify(paymentRepository).save(payment);
     }
 
