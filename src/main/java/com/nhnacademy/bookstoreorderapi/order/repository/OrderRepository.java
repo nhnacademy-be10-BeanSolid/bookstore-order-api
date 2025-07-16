@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.repository;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

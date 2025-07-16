@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.repository;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.payment.domain.entity.Payment;
 import org.springframework.data.jpa.repository.JpaRepository;
 

@@ -1,12 +1,11 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
-import lombok.Builder;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Builder
 public record UserResponse(
     Long userNo,
     String userId,
@@ -16,6 +15,7 @@ public record UserResponse(
     String userEmail,
     LocalDate userBirth,
     int userPoint,
+    @JsonProperty("auth")
     boolean isAuth,
     String userStatus,
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
