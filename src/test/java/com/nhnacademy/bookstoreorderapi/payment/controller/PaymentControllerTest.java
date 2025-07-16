@@ -16,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +27,8 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(
-        controllers = PaymentController.class,
-        properties = "frontend.base-url=http://localhost",
-        excludeAutoConfiguration = SecurityAutoConfiguration.class
-)
-@AutoConfigureMockMvc(addFilters = false)
+@WebMvcTest(controllers = PaymentController.class)
+@ActiveProfiles("test")
 class PaymentControllerTest {
 
     @Autowired
