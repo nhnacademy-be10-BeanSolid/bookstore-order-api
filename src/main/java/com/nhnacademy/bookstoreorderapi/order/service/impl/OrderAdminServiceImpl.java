@@ -6,6 +6,7 @@ import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
@@ -28,13 +29,16 @@ public class OrderAdminServiceImpl implements OrderAdminService {
 
     @Transactional
     @Override
-    public Page<OrderSummaryResponse> getAllOrders(Pageable pageable) {
+    public Page<OrderSummaryResponse> getAllOrders(Pageable pageable, String xUserId) {
+        validateAdminAccess(xUserId);
         return orderRepository.findAllOrderSummary(pageable);
     }
 
     @Transactional
     @Override
     public OrderResponse changeStatusToShipping(String orderNumber, String xUserId) {
+        validateAdminAccess(xUserId);
+
         Long createdBy = xUserIdResolver.resolveUserNo(xUserId);
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> {
@@ -56,5 +60,12 @@ public class OrderAdminServiceImpl implements OrderAdminService {
                 statusLog.getOrder().getOrderNumber(), statusLog.getOldStatus(), statusLog.getNewStatus(), statusLog.getCreatedBy());
 
         return OrderResponse.from(order);
+    }
+
+    private void validateAdminAccess(String xUserId) {
+        if (!xUserIdResolver.isAdmin(xUserId)) {
+            log.warn("관리자가 아닌 사용자가 접근했습니다: xUserId={}", xUserId);
+            throw new NotAdminException("관리자 권한이 필요합니다.");
+        }
     }
 }

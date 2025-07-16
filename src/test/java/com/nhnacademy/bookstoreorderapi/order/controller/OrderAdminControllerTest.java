@@ -50,7 +50,7 @@ class OrderAdminControllerTest {
                 new OrderSummaryResponse(LocalDate.now(), "202508-abcdef-123456", "받는 사람", 100L, "SHIPPING"));
         Page<OrderSummaryResponse> responsePage = new PageImpl<>(responses, pageable, responses.size());
 
-        given(orderAdminService.getAllOrders(any())).willReturn(responsePage);
+        given(orderAdminService.getAllOrders(any(), anyString())).willReturn(responsePage);
         given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
 
         // when & then
@@ -59,7 +59,7 @@ class OrderAdminControllerTest {
                 .header("X-USER-ID", xUserId))
                 .andExpect(status().isOk());
 
-        verify(orderAdminService, times(1)).getAllOrders(any());
+        verify(orderAdminService, times(1)).getAllOrders(any(), anyString());
     }
 
     @ParameterizedTest(name = "X-USER-ID 헤더가 빈 값이거나 공백이면 전체 주문 조회에 실패한다")
@@ -71,7 +71,7 @@ class OrderAdminControllerTest {
                 .header("X-USER-ID", xUserId))
                 .andExpect(status().isForbidden());
 
-        verify(orderAdminService, never()).getAllOrders(any());
+        verify(orderAdminService, never()).getAllOrders(any(), anyString());
     }
 
     @Test

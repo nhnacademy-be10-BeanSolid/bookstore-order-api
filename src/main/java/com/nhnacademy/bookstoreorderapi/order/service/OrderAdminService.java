@@ -7,6 +7,6 @@ import org.springframework.data.domain.Pageable;
 
 public interface OrderAdminService {
 
-    Page<OrderSummaryResponse> getAllOrders(Pageable pageable);
+    Page<OrderSummaryResponse> getAllOrders(Pageable pageable, String xUserId);
     OrderResponse changeStatusToShipping(String orderNumber, String xUserId);
 }

@@ -45,6 +45,7 @@ class OrderAdminServiceImplTest {
     @DisplayName("전체 주문 조회에 성공한다")
     void getAllOrders_success() {
         // given
+        String xUserId = "testUser";
         Pageable pageable = PageRequest.of(0, 1);
         List<OrderSummaryResponse> responses = List.of(
                 new OrderSummaryResponse(LocalDate.now(), "202507-abcdef-123456", "받는 사람", 100L, "PENDING"),
@@ -54,7 +55,7 @@ class OrderAdminServiceImplTest {
         given(orderRepository.findAllOrderSummary(any())).willReturn(responsePage);
 
         // when
-        Page<OrderSummaryResponse> result = orderAdminService.getAllOrders(pageable);
+        Page<OrderSummaryResponse> result = orderAdminService.getAllOrders(pageable, xUserId);
 
         // then
         assertThat(result.getTotalElements()).isEqualTo(2);
