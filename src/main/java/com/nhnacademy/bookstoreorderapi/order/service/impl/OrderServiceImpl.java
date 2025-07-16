@@ -12,15 +12,19 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -52,6 +56,8 @@ public class OrderServiceImpl implements OrderService {
 
     private static final Duration DELIVERY_DELAY = Duration.ofSeconds(10);
 
+    // CREATE (생성)
+    // 주문 생성
     @Transactional
     @Override
     public CreateOrderResponse createOrder(CreateOrderRequest request, String xUserId) {
@@ -73,6 +79,8 @@ public class OrderServiceImpl implements OrderService {
         return CreateOrderResponse.of(saved, savedItems, books);
     }
 
+    // READ (조회)
+    // 주문서 작성 페이지
     @Transactional(readOnly = true)
     @Override
     public CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId) {
@@ -81,6 +89,24 @@ public class OrderServiceImpl implements OrderService {
         return CreateOrderResponse.of(unfinished.order(), unfinished.orderItems(), unfinished.books());
     }
 
+    // 회원 주문 전체 조회
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        return orderRepository.findOrderSummary(userNo, pageable);
+    }
+
+    // 주문 상세 조회
+    @Transactional(readOnly = true)
+    @Override
+    public OrderDetailResponse findByOrderNumber(String orderNumber, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        OrderData data = getOrderDetail(orderNumber, userNo);
+        return OrderDetailResponse.of(data.order(), data.orderItems(), data.books());
+    }
+
+    // UPDATE (수정)
     @Transactional
     @Override
     public OrderResponse updateOrder(String orderNumber, UpdateOrderRequest request, String xUserId) {
@@ -103,7 +129,12 @@ public class OrderServiceImpl implements OrderService {
     // 반품 요청
     @Transactional
     @Override
-    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, Long userNo) {
+    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        if (userNo == null) {
+            log.warn("[경고] 비회원이 반품 기능에 접근함");
+            throw new NotMemberException("회원이 아닙니다");
+        }
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
 
@@ -123,15 +154,6 @@ public class OrderServiceImpl implements OrderService {
         statusLogRepository.save(statusLog);
 
         return OrderResponse.from(order);
-    }
-
-    // 주문 상세 조회
-    @Transactional(readOnly = true)
-    @Override
-    public OrderDetailResponse findByOrderNumber(String orderNumber, String xUserId) {
-        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        OrderData data = getOrderDetail(orderNumber, userNo);
-        return OrderDetailResponse.of(data.order(), data.orderItems(), data.books());
     }
 
     private OrderData getOrderDetail(String orderNumber, Long userNo) {
@@ -219,15 +241,6 @@ public class OrderServiceImpl implements OrderService {
                 .map(entry -> new CreateOrderRequest.CreateOrderItemRequest(entry.getKey(), entry.getValue()))
                 .toList();
     }
-//
-//    // 회원 주문 전체 조회
-//    @Override
-//    @Transactional(readOnly = true)
-//    public Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable) {
-//        Long userNo = getUserNo(xUserId);
-//
-//        return customOrderRepository.findOrderSummary(userNo, pageable);
-//    }
 //
 
 //

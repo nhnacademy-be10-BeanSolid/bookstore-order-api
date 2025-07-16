@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.domain.entity;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -33,7 +32,7 @@ public class ShippingInfo {
     @Column
     private LocalDate requestedDeliveryDate;
 
-    @Column(updatable = false)
+    @Column
     private Integer shippingFee;
 
     public ShippingInfo(UpdateOrderRequest request, Integer shippingFee) {
@@ -42,18 +41,5 @@ public class ShippingInfo {
         this.address = request.address();
         this.requestedDeliveryDate = request.requestedDeliveryDate();
         this.shippingFee = shippingFee;
-    }
-
-    public static ShippingInfo of(OrderRequest req, int shippingFee) {
-        LocalDate requestedDeliveryDate = req.requestedDeliveryDate() != null
-                ? req.requestedDeliveryDate()
-                : LocalDate.now().plusDays(1);
-
-        return new ShippingInfo(
-                req.receiverName(),
-                req.receiverPhoneNumber(),
-                req.deliveryAddress(),
-                requestedDeliveryDate,
-                shippingFee);
     }
 }

@@ -21,7 +21,7 @@ public class OrderItem {
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(updatable = false)
+    @JoinColumn
     @Setter
     private Wrapping wrapping;
 

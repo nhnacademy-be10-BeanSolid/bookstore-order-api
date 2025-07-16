@@ -59,7 +59,8 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                         order.orderDate,
                         order.orderNumber,
                         order.shippingInfo.receiverName,
-                        order.totalPrice))
+                        order.totalPrice,
+                        order.status.stringValue()))
                 .from(order)
                 .where(order.userNo.eq(userNo)
                         .and(order.status.isNotNull()))
