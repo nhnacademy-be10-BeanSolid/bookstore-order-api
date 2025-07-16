@@ -1,10 +1,9 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.entity;
+package com.nhnacademy.bookstoreorderapi.order.domain;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -13,7 +12,6 @@ import java.time.LocalDate;
 @Embeddable
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor //TODO: 코드 리팩토링 후 쓸 일 없다면 제거 예정
 public class ShippingInfo {
 
     public static final Integer FREE_SHIPPING_THRESHOLD = 30_000;

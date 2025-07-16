@@ -1,9 +1,9 @@
 //package com.nhnacademy.bookstoreorderapi.payment.integration;
 //
 //import com.fasterxml.jackson.databind.ObjectMapper;
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-//import com.nhnacademy.bookstoreorderapi.order.domain.entity.ShippingInfo;
+//import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+//import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+//import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
 //import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 //import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
 //import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;

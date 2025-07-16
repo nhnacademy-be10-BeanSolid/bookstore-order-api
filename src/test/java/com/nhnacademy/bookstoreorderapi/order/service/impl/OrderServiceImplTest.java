@@ -4,7 +4,7 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
+import com.nhnacademy.bookstoreorderapi.order.domain.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
@@ -12,6 +12,9 @@ import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -23,10 +26,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,6 +56,13 @@ class OrderServiceImplTest {
     @InjectMocks
     private OrderServiceImpl orderService;
 
+    private final BookResponse bookResponse = new BookResponse(1L, "title", "desc", "toc", "author", "publisher",
+            LocalDate.now(), "isbn", 100, 100, true, LocalDateTime.now(), LocalDateTime.now(), "status", 10);
+
+    private final ShippingInfo shippingInfo = new ShippingInfo(
+            new UpdateOrderRequest(null, "받는 사람", "010-1234-5678", "주소", LocalDate.now().plusDays(1)),
+            ShippingInfo.DEFAULT_SHIPPING_FEE);
+
     @Test
     @DisplayName("회원 주문 생성에 성공한다")
     void createOrder_member_success() {
@@ -64,7 +76,7 @@ class OrderServiceImplTest {
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(1L);
         given(orderRepository.save(any(Order.class))).willReturn(memberOrder);
         given(orderItemRepository.saveAll(anyList())).willReturn(memberItems);
-        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(bookResponse));
 
         // when
         CreateOrderResponse memberResult = orderService.createOrder(orderRequest, memberXUserId);
@@ -90,7 +102,7 @@ class OrderServiceImplTest {
         given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
         given(orderRepository.save(any(Order.class))).willReturn(guestOrder);
         given(orderItemRepository.saveAll(anyList())).willReturn(guestItems);
-        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(bookResponse));
 
         // when
         CreateOrderResponse guestResult = orderService.createOrder(orderRequest, null);
@@ -119,7 +131,7 @@ class OrderServiceImplTest {
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(1L);
         given(orderRepository.save(any())).willReturn(order);
         given(orderItemRepository.saveAll(anyList())).willReturn(orderItems);
-        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(bookResponse));
 
         // when
         CreateOrderResponse result = orderService.createOrder(orderRequest, xUserId);
@@ -142,7 +154,7 @@ class OrderServiceImplTest {
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), anyLong())).willReturn(Optional.of(order));
         given(orderItemRepository.findAllByOrder(any())).willReturn(orderItems);
-        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(bookResponse));
 
         // when
         CreateOrderResponse unfinishedOrder = orderService.getUnfinishedOrder(orderNumber, xUserId);
@@ -249,23 +261,23 @@ class OrderServiceImplTest {
         Long userNo = 1L;
 
         Order order = new Order(userNo);
-        order.setStatus(OrderStatus.PENDING);
-        order.setShippingInfo(new ShippingInfo("받는사람", "010-1234-5678", "주소", LocalDate.now(), 3_000));
+        order.setStatus(OrderStatus.PENDING_PAY);
+        order.setShippingInfo(shippingInfo);
         List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목", 1_000, 1, order));
 
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), anyLong())).willReturn(Optional.of(order));
         given(orderItemRepository.findAllByOrder(any(Order.class))).willReturn(orderItems);
-        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(BookResponse.builder().id(1L).build()));
+        given(bookService.getBookOrderResponse(anyList())).willReturn(List.of(bookResponse));
 
         // when
         OrderDetailResponse result = orderService.findByOrderNumber(orderNumber, xUserId);
 
         // then
-        assertThat(result.getReceiverName()).isEqualTo("받는사람");
+        assertThat(result.getReceiverName()).isEqualTo("받는 사람");
         assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
         assertThat(result.getAddress()).isEqualTo("주소");
-        assertThat(result.getDeliveryFee()).isEqualTo(3_000);
+        assertThat(result.getDeliveryFee()).isEqualTo(5_000);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(anyString(), anyLong());
@@ -284,13 +296,16 @@ class OrderServiceImplTest {
 
         Order order = new Order(userNo);
         order.setStatus(OrderStatus.COMPLETED);
-        order.setShippingInfo(new ShippingInfo("받는 사람", "010-1234-5678", "주소", LocalDate.now(), 100));
+        order.setShippingInfo(shippingInfo);
+
+        OrderReturn returnedOrder = new OrderReturn(order, "파손됨", true);
 
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
         given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(true);
         given(statusLogRepository.getCompletedOrderPaymentAmount(any(Order.class), anyBoolean())).willReturn(Optional.of(15_000L));
         given(userService.plusPoint(anyLong(), anyInt())).willReturn(null);
+        given(returnRepository.save(any(OrderReturn.class))).willReturn(returnedOrder);
 
         // when
         OrderResponse result = orderService.changeStatusToReturned(orderNumber, request, xUserId);
@@ -327,5 +342,65 @@ class OrderServiceImplTest {
 
         verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
         verify(orderRepository, times(1)).findOrderSummary(anyLong(), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("비회원이 반품 요청 시 실패한다")
+    void changeStatusToReturned_notMember_fail() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = null;
+        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
+
+        given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
+                .isInstanceOf(NotMemberException.class);
+
+        verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
+        verify(orderRepository, never()).findByOrderNumber(anyString());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 주문번호로 반품 요청 시 실패한다")
+    void changeStatusToReturned_orderNotFound_fail() {
+        // given
+        String orderNumber = "not-found";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
+
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
+                .isInstanceOf(OrderNotFoundException.class);
+
+        verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
+    }
+
+    @Test
+    @DisplayName("반품 불가능한 주문에 대해 반품 요청 시 실패한다")
+    void changeStatusToReturned_cannotReturn_fail() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
+
+        Order order = new Order(userNo);
+        order.setStatus(OrderStatus.PENDING_PAY);
+
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
+                .isInstanceOf(InvalidOrderStatusChangeException.class);
+
+        verify(statusLogRepository, times(1)).canReturnOrder(order, request.damaged());
     }
 }

@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.order.domain;
+package com.nhnacademy.bookstoreorderapi.order.util;
 
 import java.security.SecureRandom;
 import java.time.LocalDate;

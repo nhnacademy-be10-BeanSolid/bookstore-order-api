@@ -1,10 +1,10 @@
 package com.nhnacademy.bookstoreorderapi.order.repository.impl;
 
 import com.nhnacademy.bookstoreorderapi.order.common.config.QuerydslConfig;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.Order;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderReturn;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatus;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.OrderStatusLog;
+import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderReturn;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatusLog;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderStatusLogRepository;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
@@ -48,7 +48,7 @@ class CustomOrderStatusLogRepositoryImplTest {
         order.setStatus(OrderStatus.SHIPPING);
         Order savedOrder = orderRepository.save(order);
 
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
         orderStatusLogRepository.save(statusLog);
 
         entityManager.flush();
@@ -69,7 +69,7 @@ class CustomOrderStatusLogRepositoryImplTest {
         order.setStatus(OrderStatus.SHIPPING);
         Order savedOrder = orderRepository.save(order);
 
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
         OrderStatusLog savedStatusLog = orderStatusLogRepository.save(statusLog);
         
         // 11일 전으로 직접 업데이트
@@ -96,7 +96,7 @@ class CustomOrderStatusLogRepositoryImplTest {
         order.setStatus(OrderStatus.SHIPPING);
         Order savedOrder = orderRepository.save(order);
 
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
         
         // 먼저 저장하고 25일 전으로 설정
         OrderStatusLog savedStatusLog = orderStatusLogRepository.save(statusLog);
@@ -125,7 +125,7 @@ class CustomOrderStatusLogRepositoryImplTest {
         order.setStatus(OrderStatus.SHIPPING);
         Order savedOrder = orderRepository.save(order);
 
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, 1L, "배송 시작", savedOrder);
         
         // 먼저 저장하고 31일 전으로 설정
         OrderStatusLog savedStatusLog = orderStatusLogRepository.save(statusLog);
@@ -264,10 +264,10 @@ class CustomOrderStatusLogRepositoryImplTest {
     void canReturnOrder_noShippingStatusLog_returnFalse() {
         // given
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.PENDING);
+        order.setStatus(OrderStatus.PENDING_PAY);
         Order savedOrder = orderRepository.save(order);
 
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING, OrderStatus.COMPLETED, 1L, "직접 완료", savedOrder);
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.PENDING_PAY, OrderStatus.COMPLETED, 1L, "직접 완료", savedOrder);
         orderStatusLogRepository.save(statusLog);
 
         entityManager.flush();
