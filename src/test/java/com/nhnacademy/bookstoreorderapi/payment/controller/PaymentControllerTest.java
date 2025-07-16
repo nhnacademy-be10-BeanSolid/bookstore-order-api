@@ -24,7 +24,10 @@ import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(PaymentController.class)
+@WebMvcTest(
+        value = PaymentController.class,
+        properties = "frontend.base-url=http://localhost"
+)
 class PaymentControllerTest {
 
     @Autowired
