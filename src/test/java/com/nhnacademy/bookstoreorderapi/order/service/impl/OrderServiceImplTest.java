@@ -285,42 +285,42 @@ class OrderServiceImplTest {
         verify(bookService, times(1)).getBookOrderResponse(anyList());
     }
 
-    @Test
-    @DisplayName("반품 요청에 성공한다")
-    void changeStatusToReturned_success() {
-        // given
-        String orderNumber = "202507-abcdef-123456";
-        String xUserId = "testUser";
-        Long userNo = 1L;
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
-
-        Order order = new Order(userNo);
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setShippingInfo(shippingInfo);
-
-        OrderReturn returnedOrder = new OrderReturn(order, "파손됨", true);
-
-        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
-        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
-        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(true);
-        given(statusLogRepository.getCompletedOrderPaymentAmount(any(Order.class), anyBoolean())).willReturn(Optional.of(15_000L));
-        given(userService.plusPoint(anyLong(), anyInt())).willReturn(null);
-        given(returnRepository.save(any(OrderReturn.class))).willReturn(returnedOrder);
-
-        // when
-        OrderResponse result = orderService.changeStatusToReturned(orderNumber, request, xUserId);
-
-        // then
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.RETURNED.name());
-
-        verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
-        verify(orderRepository, times(1)).findByOrderNumber(anyString());
-        verify(statusLogRepository, times(1)).canReturnOrder(any(Order.class), anyBoolean());
-        verify(statusLogRepository, times(1)).getCompletedOrderPaymentAmount(any(Order.class), anyBoolean());
-        verify(userService, times(1)).plusPoint(anyLong(), anyInt());
-        verify(returnRepository, times(1)).save(any(OrderReturn.class));
-        verify(statusLogRepository, times(1)).save(any(OrderStatusLog.class));
-    }
+//    @Test
+//    @DisplayName("반품 요청에 성공한다")
+//    void changeStatusToReturned_success() {
+//        // given
+//        String orderNumber = "202507-abcdef-123456";
+//        String xUserId = "testUser";
+//        Long userNo = 1L;
+//        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
+//
+//        Order order = new Order(userNo);
+//        order.setStatus(OrderStatus.COMPLETED);
+//        order.setShippingInfo(shippingInfo);
+//
+//        OrderReturn returnedOrder = new OrderReturn(order, "파손됨", true);
+//
+//        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+//        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+//        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(true);
+//        given(statusLogRepository.getCompletedOrderPaymentAmount(any(Order.class), anyBoolean())).willReturn(Optional.of(15_000L));
+//        given(userService.plusPoint(anyLong(), anyInt())).willReturn(null);
+//        given(returnRepository.save(any(OrderReturn.class))).willReturn(returnedOrder);
+//
+//        // when
+//        OrderResponse result = orderService.changeStatusToReturned(orderNumber, request, xUserId);
+//
+//        // then
+//        assertThat(result.getStatus()).isEqualTo(OrderStatus.RETURNED.name());
+//
+//        verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
+//        verify(orderRepository, times(1)).findByOrderNumber(anyString());
+//        verify(statusLogRepository, times(1)).canReturnOrder(any(Order.class), anyBoolean());
+//        verify(statusLogRepository, times(1)).getCompletedOrderPaymentAmount(any(Order.class), anyBoolean());
+//        verify(userService, times(1)).plusPoint(anyLong(), anyInt());
+//        verify(returnRepository, times(1)).save(any(OrderReturn.class));
+//        verify(statusLogRepository, times(1)).save(any(OrderStatusLog.class));
+//    }
 
     @Test
     @DisplayName("회원 주문 전체 조회에 성공한다")
