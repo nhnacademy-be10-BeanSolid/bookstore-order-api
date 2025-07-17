@@ -1,8 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderDetailInternal;
@@ -38,7 +38,7 @@ public class OrderServiceImpl implements OrderService {
     private final XUserIdResolver xUserIdResolver;
 
     private final BookService bookService;
-    private final UserService userService;
+    private final PointService pointService;
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -134,7 +134,8 @@ public class OrderServiceImpl implements OrderService {
 
         Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, request.damaged())
                 .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
-        userService.plusPoint(userNo, refundAmount.intValue());
+
+        pointService.processPointRefund(order, refundAmount);
 
         OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
         returnRepository.save(orderReturn);

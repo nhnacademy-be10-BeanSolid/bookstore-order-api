@@ -23,4 +23,5 @@ public class PaymentReqDto {
 
    private String successUrl;
    private String failUrl;
+   private int usedPoint;
 }

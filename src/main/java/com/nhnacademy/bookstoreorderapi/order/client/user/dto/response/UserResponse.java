@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.order.client.user.dto;
+package com.nhnacademy.bookstoreorderapi.order.client.user.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;

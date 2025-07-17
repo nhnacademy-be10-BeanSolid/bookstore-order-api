@@ -1,8 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
@@ -36,6 +37,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
+    private final PointService pointService;
 
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
@@ -66,6 +68,8 @@ public class PaymentServiceImpl implements PaymentService {
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
                 .ifPresent(p -> { throw new AlreadyPaidException(orderNumber); });
 
+        pointService.validatePointUsage(order.getUserNo(), dto.getUsedPoint());
+
         Map<String, Object> body = Map.of(
                 "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
                 "orderId", orderNumber,
@@ -85,6 +89,7 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setPayType(dto.getPayType());
         payment.setPayAmount(dto.getPayAmount());
         payment.setPayName(dto.getPayName());
+        payment.setUsedPoint(dto.getUsedPoint());
         payment.setPaymentStatus(PaymentStatus.PENDING);
         payRepo.save(payment);
 
@@ -131,6 +136,9 @@ public class PaymentServiceImpl implements PaymentService {
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING_PAY);
         orderRepo.save(order);
+
+        pointService.processEarnedPoints(order, payment);
+        pointService.processUsedPoints(order, payment);
 
         return confirmResp;
     }
@@ -184,14 +192,4 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
-    @Override
-    @Transactional
-    public Map<String, Object> refundCardPayment(String paymentKey, Map<String, Object> req) {
-        return Map.of("data", refundCardPayment(paymentKey,
-                new CancelPaymentRequest(
-                        Objects.toString(req.get("orderId"), ""),
-                        ((Number) req.getOrDefault("amount", 0)).longValue(),
-                        Objects.toString(req.get("cancelReason"), "")
-                )));
-    }
 }
