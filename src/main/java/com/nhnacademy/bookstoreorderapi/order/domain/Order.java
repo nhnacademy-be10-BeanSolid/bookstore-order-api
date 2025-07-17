@@ -1,6 +1,6 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.entity;
+package com.nhnacademy.bookstoreorderapi.order.domain;
 
-import com.nhnacademy.bookstoreorderapi.order.domain.OrderIdGenerator;
+import com.nhnacademy.bookstoreorderapi.order.util.OrderIdGenerator;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -45,25 +45,6 @@ public class Order extends BaseTimeEntity {
     public Order(Long userNo) {
         this.userNo = userNo;
     }
-
-//    public static Order of(OrderRequest req, Long userNo) {
-//        long totalAmount = req.orderItems().stream()
-//                .mapToLong(item -> item.price() * item.quantity())
-//                .sum();
-//        int deliveryFee = ShippingInfo.DEFAULT_DELIVERY_FEE;
-//        if (userNo != null && totalAmount >= 30_000) {
-//            deliveryFee = 0;
-//        }
-//
-//        ShippingInfo shippingInfo = ShippingInfo.of(req, deliveryFee);
-//
-//        return Order.builder()
-//                .userNo(userNo)
-//                .orderDate(LocalDate.now())
-//                .shippingInfo(shippingInfo)
-//                .totalPrice(totalAmount)
-//                .build();
-//    }
 
     @PrePersist
     private void createOrderNumber() {

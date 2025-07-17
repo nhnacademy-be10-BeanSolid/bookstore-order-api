@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.entity;
+package com.nhnacademy.bookstoreorderapi.order.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -44,29 +44,4 @@ public class OrderItem {
         this.quantity = quantity;
         this.order = order;
     }
-
-//    public static OrderItem of(BookResponse book, int quantity, Order order, Wrapping wrapping) {
-//
-//        return OrderItem.builder()
-//                .bookId(book.id())
-//                .unitPrice(book.salePrice())
-//                .quantity(quantity)
-//                .order(order)
-//                .wrapping(wrapping)
-//                .build();
-//    }
-
-//    public static List<OrderItem> createItems(Order order,
-//                                              List<OrderRequest.OrderItemRequest> requests,
-//                                              Map<Long, BookResponse> bookMap,
-//                                              Map<Long, Wrapping> wrappingMap) {
-//        return requests.stream()
-//                .map(req ->
-//                        of(bookMap.get(req.bookId()),
-//                                req.quantity(),
-//                                order,
-//                                wrappingMap.get(req.wrappingId()))
-//                )
-//                .toList();
-//    }
 }

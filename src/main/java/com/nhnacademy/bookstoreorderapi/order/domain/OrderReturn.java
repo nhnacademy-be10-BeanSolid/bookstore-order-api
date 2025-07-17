@@ -1,12 +1,9 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.entity;
+package com.nhnacademy.bookstoreorderapi.order.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
-
-import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "order_returns")

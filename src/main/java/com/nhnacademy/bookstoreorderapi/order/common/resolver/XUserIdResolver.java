@@ -14,7 +14,7 @@ public class XUserIdResolver {
     private final UserService userService;
 
     public Long resolveUserNo(String xUserId) {
-        if (!isMember(xUserId)) {
+        if (isGuest(xUserId)) {
             return null;
         }
 
@@ -24,18 +24,18 @@ public class XUserIdResolver {
     }
 
     public boolean isAdmin(String xUserId) {
-        if (!isMember(xUserId)) {
+        if (isGuest(xUserId)) {
             return false;
         }
 
         return userService.getUserInfo(xUserId).isAuth();
     }
 
-    private boolean isMember(String xUserId) {
+    private boolean isGuest(String xUserId) {
         if (xUserId == null || xUserId.isBlank()) {
             log.debug("비회원입니다: X-USER-ID={}", xUserId);
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 }

@@ -2,6 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.exception.forbidden.NotAdminException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderAdminService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,7 +51,7 @@ class OrderAdminControllerTest {
                 new OrderSummaryResponse(LocalDate.now(), "202508-abcdef-123456", "받는 사람", 100L, "SHIPPING"));
         Page<OrderSummaryResponse> responsePage = new PageImpl<>(responses, pageable, responses.size());
 
-        given(orderAdminService.getAllOrders(any())).willReturn(responsePage);
+        given(orderAdminService.getAllOrders(any(), anyString())).willReturn(responsePage);
         given(xUserIdResolver.isAdmin(anyString())).willReturn(true);
 
         // when & then
@@ -59,19 +60,20 @@ class OrderAdminControllerTest {
                 .header("X-USER-ID", xUserId))
                 .andExpect(status().isOk());
 
-        verify(orderAdminService, times(1)).getAllOrders(any());
+        verify(orderAdminService, times(1)).getAllOrders(any(), anyString());
     }
 
     @ParameterizedTest(name = "X-USER-ID 헤더가 빈 값이거나 공백이면 전체 주문 조회에 실패한다")
     @ValueSource(strings = {"", " "})
     void getAllOrders_blankXUserIdHeader_fail(String xUserId) throws Exception {
+        // given
+        given(orderAdminService.getAllOrders(any(), anyString()))
+                .willThrow(NotAdminException.class);
         // when & then
         mockMvc.perform(get("/admin/orders")
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("X-USER-ID", xUserId))
                 .andExpect(status().isForbidden());
-
-        verify(orderAdminService, never()).getAllOrders(any());
     }
 
     @Test
@@ -97,7 +99,8 @@ class OrderAdminControllerTest {
         String orderNumber = "202507-abcdef-123456";
         String xUserId = "notAdmin";
 
-        given(xUserIdResolver.isAdmin(anyString())).willReturn(false);
+        given(orderAdminService.changeStatusToShipping(anyString(), anyString()))
+                .willThrow(NotAdminException.class);
 
         // when & then
         mockMvc.perform(put("/admin/orders/{orderNumber}/status", orderNumber)

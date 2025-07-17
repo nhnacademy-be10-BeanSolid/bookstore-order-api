@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.order.domain.entity;
+package com.nhnacademy.bookstoreorderapi.order.domain;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;

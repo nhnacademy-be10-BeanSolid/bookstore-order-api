@@ -5,7 +5,6 @@ import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.UserNotFoundException;
 import feign.FeignException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,33 +28,15 @@ class UserServiceTest {
     @InjectMocks
     private UserService userService;
 
-    private UserResponse mockUserResponse;
-
-    @BeforeEach
-    void setUp() {
-        mockUserResponse = UserResponse.builder()
-                .userNo(1L)
-                .userId("testUser")
-                .userPassword("password")
-                .userName("테스트유저")
-                .userPhoneNumber("010-1234-5678")
-                .userEmail("test@example.com")
-                .userBirth(LocalDate.of(1990, 1, 1))
-                .userPoint(1000)
-                .isAuth(true)
-                .userStatus("ACTIVE")
-                .createdAt(LocalDateTime.now())
-                .lastLoginAt(LocalDateTime.now())
-                .userGradeName("GOLD")
-                .build();
-    }
+    private final UserResponse userResponse = new UserResponse(1L, "testUser", "password", "테스트유저", "010-1234-5678", "test@example.com",
+            LocalDate.of(1900, 1, 1), 1000, true, "ACTIVE", LocalDateTime.now(), LocalDateTime.now(), "GOLD");
 
     @Test
     @DisplayName("사용자 정보 조회 성공")
     void getUserInfo_Success() {
         // Given
         String userId = "testUser";
-        when(userServiceClient.getUserInfo(userId)).thenReturn(mockUserResponse);
+        when(userServiceClient.getUserInfo(userId)).thenReturn(userResponse);
 
         // When
         UserResponse result = userService.getUserInfo(userId);

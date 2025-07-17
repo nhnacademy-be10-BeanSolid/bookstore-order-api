@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -162,5 +163,37 @@ class OrderInternalServiceImplTest {
         // then
         assertThat(result).isNull();
         verify(orderRepository, times(1)).findOrderNumberById(anyLong());
+    }
+
+    @Test
+    @DisplayName("책 구매 검증에 성공한다 - 구매한 경우")
+    void validatePurchase_purchased_success() {
+        // given
+        ValidatePurchaseRequest request = new ValidatePurchaseRequest(1L, 1L);
+
+        given(orderRepository.findByUserNoAndBookId(anyLong(), anyLong())).willReturn(true);
+
+        // when
+        Boolean result = orderInternalService.validatePurchase(request);
+
+        // then
+        assertThat(result).isTrue();
+        verify(orderRepository, times(1)).findByUserNoAndBookId(request.userNo(), request.bookId());
+    }
+
+    @Test
+    @DisplayName("책 구매 검증에 성공한다 - 구매하지 않은 경우")
+    void validatePurchase_notPurchased_success() {
+        // given
+        ValidatePurchaseRequest request = new ValidatePurchaseRequest(999L, 1L);
+
+        given(orderRepository.findByUserNoAndBookId(anyLong(), anyLong())).willReturn(false);
+
+        // when
+        Boolean result = orderInternalService.validatePurchase(request);
+
+        // then
+        assertThat(result).isFalse();
+        verify(orderRepository, times(1)).findByUserNoAndBookId(request.userNo(), request.bookId());
     }
 }

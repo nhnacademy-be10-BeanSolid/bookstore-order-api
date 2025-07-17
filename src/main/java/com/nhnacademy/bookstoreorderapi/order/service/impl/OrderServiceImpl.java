@@ -4,8 +4,8 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
-import com.nhnacademy.bookstoreorderapi.order.domain.entity.*;
-import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderData;
+import com.nhnacademy.bookstoreorderapi.order.domain.*;
+import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderDetailInternal;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
@@ -25,14 +25,11 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProces
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -44,8 +41,6 @@ public class OrderServiceImpl implements OrderService {
 
     private final XUserIdResolver xUserIdResolver;
 
-    private final OrderValidationService orderValidationService;
-
     private final BookService bookService;
     private final UserServiceClient userServiceClient;
 
@@ -53,12 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderItemRepository orderItemRepository;
     private final WrappingRepository wrappingRepository;
     private final OrderStatusLogRepository statusLogRepository;
-    private final TaskScheduler taskScheduler;
     private final ReturnsRepository returnRepository;
-    private final ApplicationContext applicationContext;
-    private final PaymentRepository paymentRepository;
-
-    private static final Duration DELIVERY_DELAY = Duration.ofSeconds(10);
 
     // CREATE (생성)
     // 주문 생성
@@ -89,7 +79,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public CreateOrderResponse getUnfinishedOrder(String orderNumber, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        OrderData unfinished = getOrderDetail(orderNumber, userNo);
+        OrderDetailInternal unfinished = getOrderDetail(orderNumber, userNo);
         return CreateOrderResponse.of(unfinished.order(), unfinished.orderItems(), unfinished.books());
     }
 
@@ -106,7 +96,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderDetailResponse findByOrderNumber(String orderNumber, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        OrderData data = getOrderDetail(orderNumber, userNo);
+        OrderDetailInternal data = getOrderDetail(orderNumber, userNo);
         return OrderDetailResponse.of(data.order(), data.orderItems(), data.books());
     }
 
@@ -179,7 +169,7 @@ public class OrderServiceImpl implements OrderService {
         return OrderResponse.from(order);
     }
 
-    private OrderData getOrderDetail(String orderNumber, Long userNo) {
+    private OrderDetailInternal getOrderDetail(String orderNumber, Long userNo) {
         Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
@@ -188,7 +178,7 @@ public class OrderServiceImpl implements OrderService {
                 .map(OrderItem::getBookId)
                 .toList();
         List<BookResponse> books = bookService.getBookOrderResponse(bookIds);
-        return new OrderData(order, orderItems, books);
+        return new OrderDetailInternal(order, orderItems, books);
     }
 
     private List<OrderItem> createOrderItems(List<BookResponse> books, Map<Long, Integer> quantityMap, Order order) {
@@ -264,92 +254,4 @@ public class OrderServiceImpl implements OrderService {
                 .map(entry -> new CreateOrderRequest.CreateOrderItemRequest(entry.getKey(), entry.getValue()))
                 .toList();
     }
-//
-
-//
-//    private void scheduleAutoDeliveryComplete(String orderId) {
-//
-//        LocalDateTime runAt = LocalDateTime.now().plus(DELIVERY_DELAY);
-//        Date triggerTime = Date.from(runAt.atZone(ZoneId.systemDefault()).toInstant());
-//
-//        taskScheduler.schedule(() -> {
-//            try {
-//                // Spring 프록시를 통해 @Transactional 메서드 호출
-//                OrderService orderService = applicationContext.getBean(OrderService.class);
-//                orderService.completeDelivery(orderId);
-//            } catch (Exception e) {
-//                log.error("자동 배송완료 처리 실패 for order {}", orderId, e);
-//            }
-//        }, triggerTime);
-//    }
-//
-//    @Transactional
-//    @Override
-//    public void completeDelivery(String orderId) {
-//
-//        Order order = orderRepository.findByOrderId(orderId)
-//                .orElseThrow(() -> new OrderNotFoundException(orderId));
-//
-//        if (order.getStatus() != OrderStatus.SHIPPING) {
-//            return;
-//        }
-//
-//        statusLogRepository.save(new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 99L, "배송 자동 완료", order));
-//        order.setStatus(OrderStatus.COMPLETED);
-//        orderRepository.save(order);
-//    }
-//
-//    @Transactional(readOnly = true)
-//    @Override
-//    public PurchaseVerificationResponse verifyPurchase(String xUserId, Long bookId) {
-//        Long userNo = getUserNo(xUserId);
-//        if (userNo == null || bookId == null) {
-//            throw new MissingRequiredParameterException("구매 검증에 필요한 정보(회원 정보 혹은 도서 정보)가 빠져있습니다.");
-//        }
-//
-//        return customOrderRepository.findByUserNoAndBookId(userNo, bookId);
-//    }
-//
-//    private void reduceStock(List<OrderRequest.OrderItemRequest> itemRequests,
-//                            Map<Long, BookResponse> bookMap) {
-//        Map<Long, Integer> quantityMap = itemRequests.stream()
-//                .collect(Collectors.groupingBy(
-//                        OrderRequest.OrderItemRequest::bookId,
-//                        Collectors.summingInt(OrderRequest.OrderItemRequest::quantity)
-//                ));
-//
-//        List<BookStockReduceRequest> stockReduceRequests = new ArrayList<>(quantityMap.size());
-//        for (Map.Entry<Long, Integer> entry : quantityMap.entrySet()) {
-//            Long bookId = entry.getKey();
-//            Integer requestedQuantity = entry.getValue();
-//            BookResponse book = bookMap.get(bookId);
-//
-//            int available = book.stock();
-//            validStock(book, bookId, available, requestedQuantity);
-//            stockReduceRequests.add(new BookStockReduceRequest(bookId, requestedQuantity));
-//        }
-//        bookService.stockUpdate(stockReduceRequests);
-//    }
-//
-//    private void validStock(BookResponse book, Long bookId, Integer available, Integer requestedQuantity) {
-//        if (book == null) {
-//            throw new BookNotFoundException("책을 찾을 수 없습니다. id=" + bookId);
-//        }
-//
-//        if (requestedQuantity > available) {
-//            throw new InsufficientStockException(
-//                    String.format("재고가 부족합니다. bookId=%d, 주문수량=%d, 재고=%d",
-//                            bookId, requestedQuantity, available)
-//            );
-//        }
-//    }
-//
-//    private Long getUserNo(String xUserId) {
-//        if (xUserId == null || xUserId.isBlank()) {
-//            return null;
-//        }
-//
-//        UserResponse userInfo = userService.getUserInfo(xUserId);
-//        return userInfo.userNo();
-//    }
 }
