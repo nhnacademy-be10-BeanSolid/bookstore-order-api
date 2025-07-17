@@ -39,7 +39,7 @@ public class OrderInternalController {
 
     // 책 구매 여부 조회 (for 리뷰 테이블)
     @GetMapping("/exists")
-    public boolean validatePurchase(@RequestBody ValidatePurchaseRequest request) {
-        return orderInternalService.validatePurchase(request);
+    public boolean validatePurchase(@RequestParam Long userNo, @RequestParam Long bookId) {
+        return orderInternalService.validatePurchase(userNo, bookId);
     }
 }

@@ -35,7 +35,7 @@ public class OrderInternalServiceImpl implements OrderInternalService {
     }
 
     @Override
-    public boolean validatePurchase(ValidatePurchaseRequest request) {
-        return orderRepository.findByUserNoAndBookId(request.userNo(), request.bookId());
+    public boolean validatePurchase(Long userNo, Long bookId) {
+        return orderRepository.findByUserNoAndBookId(userNo, bookId);
     }
 }
