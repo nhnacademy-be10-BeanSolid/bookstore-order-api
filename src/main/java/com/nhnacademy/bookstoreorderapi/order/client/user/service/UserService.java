@@ -3,7 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.client.user.service;
 import com.nhnacademy.bookstoreorderapi.common.exception.ExternalServiceException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.UserNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.response.UserResponse;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +21,6 @@ public class UserService {
     public UserResponse getUserInfo(String userId) {
         log.debug("사용자 정보를 가져옵니다 - userId: {}", userId);
         return userServiceClient.getUserInfo(userId);
-    }
-
-    @CircuitBreaker(name = "user-service", fallbackMethod = "fallbackPlusPoint")
-    public UserResponse plusPoint(Long userNo, int point) {
-        log.debug("포인트 적립 api를 호출합니다: userNo={}, point={}", userNo, point);
-        return userServiceClient.plusPoint(userNo, point);
     }
 
     public UserResponse fallbackGetUserInfo(String userId, Throwable t) {

@@ -49,7 +49,9 @@ public class Payment {
     @Column(name = "payment_key", nullable = false, length = 200)
     private String paymentKey;
 
-
+    // 사용된 포인트
+    @Column(name = "used_point", nullable = false)
+    private int usedPoint;
 
     // 기본값 “도서 구매” 자동 입력
     @PrePersist
