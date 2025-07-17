@@ -19,9 +19,8 @@ import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoun
 import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-import com.nhnacademy.bookstoreorderapi.order.service.OrderValidationService;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PointType;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PointType;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -49,6 +48,7 @@ public class OrderServiceImpl implements OrderService {
     private final WrappingRepository wrappingRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final ReturnsRepository returnRepository;
+    private final PaymentRepository paymentRepository;
 
     // CREATE (생성)
     // 주문 생성
