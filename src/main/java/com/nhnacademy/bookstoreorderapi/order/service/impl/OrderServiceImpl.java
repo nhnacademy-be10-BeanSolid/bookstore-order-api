@@ -1,8 +1,8 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderDetailInternal;
@@ -19,9 +19,6 @@ import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoun
 import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.OrderPointPlusProcessRequest;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.PointType;
-import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,14 +38,13 @@ public class OrderServiceImpl implements OrderService {
     private final XUserIdResolver xUserIdResolver;
 
     private final BookService bookService;
-    private final UserServiceClient userServiceClient;
+    private final PointService pointService;
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
     private final WrappingRepository wrappingRepository;
     private final OrderStatusLogRepository statusLogRepository;
     private final ReturnsRepository returnRepository;
-    private final PaymentRepository paymentRepository;
 
     // CREATE (생성)
     // 주문 생성
@@ -139,25 +135,7 @@ public class OrderServiceImpl implements OrderService {
         Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, request.damaged())
                 .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
 
-        // 포인트 반환 로직
-        OrderPointPlusProcessRequest pointPlusRequest = new OrderPointPlusProcessRequest(
-                order.getId(),
-                refundAmount.intValue(),
-                PointType.RETURN
-        );
-        userServiceClient.orderPointPlusProcess(userNo, pointPlusRequest);
-
-        // 사용된 포인트 반환 로직
-        paymentRepository.findByOrder(order).ifPresent(payment -> {
-            if (payment.getUsedPoint() > 0) {
-                OrderPointPlusProcessRequest usedPointPlusRequest = new OrderPointPlusProcessRequest(
-                        order.getId(),
-                        payment.getUsedPoint(),
-                        PointType.RETURN
-                );
-                userServiceClient.orderPointPlusProcess(userNo, usedPointPlusRequest);
-            }
-        });
+        pointService.processPointRefund(order, refundAmount);
 
         OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
         returnRepository.save(orderReturn);
