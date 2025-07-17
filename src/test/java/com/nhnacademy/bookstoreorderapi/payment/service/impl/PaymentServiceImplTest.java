@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
+import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
@@ -54,6 +55,9 @@ class PaymentServiceImplTest {
 
     @Mock
     private TossPaymentConfig tossPaymentConfig;
+
+    @Mock
+    private PointService pointService;
 
     @InjectMocks
     private PaymentServiceImpl paymentService;
