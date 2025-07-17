@@ -1,9 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.client.user;
 
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.ResponsePointType;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointMinusProcessRequest;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.response.ResponsePointType;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.response.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.OrderPointMinusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.OrderPointPlusProcessRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 

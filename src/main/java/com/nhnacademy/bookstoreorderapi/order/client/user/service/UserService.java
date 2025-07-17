@@ -3,7 +3,7 @@ package com.nhnacademy.bookstoreorderapi.order.client.user.service;
 import com.nhnacademy.bookstoreorderapi.common.exception.ExternalServiceException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.UserNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.client.user.UserServiceClient;
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.response.UserResponse;
 import feign.FeignException;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;

@@ -1,4 +1,4 @@
-package com.nhnacademy.bookstoreorderapi.payment.dto.Request;
+package com.nhnacademy.bookstoreorderapi.order.client.user.dto.request;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;

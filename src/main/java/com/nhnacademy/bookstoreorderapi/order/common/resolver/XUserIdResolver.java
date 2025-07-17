@@ -1,6 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.common.resolver;
 
-import com.nhnacademy.bookstoreorderapi.order.client.user.dto.UserResponse;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.response.UserResponse;
 import com.nhnacademy.bookstoreorderapi.order.client.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

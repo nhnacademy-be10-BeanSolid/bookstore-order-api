@@ -19,8 +19,8 @@ import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoun
 import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.OrderPointPlusProcessRequest;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PointType;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.OrderPointPlusProcessRequest;
+import com.nhnacademy.bookstoreorderapi.order.client.user.dto.request.PointType;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
