@@ -151,7 +151,7 @@ class CustomOrderStatusLogRepositoryImplTest {
     void getCompletedOrderPaymentAmount_normalProduct_success() {
         // given
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.RETURNED);
+        order.setStatus(OrderStatus.COMPLETED);
         Order savedOrder = orderRepository.save(order);
 
         OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 1L, "배송 완료", savedOrder);
@@ -182,7 +182,7 @@ class CustomOrderStatusLogRepositoryImplTest {
     void getCompletedOrderPaymentAmount_damagedProduct_success() {
         // given
         Order order = new Order(1L);
-        order.setStatus(OrderStatus.RETURNED);
+        order.setStatus(OrderStatus.COMPLETED);
         Order savedOrder = orderRepository.save(order);
 
         OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 1L, "배송 완료", savedOrder);
@@ -209,8 +209,8 @@ class CustomOrderStatusLogRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("완료된 주문 결제 금액 조회 - 완료 상태 주문은 빈 값 반환")
-    void getCompletedOrderPaymentAmount_completedOrder_returnEmpty() {
+    @DisplayName("완료된 주문 결제 금액 조회 - 완료 상태 주문은 결제 금액 반환")
+    void getCompletedOrderPaymentAmount_completedOrder_returnAmount() {
         // given
         Order order = new Order(1L);
         order.setStatus(OrderStatus.COMPLETED);
@@ -235,7 +235,8 @@ class CustomOrderStatusLogRepositoryImplTest {
         Optional<Long> result = orderStatusLogRepository.getCompletedOrderPaymentAmount(savedOrder, false);
 
         // then
-        assertThat(result).isEmpty();
+        assertThat(result).isPresent();
+        assertThat(result.get()).isEqualTo(15_000L - OrderReturn.RETURNS_FEE);
     }
 
     @Test
