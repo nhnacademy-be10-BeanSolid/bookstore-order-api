@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -135,6 +136,7 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = orderRepo.findByOrderNumber(dto.getOrderId())
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING_PAY);
+        order.setOrderDate(LocalDate.now());
         orderRepo.save(order);
 
         pointService.processEarnedPoints(order, payment);
@@ -157,6 +159,7 @@ public class PaymentServiceImpl implements PaymentService {
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
+        // orderNumber로 paymentKey 찾기
 
         tossClient.cancelPayment(paymentKey, Map.of(
                 "cancelReason", req.getCancelReason(),
@@ -191,5 +194,4 @@ public class PaymentServiceImpl implements PaymentService {
                 .failUrl(tossProps.getFailUrl())
                 .build();
     }
-
 }

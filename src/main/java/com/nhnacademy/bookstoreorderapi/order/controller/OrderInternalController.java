@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import lombok.RequiredArgsConstructor;

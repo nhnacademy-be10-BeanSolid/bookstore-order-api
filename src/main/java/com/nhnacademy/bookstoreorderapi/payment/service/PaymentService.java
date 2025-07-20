@@ -18,7 +18,4 @@ public interface PaymentService {
     PaymentResDto getPaymentInfo(String paymentKey);
 
     PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request);
-
-
-
 }
