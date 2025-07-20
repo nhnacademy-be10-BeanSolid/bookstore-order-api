@@ -46,7 +46,7 @@ public class CustomOrderStatusLogRepositoryImpl implements CustomOrderStatusLogR
         QPayment payment = QPayment.payment;
         QOrderStatusLog orderStatusLog = QOrderStatusLog.orderStatusLog;
 
-        if (order.getStatus().equals(OrderStatus.COMPLETED)) {
+        if (!order.getStatus().equals(OrderStatus.COMPLETED)) {
             return Optional.empty();
         }
 
