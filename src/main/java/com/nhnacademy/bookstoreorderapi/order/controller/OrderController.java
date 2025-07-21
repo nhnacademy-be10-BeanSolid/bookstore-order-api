@@ -1,12 +1,9 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.*;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
 import jakarta.validation.Valid;
@@ -68,13 +65,15 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateOrder(orderNumber, request, xUserId));
     }
 
-    // 반품 처리(주문 상태 변경)
+    // 주문 상태 변경(반품, 취소)
     @PutMapping("/{orderNumber}/status")
-    public ResponseEntity<OrderResponse> requestReturns(@PathVariable String orderNumber,
-                                                        @Valid @RequestBody ReturnsRequest request,
-                                                        @RequestHeader("X-USER-ID") String xUserId) {
+    public ResponseEntity<OrderStatusResult> changeOrderStatus(@PathVariable String orderNumber,
+                                               @Valid @RequestBody OrderStatusRequest request,
+                                               @RequestHeader("X-USER-ID") String xUserId) {
         validateOrderNumber(orderNumber);
-        return ResponseEntity.ok(orderService.changeStatusToReturned(orderNumber, request, xUserId));
+        OrderStatusResult result = orderService.changeOrderStatus(orderNumber, request, xUserId);
+        
+        return ResponseEntity.ok(result);
     }
 
     private void validateOrderNumber(String orderNumber) {

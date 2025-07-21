@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -136,7 +135,6 @@ public class PaymentServiceImpl implements PaymentService {
         Order order = orderRepo.findByOrderNumber(dto.getOrderId())
                 .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING_PAY);
-        order.setOrderDate(LocalDate.now());
         orderRepo.save(order);
 
         pointService.processEarnedPoints(order, payment);
@@ -154,12 +152,12 @@ public class PaymentServiceImpl implements PaymentService {
         }, () -> { throw new PaymentNotFoundException(paymentKey); });
     }
 
+    // 사용하지 않을 예정
     @Override
     @Transactional
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
         Payment payment = payRepo.findByPaymentKey(paymentKey)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentKey));
-        // orderNumber로 paymentKey 찾기
 
         tossClient.cancelPayment(paymentKey, Map.of(
                 "cancelReason", req.getCancelReason(),
@@ -192,6 +190,34 @@ public class PaymentServiceImpl implements PaymentService {
                 .redirectUrl(extractRedirectUrl(resp))
                 .successUrl(tossProps.getSuccessUrl())
                 .failUrl(tossProps.getFailUrl())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PaymentResDto refundCardPaymentByOrderNumber(String orderNumber, String cancelReason) {
+        Order order = orderRepo.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        Payment payment = payRepo.findByOrder(order)
+                .orElseThrow(() -> new PaymentNotFoundException("결제 정보를 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        // Toss 결제 취소 API 호출
+        tossClient.cancelPayment(payment.getPaymentKey(), Map.of(
+                "cancelReason", cancelReason,
+                "cancelAmount", payment.getPayAmount()
+        ));
+
+        // 결제 상태 업데이트
+        payment.setPaymentStatus(PaymentStatus.CANCEL);
+        payRepo.save(payment);
+
+        return PaymentResDto.builder()
+                .paymentKey(payment.getPaymentKey())
+                .orderId(orderNumber)
+                .payType(payment.getPayType().name())
+                .payName(payment.getPayName())
+                .payAmount(payment.getPayAmount())
                 .build();
     }
 }
