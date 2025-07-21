@@ -11,20 +11,17 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(controllers = PaymentController.class)
@@ -104,7 +101,7 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.paymentKey").value(TEST_PAYMENT_KEY))
                 .andExpect(jsonPath("$.orderId").value(TEST_ORDER_ID));
 
-        verify(paymentService).getPaymentInfo(eq(TEST_PAYMENT_KEY));
+        verify(paymentService).getPaymentInfo(TEST_PAYMENT_KEY);
     }
 
     @Test
@@ -132,7 +129,7 @@ class PaymentControllerTest {
                         .param("message", errorMessage))
                 .andExpect(status().is3xxRedirection());
 
-        verify(paymentService).markFail(eq(TEST_PAYMENT_KEY), eq(errorMessage));
+        verify(paymentService).markFail(TEST_PAYMENT_KEY, errorMessage);
     }
 
     @Test

@@ -44,8 +44,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(expectedResponses);
-        assertThat(result).hasSize(3);
+        assertThat(result)
+                .isEqualTo(expectedResponses)
+                .hasSize(3);
         assertThat(result.get(0).userNo()).isEqualTo(1L);
         assertThat(result.get(0).pureOrderAmount()).isEqualTo(120000L);
         assertThat(result.get(1).userNo()).isEqualTo(2L);
@@ -69,8 +70,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(emptyResponse);
-        assertThat(result).isEmpty();
+        assertThat(result)
+                .isEqualTo(emptyResponse)
+                .isEmpty();
 
         verify(orderRepository).findOrderAmountGroupByUserLastThreeMonths();
     }
@@ -90,8 +92,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(singleUserResponse);
-        assertThat(result).hasSize(1);
+        assertThat(result)
+                .isEqualTo(singleUserResponse)
+                .hasSize(1);
         assertThat(result.get(0).userNo()).isEqualTo(1L);
         assertThat(result.get(0).pureOrderAmount()).isEqualTo(200000L);
 

@@ -5,8 +5,6 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalReque
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 
-import java.util.Map;
-
 public interface PaymentService {
 
     PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto);

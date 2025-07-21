@@ -5,7 +5,6 @@ import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.UserNotFoundException;
