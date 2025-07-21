@@ -27,12 +27,15 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
-
-    - name: Run SonarQube
-      if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
-      run: mvn clean verify sonar:sonar -Dsonar.projectKey=bookstore-BeanSolid-order-api -Dsonar.projectName='bookstore-BeanSolid-order-api' -Dsonar.host.url=${{ secrets.SONAR_HOST }} -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+    - name: Build, Run SonarQube and Quality Gate Check
+      run: >-
+        mvn clean verify sonar:sonar
+        -Dsonar.projectKey=bookstore-BeanSolid-order-api
+        -Dsonar.projectName='bookstore-BeanSolid-order-api'
+        -Dsonar.host.url=${{ secrets.SONAR_HOST }}
+        -Dsonar.token=${{ secrets.SONAR_TOKEN }}
+        -Dsonar.qualitygate.wait=true
+        -Dsonar.qualitygate.timeout=300
 
     - name: upload file
       uses: appleboy/scp-action@master

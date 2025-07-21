@@ -252,7 +252,7 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderStatusResult.ReturnResult handleReturnOrder(String orderNumber, OrderStatusRequest request, Long userNo) {
-        boolean damaged = request.damaged() == true;
+        boolean damaged = Boolean.TRUE.equals(request.damaged());
         
         Order order = orderRepository.findByOrderNumber(orderNumber)
                 .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));

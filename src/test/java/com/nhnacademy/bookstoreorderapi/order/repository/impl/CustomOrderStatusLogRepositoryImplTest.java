@@ -173,8 +173,9 @@ class CustomOrderStatusLogRepositoryImplTest {
         Optional<Long> result = orderStatusLogRepository.getCompletedOrderPaymentAmount(savedOrder, true);
 
         // then
-        assertThat(result).isPresent();
-        assertThat(result).contains(15_000L);
+        assertThat(result)
+                .isPresent()
+                .contains(15_000L);
     }
 
     @Test
@@ -204,8 +205,9 @@ class CustomOrderStatusLogRepositoryImplTest {
         Optional<Long> result = orderStatusLogRepository.getCompletedOrderPaymentAmount(savedOrder, false);
 
         // then
-        assertThat(result).isPresent();
-        assertThat(result).contains(15_000L - OrderReturn.RETURNS_FEE);
+        assertThat(result)
+                .isPresent()
+                .contains(15_000L - OrderReturn.RETURNS_FEE);
     }
 
     @Test
