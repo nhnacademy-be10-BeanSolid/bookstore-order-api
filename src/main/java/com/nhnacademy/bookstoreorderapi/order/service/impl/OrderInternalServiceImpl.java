@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
@@ -35,7 +34,7 @@ public class OrderInternalServiceImpl implements OrderInternalService {
     }
 
     @Override
-    public boolean validatePurchase(ValidatePurchaseRequest request) {
-        return orderRepository.findByUserNoAndBookId(request.userNo(), request.bookId());
+    public boolean validatePurchase(Long userNo, Long bookId) {
+        return orderRepository.findByUserNoAndBookId(userNo, bookId);
     }
 }

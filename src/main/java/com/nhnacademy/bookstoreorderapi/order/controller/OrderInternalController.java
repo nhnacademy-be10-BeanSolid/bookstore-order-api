@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,7 @@ public class OrderInternalController {
 
     // 책 구매 여부 조회 (for 리뷰 테이블)
     @GetMapping("/exists")
-    public boolean validatePurchase(@RequestBody ValidatePurchaseRequest request) {
-        return orderInternalService.validatePurchase(request);
+    public boolean validatePurchase(@RequestParam Long userNo, @RequestParam Long bookId) {
+        return orderInternalService.validatePurchase(userNo, bookId);
     }
 }
