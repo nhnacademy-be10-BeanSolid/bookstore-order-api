@@ -83,7 +83,7 @@ class OrderServiceImplTest {
         CreateOrderResponse memberResult = orderService.createOrder(orderRequest, memberXUserId);
 
         // then
-        assertThat(memberResult.getOrderItems().size()).isEqualTo(1);
+        assertThat(memberResult.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(any());
         verify(orderRepository, times(1)).save(any());
@@ -109,7 +109,7 @@ class OrderServiceImplTest {
         CreateOrderResponse guestResult = orderService.createOrder(orderRequest, null);
 
         // then
-        assertThat(guestResult.getOrderItems().size()).isEqualTo(1);
+        assertThat(guestResult.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(any());
         verify(orderRepository, times(1)).save(any());
@@ -138,7 +138,7 @@ class OrderServiceImplTest {
         CreateOrderResponse result = orderService.createOrder(orderRequest, xUserId);
 
         // then
-        assertThat(result.getOrderItems().size()).isEqualTo(1);
+        assertThat(result.getOrderItems()).hasSize(1);
         assertThat(result.getOrderItems().getFirst().getQuantity()).isEqualTo(3);
     }
 
@@ -161,7 +161,7 @@ class OrderServiceImplTest {
         CreateOrderResponse unfinishedOrder = orderService.getUnfinishedOrder(orderNumber, xUserId);
 
         // then
-        assertThat(unfinishedOrder.getOrderItems().size()).isEqualTo(1);
+        assertThat(unfinishedOrder.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
@@ -245,7 +245,7 @@ class OrderServiceImplTest {
         assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
         assertThat(result.getAddress()).isEqualTo("우주");
         assertThat(result.getRequestedDeliveryDate()).isEqualTo(LocalDate.now().plusDays(3));
-        assertThat(result.getShippingFee()).isEqualTo(0);
+        assertThat(result.getShippingFee()).isZero();
 
         verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);

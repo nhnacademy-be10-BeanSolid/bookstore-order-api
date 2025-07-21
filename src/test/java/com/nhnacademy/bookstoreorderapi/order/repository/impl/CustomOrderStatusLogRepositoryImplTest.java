@@ -147,37 +147,6 @@ class CustomOrderStatusLogRepositoryImplTest {
     }
 
     @Test
-    @DisplayName("완료된 주문 결제 금액 조회 - 일반 상품 반품(반품 수수료 차감)")
-    void getCompletedOrderPaymentAmount_normalProduct_success() {
-        // given
-        Order order = new Order(1L);
-        order.setStatus(OrderStatus.COMPLETED);
-        Order savedOrder = orderRepository.save(order);
-
-        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.SHIPPING, OrderStatus.COMPLETED, 1L, "배송 완료", savedOrder);
-        orderStatusLogRepository.save(statusLog);
-
-        Payment payment = Payment.builder()
-                .order(savedOrder)
-                .paymentKey("test_payment_key")
-                .payAmount(15_000L)
-                .paymentStatus(PaymentStatus.SUCCESS)
-                .payType(PayType.CARD)
-                .build();
-        paymentRepository.save(payment);
-
-        entityManager.flush();
-        entityManager.clear();
-
-        // when
-        Optional<Long> result = orderStatusLogRepository.getCompletedOrderPaymentAmount(savedOrder, false);
-
-        // then
-        assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(15_000L - OrderReturn.RETURNS_FEE);
-    }
-
-    @Test
     @DisplayName("완료된 주문 결제 금액 조회 - 손상된 상품 반품(반품 수수료 없음)")
     void getCompletedOrderPaymentAmount_damagedProduct_success() {
         // given
@@ -205,7 +174,7 @@ class CustomOrderStatusLogRepositoryImplTest {
 
         // then
         assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(15_000L);
+        assertThat(result).contains(15_000L);
     }
 
     @Test
@@ -236,7 +205,7 @@ class CustomOrderStatusLogRepositoryImplTest {
 
         // then
         assertThat(result).isPresent();
-        assertThat(result.get()).isEqualTo(15_000L - OrderReturn.RETURNS_FEE);
+        assertThat(result).contains(15_000L - OrderReturn.RETURNS_FEE);
     }
 
     @Test

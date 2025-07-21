@@ -31,14 +31,12 @@ public class CustomOrderStatusLogRepositoryImpl implements CustomOrderStatusLogR
 
         log.debug("createdAt: {}", orderStatusLog.createdAt.after(cutOffDate.atStartOfDay()).isTrue());
 
-        boolean b = factory
+        return factory
                 .selectFrom(orderStatusLog)
                 .where(orderStatusLog.order.eq(order)
                         .and(orderStatusLog.newStatus.eq(OrderStatus.SHIPPING))
                         .and(orderStatusLog.createdAt.after(cutOffDate.atStartOfDay())))
                 .fetchFirst() != null;
-
-        return b;
     }
 
     @Override

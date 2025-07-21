@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
 
+    public static final String ORDER_NOTFOUND_MESSAGE = "주문을 찾을 수 없습니다: orderNumber=";
+
     private final XUserIdResolver xUserIdResolver;
 
     private final BookService bookService;
@@ -102,7 +104,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrder(String orderNumber, UpdateOrderRequest request, String xUserId) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
         Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
 
         updateOrderItemsWithWrapping(orderItems, request.wrappingRequests());
@@ -119,7 +121,7 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderDetailInternal getOrderDetail(String orderNumber, Long userNo) {
         Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
         List<OrderItem> orderItems = orderItemRepository.findAllByOrder(order);
 
         List<Long> bookIds = orderItems.stream()
@@ -219,7 +221,7 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderStatusResult.CancelResult handleCancelOrder(String orderNumber, OrderStatusRequest request, Long userNo) {
         Order order = orderRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
 
         if (!order.getUserNo().equals(userNo)) {
             throw new NotMemberException("본인의 주문만 취소할 수 있습니다.");
@@ -250,10 +252,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private OrderStatusResult.ReturnResult handleReturnOrder(String orderNumber, OrderStatusRequest request, Long userNo) {
-        boolean damaged = request.damaged() != null ? request.damaged() : false;
+        boolean damaged = request.damaged() == true;
         
         Order order = orderRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
 
         if (!order.getUserNo().equals(userNo)) {
             throw new NotMemberException("본인의 주문만 반품할 수 있습니다.");

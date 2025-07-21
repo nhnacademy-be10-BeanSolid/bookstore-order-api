@@ -28,6 +28,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import static com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceImpl.ORDER_NOTFOUND_MESSAGE;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -62,7 +64,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto) {
         Order order = orderRepo.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
 
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
@@ -111,12 +113,6 @@ public class PaymentServiceImpl implements PaymentService {
         Payment payment = payRepo.findByPaymentKey(dto.getPaymentKey())
                 .orElseThrow(() -> new PaymentNotFoundException(dto.getPaymentKey()));
 
-//        // ↓ 신규: 모든 결제 방식에 대해 orderId, amount 포함한 body 생성
-//        Map<String, Object> confirmBody = Map.of(
-//                "orderId", orderId,
-//                "amount",  amount
-//        );
-
         PaymentApprovalRequestDto confirmResp;
         try {
             confirmResp = tossClient.confirmPayment(dto);
@@ -124,16 +120,12 @@ public class PaymentServiceImpl implements PaymentService {
             throw new PaymentConfirmationException("Toss confirm 실패: " + fe.contentUTF8());
         }
 
-//        if (!"DONE".equals(confirmResp.get("status"))) {
-//            throw new PaymentConfirmationException("승인 실패, status=" + confirmResp.get("status"));
-//        }
-
         payment.setPaymentStatus(PaymentStatus.SUCCESS);
         payment.setPayAmount(dto.getAmount());
         payRepo.save(payment);
 
         Order order = orderRepo.findByOrderNumber(dto.getOrderId())
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + dto.getOrderId()));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + dto.getOrderId()));
         order.setStatus(OrderStatus.PENDING_PAY);
         orderRepo.save(order);
 
@@ -197,7 +189,7 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResDto refundCardPaymentByOrderNumber(String orderNumber, String cancelReason) {
         Order order = orderRepo.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+                .orElseThrow(() -> new OrderNotFoundException(ORDER_NOTFOUND_MESSAGE + orderNumber));
 
         Payment payment = payRepo.findByOrder(order)
                 .orElseThrow(() -> new PaymentNotFoundException("결제 정보를 찾을 수 없습니다: orderNumber=" + orderNumber));
