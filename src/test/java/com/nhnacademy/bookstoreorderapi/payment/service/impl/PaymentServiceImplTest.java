@@ -219,6 +219,160 @@ class PaymentServiceImplTest {
             paymentService.refundCardPayment("testPaymentKey", cancelRequest);
         });
     }
+
+    @Test
+    @DisplayName("결제 정보 조회 - 성공")
+    void getPaymentInfo_Success() {
+        // given
+        String paymentKey = "testPaymentKey";
+        Map<String, Object> tossApiResponse = Map.of(
+                "orderId", "testOrderNumber",
+                "method", "CARD",
+                "orderName", "Test Order",
+                "amount", 15000,
+                "nextRedirectPcUrl", "http://redirect.url"
+        );
+        given(tossPaymentClient.getPaymentInfo(paymentKey)).willReturn(tossApiResponse);
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+
+        // when
+        PaymentResDto result = paymentService.getPaymentInfo(paymentKey);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getPaymentKey()).isEqualTo(paymentKey);
+        assertThat(result.getOrderId()).isEqualTo("testOrderNumber");
+        assertThat(result.getPayType()).isEqualTo("CARD");
+        assertThat(result.getPayName()).isEqualTo("Test Order");
+        assertThat(result.getPayAmount()).isEqualTo(15000L);
+        assertThat(result.getRedirectUrl()).isEqualTo("http://redirect.url");
+        assertThat(result.getSuccessUrl()).isEqualTo("http://localhost/success");
+        assertThat(result.getFailUrl()).isEqualTo("http://localhost/fail");
+        verify(tossPaymentClient).getPaymentInfo(paymentKey);
+    }
+
+    @Test
+    @DisplayName("결제 정보 조회 - amount가 Number 타입")
+    void getPaymentInfo_AmountAsNumber() {
+        // given
+        String paymentKey = "testPaymentKey";
+        Map<String, Object> tossApiResponse = Map.of(
+                "orderId", "testOrderNumber",
+                "method", "CARD",
+                "orderName", "Test Order",
+                "amount", Integer.valueOf(25000),
+                "nextRedirectPcUrl", "http://redirect.url"
+        );
+        given(tossPaymentClient.getPaymentInfo(paymentKey)).willReturn(tossApiResponse);
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+
+        // when
+        PaymentResDto result = paymentService.getPaymentInfo(paymentKey);
+
+        // then
+        assertThat(result.getPayAmount()).isEqualTo(25000L);
+    }
+
+    @Test
+    @DisplayName("결제 정보 조회 - 빈 값 처리")
+    void getPaymentInfo_WithEmptyValues() {
+        // given
+        String paymentKey = "testPaymentKey";
+        Map<String, Object> tossApiResponse = Map.of(
+                "orderId", "",
+                "method", "",
+                "orderName", "",
+                "amount", 0,
+                "nextRedirectPcUrl", "http://redirect.url"
+        );
+        given(tossPaymentClient.getPaymentInfo(paymentKey)).willReturn(tossApiResponse);
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+
+        // when
+        PaymentResDto result = paymentService.getPaymentInfo(paymentKey);
+
+        // then
+        assertThat(result.getOrderId()).isEqualTo("");
+        assertThat(result.getPayType()).isEqualTo("");
+        assertThat(result.getPayName()).isEqualTo("");
+        assertThat(result.getPayAmount()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("주문번호로 카드 결제 환불 - 성공")
+    void refundCardPaymentByOrderNumber_Success() {
+        // given
+        String orderNumber = "testOrderNumber";
+        String cancelReason = "Customer request";
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(order)).willReturn(Optional.of(payment));
+
+        // when
+        PaymentResDto result = paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
+
+        // then
+        assertThat(result).isNotNull();
+        assertThat(result.getPaymentKey()).isEqualTo("testPaymentKey");
+        assertThat(result.getOrderId()).isEqualTo(orderNumber);
+        assertThat(result.getPayType()).isEqualTo("CARD");
+        assertThat(result.getPayName()).isEqualTo("Test Book");
+        assertThat(result.getPayAmount()).isEqualTo(15000L);
+        assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.CANCEL);
+        verify(tossPaymentClient).cancelPayment(eq("testPaymentKey"), anyMap());
+        verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    @DisplayName("주문번호로 카드 결제 환불 - 주문을 찾을 수 없음")
+    void refundCardPaymentByOrderNumber_OrderNotFound() {
+        // given
+        String orderNumber = "nonExistentOrder";
+        String cancelReason = "Customer request";
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
+
+        // when & then
+        assertThrows(OrderNotFoundException.class, () -> {
+            paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
+        });
+    }
+
+    @Test
+    @DisplayName("주문번호로 카드 결제 환불 - 결제 정보를 찾을 수 없음")
+    void refundCardPaymentByOrderNumber_PaymentNotFound() {
+        // given
+        String orderNumber = "testOrderNumber";
+        String cancelReason = "Customer request";
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(order)).willReturn(Optional.empty());
+
+        // when & then
+        assertThrows(PaymentNotFoundException.class, () -> {
+            paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
+        });
+    }
+
+    @Test
+    @DisplayName("주문번호로 카드 결제 환불 - Toss API 호출 확인")
+    void refundCardPaymentByOrderNumber_TossApiCall() {
+        // given
+        String orderNumber = "testOrderNumber";
+        String cancelReason = "Customer request";
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(order)).willReturn(Optional.of(payment));
+
+        // when
+        paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
+
+        // then
+        Map<String, Object> expectedCancelRequest = Map.of(
+                "cancelReason", cancelReason,
+                "cancelAmount", 15000L
+        );
+        verify(tossPaymentClient).cancelPayment("testPaymentKey", expectedCancelRequest);
+    }
 }
 
 
