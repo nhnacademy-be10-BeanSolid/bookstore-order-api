@@ -7,18 +7,17 @@ import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.internal.OrderDetailInternal;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.*;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.WrappingNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderService;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
+import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -39,6 +38,7 @@ public class OrderServiceImpl implements OrderService {
 
     private final BookService bookService;
     private final PointService pointService;
+    private final PaymentService paymentService;
 
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -116,36 +116,6 @@ public class OrderServiceImpl implements OrderService {
         return OrderResponse.from(order);
     }
 
-    // 반품 요청
-    @Transactional
-    @Override
-    public OrderResponse changeStatusToReturned(String orderNumber, ReturnsRequest request, String xUserId) {
-        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
-        if (userNo == null) {
-            log.warn("[경고] 비회원이 반품 기능에 접근함");
-            throw new NotMemberException("회원이 아닙니다");
-        }
-        Order order = orderRepository.findByOrderNumber(orderNumber)
-                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
-
-        if (!statusLogRepository.canReturnOrder(order, request.damaged())) {
-            throw new InvalidOrderStatusChangeException("반품 가능한 기간이 지났습니다.");
-        }
-
-        Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, request.damaged())
-                .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
-
-        pointService.processPointRefund(order, refundAmount);
-
-        OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
-        returnRepository.save(orderReturn);
-
-        OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.RETURNED, userNo, request.reason(), order);
-        order.setStatus(OrderStatus.RETURNED);
-        statusLogRepository.save(statusLog);
-
-        return OrderResponse.from(order);
-    }
 
     private OrderDetailInternal getOrderDetail(String orderNumber, Long userNo) {
         Order order = orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)
@@ -217,7 +187,7 @@ public class OrderServiceImpl implements OrderService {
 
     private Integer calculateShippingFee(long totalPrice, Long userNo) {
         if (userNo == null) {
-            return (int) ShippingInfo.DEFAULT_SHIPPING_FEE;
+            return ShippingInfo.DEFAULT_SHIPPING_FEE;
         }
         return totalPrice >= ShippingInfo.FREE_SHIPPING_THRESHOLD ? 0 : ShippingInfo.DEFAULT_SHIPPING_FEE;
     }
@@ -231,5 +201,87 @@ public class OrderServiceImpl implements OrderService {
                 .entrySet().stream()
                 .map(entry -> new CreateOrderRequest.CreateOrderItemRequest(entry.getKey(), entry.getValue()))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public OrderStatusResult changeOrderStatus(String orderNumber, OrderStatusRequest request, String xUserId) {
+        Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        if (userNo == null) {
+            throw new NotMemberException("회원만 주문 상태 변경이 가능합니다.");
+        }
+
+        return switch (request.action()) {
+            case CANCEL -> handleCancelOrder(orderNumber, request, userNo);
+            case RETURN -> handleReturnOrder(orderNumber, request, userNo);
+        };
+    }
+
+    private OrderStatusResult.CancelResult handleCancelOrder(String orderNumber, OrderStatusRequest request, Long userNo) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        if (!order.getUserNo().equals(userNo)) {
+            throw new NotMemberException("본인의 주문만 취소할 수 있습니다.");
+        }
+
+        if (order.getStatus() != OrderStatus.PENDING_PAY) {
+            throw new InvalidOrderStatusChangeException("취소할 수 없는 주문 상태입니다: " + order.getStatus());
+        }
+
+        // 결제 취소 처리
+        PaymentResDto paymentResult = paymentService.refundCardPaymentByOrderNumber(orderNumber, request.reason());
+
+        // 포인트 반환 처리
+        pointService.processPointRefund(order, paymentResult.getPayAmount());
+
+        // 주문 상태 변경
+        OrderStatusLog statusLog = new OrderStatusLog(
+                order.getStatus(),
+                OrderStatus.CANCELED,
+                userNo,
+                request.reason(),
+                order
+        );
+        statusLogRepository.save(statusLog);
+        order.setStatus(OrderStatus.CANCELED);
+
+        return new OrderStatusResult.CancelResult(paymentResult);
+    }
+
+    private OrderStatusResult.ReturnResult handleReturnOrder(String orderNumber, OrderStatusRequest request, Long userNo) {
+        boolean damaged = request.damaged() != null ? request.damaged() : false;
+        
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        if (!order.getUserNo().equals(userNo)) {
+            throw new NotMemberException("본인의 주문만 반품할 수 있습니다.");
+        }
+
+        if (!statusLogRepository.canReturnOrder(order, damaged)) {
+            throw new InvalidOrderStatusChangeException("반품 가능한 기간이 지났습니다.");
+        }
+
+        Long refundAmount = statusLogRepository.getCompletedOrderPaymentAmount(order, damaged)
+                .orElseThrow(() -> new InvalidOrderStatusChangeException("반품 가능한 주문이 아닙니다."));
+
+        pointService.processPointRefund(order, refundAmount);
+
+        OrderReturn orderReturn = new OrderReturn(order, request.reason(), damaged);
+        returnRepository.save(orderReturn);
+
+        OrderStatusLog statusLog = new OrderStatusLog(
+                order.getStatus(),
+                OrderStatus.RETURNED,
+                userNo,
+                request.reason(),
+                order
+        );
+        statusLogRepository.save(statusLog);
+        order.setStatus(OrderStatus.RETURNED);
+
+        OrderResponse orderResponse = OrderResponse.from(order);
+        return new OrderStatusResult.ReturnResult(orderResponse);
     }
 }

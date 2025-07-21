@@ -17,7 +17,9 @@ public interface PaymentService {
 
     PaymentResDto getPaymentInfo(String paymentKey);
 
-    PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request);
+    PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request); // 사용하지 않을 예정
+    
+    PaymentResDto refundCardPaymentByOrderNumber(String orderNumber, String cancelReason);
 
 
 

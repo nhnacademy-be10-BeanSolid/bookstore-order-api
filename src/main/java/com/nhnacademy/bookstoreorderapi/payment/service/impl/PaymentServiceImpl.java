@@ -152,6 +152,7 @@ public class PaymentServiceImpl implements PaymentService {
         }, () -> { throw new PaymentNotFoundException(paymentKey); });
     }
 
+    // 사용하지 않을 예정
     @Override
     @Transactional
     public PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest req) {
@@ -192,4 +193,31 @@ public class PaymentServiceImpl implements PaymentService {
                 .build();
     }
 
+    @Override
+    @Transactional
+    public PaymentResDto refundCardPaymentByOrderNumber(String orderNumber, String cancelReason) {
+        Order order = orderRepo.findByOrderNumber(orderNumber)
+                .orElseThrow(() -> new OrderNotFoundException("주문을 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        Payment payment = payRepo.findByOrder(order)
+                .orElseThrow(() -> new PaymentNotFoundException("결제 정보를 찾을 수 없습니다: orderNumber=" + orderNumber));
+
+        // Toss 결제 취소 API 호출
+        tossClient.cancelPayment(payment.getPaymentKey(), Map.of(
+                "cancelReason", cancelReason,
+                "cancelAmount", payment.getPayAmount()
+        ));
+
+        // 결제 상태 업데이트
+        payment.setPaymentStatus(PaymentStatus.CANCEL);
+        payRepo.save(payment);
+
+        return PaymentResDto.builder()
+                .paymentKey(payment.getPaymentKey())
+                .orderId(orderNumber)
+                .payType(payment.getPayType().name())
+                .payName(payment.getPayName())
+                .payAmount(payment.getPayAmount())
+                .build();
+    }
 }

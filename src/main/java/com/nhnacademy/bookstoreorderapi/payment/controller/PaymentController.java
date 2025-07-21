@@ -130,7 +130,7 @@ public class PaymentController {
         return new RedirectView(target, false);
     }
 
-
+    // 사용하지 않을 예정
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> cancelPayment(
             @PathVariable String paymentKey,
