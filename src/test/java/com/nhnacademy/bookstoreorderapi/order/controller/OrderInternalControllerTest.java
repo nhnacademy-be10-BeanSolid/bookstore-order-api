@@ -1,7 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,8 +22,6 @@ class OrderInternalControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockBean
     private OrderInternalService orderInternalService;
@@ -69,37 +65,41 @@ class OrderInternalControllerTest {
     @DisplayName("책 구매 검증에 성공하면 200과 true를 응답한다")
     void validatePurchase_purchased_success() throws Exception {
         // given
-        ValidatePurchaseRequest request = new ValidatePurchaseRequest(1L, 1L);
+        Long userNo = 1L;
+        Long bookId = 1L;
 
-        given(orderInternalService.validatePurchase(any(ValidatePurchaseRequest.class))).willReturn(true);
+        given(orderInternalService.validatePurchase(userNo, bookId)).willReturn(true);
 
         // when & then
         mockMvc.perform(get("/internal/orders/exists")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .param("userNo", userNo.toString())
+                        .param("bookId", bookId.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().string("true"));
 
-        verify(orderInternalService, times(1)).validatePurchase(any(ValidatePurchaseRequest.class));
+        verify(orderInternalService, times(1)).validatePurchase(userNo, bookId);
     }
 
     @Test
     @DisplayName("책을 구매하지 않은 경우 200과 false를 응답한다")
     void validatePurchase_notPurchased_success() throws Exception {
         // given
-        ValidatePurchaseRequest request = new ValidatePurchaseRequest(1L, 999L);
+        Long userNo = 999L;
+        Long bookId = 1L;
 
-        given(orderInternalService.validatePurchase(any(ValidatePurchaseRequest.class))).willReturn(false);
+        given(orderInternalService.validatePurchase(userNo, bookId)).willReturn(false);
 
         // when & then
         mockMvc.perform(get("/internal/orders/exists")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
+                        .param("userNo", userNo.toString())
+                        .param("bookId", bookId.toString())
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(content().string("false"));
 
-        verify(orderInternalService, times(1)).validatePurchase(any(ValidatePurchaseRequest.class));
+        verify(orderInternalService, times(1)).validatePurchase(userNo, bookId);
     }
 }

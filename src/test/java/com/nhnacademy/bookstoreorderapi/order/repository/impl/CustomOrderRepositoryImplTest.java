@@ -232,6 +232,30 @@ class CustomOrderRepositoryImplTest {
     }
 
     @Test
+    @DisplayName("구매 검증 테스트 - 'PENDING_PAY'인 경우는 리뷰를 쓰지 못하게 해야해서 구매하지 않은 것으로 본다")
+    void shouldVerifyPurchase_pending() {
+        // given
+        Long userNo = 1L;
+        Long bookId = 100L;
+
+        Order order = new Order(userNo);
+        order.setStatus(OrderStatus.PENDING_PAY);
+        Order savedOrder = orderRepository.save(order);
+
+        OrderItem orderItem = new OrderItem(bookId, "책제목", 10_000, 1, savedOrder);
+        entityManager.persist(orderItem);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // when
+        boolean result = orderRepository.findByUserNoAndBookId(userNo, bookId);
+
+        // then
+        assertThat(result).isFalse();
+    }
+
+    @Test
     @DisplayName("존재하지 않는 주문번호로 주문ID 조회 테스트")
     void shouldReturnNullForNonExistentOrderNumber() {
         // given

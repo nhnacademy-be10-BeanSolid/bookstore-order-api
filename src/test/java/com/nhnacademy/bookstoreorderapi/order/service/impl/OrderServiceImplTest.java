@@ -6,16 +6,15 @@ import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.common.resolver.XUserIdResolver;
 import com.nhnacademy.bookstoreorderapi.order.domain.*;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderDetailResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
-import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
+import com.nhnacademy.bookstoreorderapi.order.dto.response.*;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidOrderStatusChangeException;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.exception.unauthorized.NotMemberException;
 import com.nhnacademy.bookstoreorderapi.order.repository.*;
+import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
+import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +51,8 @@ class OrderServiceImplTest {
     @Mock
     private PointService pointService;
     @Mock
+    private PaymentService paymentService;
+    @Mock
     private XUserIdResolver xUserIdResolver;
     @InjectMocks
     private OrderServiceImpl orderService;
@@ -82,7 +83,7 @@ class OrderServiceImplTest {
         CreateOrderResponse memberResult = orderService.createOrder(orderRequest, memberXUserId);
 
         // then
-        assertThat(memberResult.getOrderItems().size()).isEqualTo(1);
+        assertThat(memberResult.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(any());
         verify(orderRepository, times(1)).save(any());
@@ -108,7 +109,7 @@ class OrderServiceImplTest {
         CreateOrderResponse guestResult = orderService.createOrder(orderRequest, null);
 
         // then
-        assertThat(guestResult.getOrderItems().size()).isEqualTo(1);
+        assertThat(guestResult.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(any());
         verify(orderRepository, times(1)).save(any());
@@ -137,7 +138,7 @@ class OrderServiceImplTest {
         CreateOrderResponse result = orderService.createOrder(orderRequest, xUserId);
 
         // then
-        assertThat(result.getOrderItems().size()).isEqualTo(1);
+        assertThat(result.getOrderItems()).hasSize(1);
         assertThat(result.getOrderItems().getFirst().getQuantity()).isEqualTo(3);
     }
 
@@ -160,7 +161,7 @@ class OrderServiceImplTest {
         CreateOrderResponse unfinishedOrder = orderService.getUnfinishedOrder(orderNumber, xUserId);
 
         // then
-        assertThat(unfinishedOrder.getOrderItems().size()).isEqualTo(1);
+        assertThat(unfinishedOrder.getOrderItems()).hasSize(1);
 
         verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
@@ -189,7 +190,7 @@ class OrderServiceImplTest {
                 new OrderItem(1L, "책제목1", 10000, 1, order),
                 new OrderItem(2L, "책제목2", 20000, 1, order)
         );
-        Wrapping wrapping = new Wrapping("포장지", 50, true);
+        Wrapping wrapping = new Wrapping(99L, "포장지", 50, true);
 
         given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
@@ -229,7 +230,7 @@ class OrderServiceImplTest {
 
         Order order = new Order(null);
         List<OrderItem> orderItems = List.of(new OrderItem(1L, "책제목1", 30000, 1, order));
-        Wrapping wrapping = new Wrapping("포장지", 50, true);
+        Wrapping wrapping = new Wrapping(99L,"포장지", 50, true);
 
         given(xUserIdResolver.resolveUserNo(any())).willReturn(userNo);
         given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
@@ -244,7 +245,7 @@ class OrderServiceImplTest {
         assertThat(result.getReceiverPhoneNumber()).isEqualTo("010-1234-5678");
         assertThat(result.getAddress()).isEqualTo("우주");
         assertThat(result.getRequestedDeliveryDate()).isEqualTo(LocalDate.now().plusDays(3));
-        assertThat(result.getShippingFee()).isEqualTo(0);
+        assertThat(result.getShippingFee()).isZero();
 
         verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
         verify(orderRepository, times(1)).findByOrderNumberAndUserNo(orderNumber, userNo);
@@ -285,42 +286,6 @@ class OrderServiceImplTest {
         verify(bookService, times(1)).getBookOrderResponse(anyList());
     }
 
-    @Test
-    @DisplayName("반품 요청에 성공한다")
-    void changeStatusToReturned_success() {
-        // given
-        String orderNumber = "202507-abcdef-123456";
-        String xUserId = "testUser";
-        Long userNo = 1L;
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
-
-        Order order = new Order(userNo);
-        order.setStatus(OrderStatus.COMPLETED);
-        order.setShippingInfo(shippingInfo);
-
-        OrderReturn returnedOrder = new OrderReturn(order, "파손됨", true);
-
-        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
-        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
-        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(true);
-        given(statusLogRepository.getCompletedOrderPaymentAmount(any(Order.class), anyBoolean())).willReturn(Optional.of(15_000L));
-        doNothing().when(pointService).processPointRefund(any(Order.class), anyLong());
-        given(returnRepository.save(any(OrderReturn.class))).willReturn(returnedOrder);
-
-        // when
-        OrderResponse result = orderService.changeStatusToReturned(orderNumber, request, xUserId);
-
-        // then
-        assertThat(result.getStatus()).isEqualTo(OrderStatus.RETURNED.name());
-
-        verify(xUserIdResolver, times(1)).resolveUserNo(anyString());
-        verify(orderRepository, times(1)).findByOrderNumber(anyString());
-        verify(statusLogRepository, times(1)).canReturnOrder(any(Order.class), anyBoolean());
-        verify(statusLogRepository, times(1)).getCompletedOrderPaymentAmount(any(Order.class), anyBoolean());
-        verify(pointService, times(1)).processPointRefund(any(Order.class), anyLong());
-        verify(returnRepository, times(1)).save(any(OrderReturn.class));
-        verify(statusLogRepository, times(1)).save(any(OrderStatusLog.class));
-    }
 
     @Test
     @DisplayName("회원 주문 전체 조회에 성공한다")
@@ -345,62 +310,256 @@ class OrderServiceImplTest {
     }
 
     @Test
-    @DisplayName("비회원이 반품 요청 시 실패한다")
-    void changeStatusToReturned_notMember_fail() {
+    @DisplayName("반품 요청에 성공한다")
+    void handleReturnOrder_success() {
         // given
-        String orderNumber = "202507-abcdef-123456";
-        String xUserId = null;
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
-
-        given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
-
-        // when & then
-        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
-                .isInstanceOf(NotMemberException.class);
-
-        verify(xUserIdResolver, times(1)).resolveUserNo(xUserId);
-        verify(orderRepository, never()).findByOrderNumber(anyString());
-    }
-
-    @Test
-    @DisplayName("존재하지 않는 주문번호로 반품 요청 시 실패한다")
-    void changeStatusToReturned_orderNotFound_fail() {
-        // given
-        String orderNumber = "not-found";
         String xUserId = "testUser";
-        Long userNo = 1L;
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
-
-        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
-        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.empty());
-
-        // when & then
-        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
-                .isInstanceOf(OrderNotFoundException.class);
-
-        verify(orderRepository, times(1)).findByOrderNumber(orderNumber);
-    }
-
-    @Test
-    @DisplayName("반품 불가능한 주문에 대해 반품 요청 시 실패한다")
-    void changeStatusToReturned_cannotReturn_fail() {
-        // given
         String orderNumber = "202507-abcdef-123456";
-        String xUserId = "testUser";
-        Long userNo = 1L;
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "파손", true);
 
+        Long userNo = 1L;
         Order order = new Order(userNo);
-        order.setStatus(OrderStatus.PENDING_PAY);
+        order.setShippingInfo(shippingInfo);
+        Long refundAmount = 10_000L;
+        OrderReturn orderReturn = new OrderReturn(order, request.reason(), request.damaged());
+        OrderStatusLog statusLog = new OrderStatusLog(OrderStatus.COMPLETED, OrderStatus.RETURNED, userNo, orderReturn.getReason(), order);
 
         given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
-        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(false);
+        given(statusLogRepository.canReturnOrder(any(Order.class), anyBoolean())).willReturn(true);
+        given(statusLogRepository.getCompletedOrderPaymentAmount(any(Order.class), anyBoolean())).willReturn(Optional.of(refundAmount));
+        willDoNothing().given(pointService).processPointRefund(any(Order.class), anyLong());
+        given(returnRepository.save(any(OrderReturn.class))).willReturn(orderReturn);
+        given(statusLogRepository.save(any(OrderStatusLog.class))).willReturn(statusLog);
+
+        // when
+        OrderStatusResult result = orderService.changeOrderStatus(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result).isInstanceOf(OrderStatusResult.ReturnResult.class);
+        OrderStatusResult.ReturnResult returnResult = (OrderStatusResult.ReturnResult) result;
+        assertThat(returnResult.order().getStatus()).isEqualTo(OrderStatus.RETURNED.name());
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.RETURNED);
+        
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(statusLogRepository).canReturnOrder(order, true);
+        verify(statusLogRepository).getCompletedOrderPaymentAmount(order, true);
+        verify(pointService).processPointRefund(order, refundAmount);
+        verify(returnRepository).save(any(OrderReturn.class));
+        verify(statusLogRepository).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("반품 시 존재하지 않는 주문인 경우 OrderNotFoundException 발생")
+    void handleReturnOrder_orderNotFound_throwsOrderNotFoundException() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "반품 사유", false);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> orderService.changeStatusToReturned(orderNumber, request, xUserId))
-                .isInstanceOf(InvalidOrderStatusChangeException.class);
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessageContaining("주문을 찾을 수 없습니다: orderNumber=" + orderNumber);
 
-        verify(statusLogRepository, times(1)).canReturnOrder(order, request.damaged());
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(statusLogRepository, never()).canReturnOrder(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("반품 시 본인의 주문이 아닌 경우 NotMemberException 발생")
+    void handleReturnOrder_notOwner_throwsNotMemberException() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        Long otherUserNo = 2L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "반품 사유", false);
+        Order otherUserOrder = new Order(otherUserNo);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(otherUserOrder));
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(NotMemberException.class)
+                .hasMessageContaining("본인의 주문만 반품할 수 있습니다.");
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(statusLogRepository, never()).canReturnOrder(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("반품 가능한 기간이 지난 경우 InvalidOrderStatusChangeException 발생")
+    void handleReturnOrder_cannotReturn_throwsInvalidOrderStatusChangeException() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "반품 사유", false);
+        Order order = new Order(userNo);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+        given(statusLogRepository.canReturnOrder(order, false)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(InvalidOrderStatusChangeException.class)
+                .hasMessageContaining("반품 가능한 기간이 지났습니다.");
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(statusLogRepository).canReturnOrder(order, false);
+        verify(statusLogRepository, never()).getCompletedOrderPaymentAmount(any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("반품 가능한 주문이 아닌 경우 InvalidOrderStatusChangeException 발생")
+    void handleReturnOrder_invalidOrder_throwsInvalidOrderStatusChangeException() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "반품 사유", true);
+        Order order = new Order(userNo);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+        given(statusLogRepository.canReturnOrder(order, true)).willReturn(true);
+        given(statusLogRepository.getCompletedOrderPaymentAmount(order, true)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(InvalidOrderStatusChangeException.class)
+                .hasMessageContaining("반품 가능한 주문이 아닙니다.");
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(statusLogRepository).canReturnOrder(order, true);
+        verify(statusLogRepository).getCompletedOrderPaymentAmount(order, true);
+        verify(pointService, never()).processPointRefund(any(), anyLong());
+        verify(returnRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("주문 취소에 성공한다")
+    void handleCancelOrder_success() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        OrderStatusRequest request = new OrderStatusRequest(
+                OrderStatusRequest.OrderAction.CANCEL,
+                "취소 사유",
+                null
+        );
+        String xUserId = "testUser";
+        Long userNo = 1L;
+
+        Order order = new Order(userNo);
+        order.setShippingInfo(shippingInfo);
+        order.setStatus(OrderStatus.PENDING_PAY);
+        PaymentResDto paymentResDto = new PaymentResDto();
+        paymentResDto.setPayAmount(10_000L);
+        OrderStatusLog statusLog = new OrderStatusLog(order.getStatus(), OrderStatus.CANCELED, userNo, request.reason(), order);
+
+        given(xUserIdResolver.resolveUserNo(anyString())).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentService.refundCardPaymentByOrderNumber(anyString(), anyString())).willReturn(paymentResDto);
+        willDoNothing().given(pointService).processPointRefund(any(Order.class), anyLong());
+        given(statusLogRepository.save(any(OrderStatusLog.class))).willReturn(statusLog);
+
+        // when
+        OrderStatusResult result = orderService.changeOrderStatus(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result).isInstanceOf(OrderStatusResult.CancelResult.class);
+        OrderStatusResult.CancelResult cancelResult = (OrderStatusResult.CancelResult) result;
+        assertThat(cancelResult.payment().getPayAmount()).isEqualTo(10_000L);
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELED);
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(paymentService).refundCardPaymentByOrderNumber(orderNumber, request.reason());
+        verify(pointService).processPointRefund(order, 10_000L);
+        verify(statusLogRepository).save(any(OrderStatusLog.class));
+    }
+
+    @Test
+    @DisplayName("취소 시 존재하지 않는 주문인 경우 OrderNotFoundException 발생")
+    void handleCancelOrder_orderNotFound_throwsOrderNotFoundException() {
+        // given
+        String orderNumber = "INVALID-ORDER";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.CANCEL, "취소 사유", null);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(OrderNotFoundException.class)
+                .hasMessageContaining("주문을 찾을 수 없습니다: orderNumber=" + orderNumber);
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(paymentService, never()).refundCardPaymentByOrderNumber(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("취소 시 본인의 주문이 아닌 경우 NotMemberException 발생")
+    void handleCancelOrder_notOwner_throwsNotMemberException() {
+        // given
+        String orderNumber = "ORDER-123";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        Long otherUserNo = 2L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.CANCEL, "취소 사유", null);
+        Order otherUserOrder = new Order(otherUserNo);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(otherUserOrder));
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(NotMemberException.class)
+                .hasMessageContaining("본인의 주문만 취소할 수 있습니다.");
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(paymentService, never()).refundCardPaymentByOrderNumber(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("취소 불가능한 주문 상태에서 취소 시 InvalidOrderStatusChangeException 발생")
+    void handleCancelOrder_invalidStatus_throwsInvalidOrderStatusChangeException() {
+        // given
+        String orderNumber = "ORDER-123";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.CANCEL, "취소 사유", null);
+        Order order = new Order(userNo);
+        order.setStatus(OrderStatus.COMPLETED); // 취소 불가능한 상태
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.of(order));
+
+        // when & then
+        assertThatThrownBy(() -> orderService.changeOrderStatus(orderNumber, request, xUserId))
+                .isInstanceOf(InvalidOrderStatusChangeException.class)
+                .hasMessageContaining("취소할 수 없는 주문 상태입니다: " + OrderStatus.COMPLETED);
+
+        verify(xUserIdResolver).resolveUserNo(xUserId);
+        verify(orderRepository).findByOrderNumber(orderNumber);
+        verify(paymentService, never()).refundCardPaymentByOrderNumber(anyString(), anyString());
+        verify(pointService, never()).processPointRefund(any(), anyLong());
+        verify(statusLogRepository, never()).save(any());
     }
 }

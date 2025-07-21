@@ -1,16 +1,22 @@
 package com.nhnacademy.bookstoreorderapi.order.domain;
 
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "wrappings")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor
 public class Wrapping {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
@@ -21,10 +27,4 @@ public class Wrapping {
 
     @Column(nullable = false)
     private Boolean active;
-
-    public Wrapping(String name, Integer price, Boolean active) {
-        this.name = name;
-        this.price = price;
-        this.active = active;
-    }
 }

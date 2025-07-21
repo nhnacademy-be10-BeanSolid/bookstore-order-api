@@ -1,6 +1,5 @@
 package com.nhnacademy.bookstoreorderapi.order.service.impl;
 
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ValidatePurchaseRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -45,8 +44,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(expectedResponses);
-        assertThat(result).hasSize(3);
+        assertThat(result)
+                .isEqualTo(expectedResponses)
+                .hasSize(3);
         assertThat(result.get(0).userNo()).isEqualTo(1L);
         assertThat(result.get(0).pureOrderAmount()).isEqualTo(120000L);
         assertThat(result.get(1).userNo()).isEqualTo(2L);
@@ -70,8 +70,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(emptyResponse);
-        assertThat(result).isEmpty();
+        assertThat(result)
+                .isEqualTo(emptyResponse)
+                .isEmpty();
 
         verify(orderRepository).findOrderAmountGroupByUserLastThreeMonths();
     }
@@ -91,8 +92,9 @@ class OrderInternalServiceImplTest {
         List<UserOrderAmountResponse> result = orderInternalService.findOrderAmountGroupByUserLastThreeMonths();
 
         // then
-        assertThat(result).isEqualTo(singleUserResponse);
-        assertThat(result).hasSize(1);
+        assertThat(result)
+                .isEqualTo(singleUserResponse)
+                .hasSize(1);
         assertThat(result.get(0).userNo()).isEqualTo(1L);
         assertThat(result.get(0).pureOrderAmount()).isEqualTo(200000L);
 
@@ -169,31 +171,33 @@ class OrderInternalServiceImplTest {
     @DisplayName("책 구매 검증에 성공한다 - 구매한 경우")
     void validatePurchase_purchased_success() {
         // given
-        ValidatePurchaseRequest request = new ValidatePurchaseRequest(1L, 1L);
+        Long userNo = 1L;
+        Long bookId = 1L;
 
         given(orderRepository.findByUserNoAndBookId(anyLong(), anyLong())).willReturn(true);
 
         // when
-        Boolean result = orderInternalService.validatePurchase(request);
+        Boolean result = orderInternalService.validatePurchase(userNo, bookId);
 
         // then
         assertThat(result).isTrue();
-        verify(orderRepository, times(1)).findByUserNoAndBookId(request.userNo(), request.bookId());
+        verify(orderRepository, times(1)).findByUserNoAndBookId(userNo, bookId);
     }
 
     @Test
     @DisplayName("책 구매 검증에 성공한다 - 구매하지 않은 경우")
     void validatePurchase_notPurchased_success() {
         // given
-        ValidatePurchaseRequest request = new ValidatePurchaseRequest(999L, 1L);
+        Long userNo = 999L;
+        Long bookId = 1L;
 
         given(orderRepository.findByUserNoAndBookId(anyLong(), anyLong())).willReturn(false);
 
         // when
-        Boolean result = orderInternalService.validatePurchase(request);
+        Boolean result = orderInternalService.validatePurchase(userNo, bookId);
 
         // then
         assertThat(result).isFalse();
-        verify(orderRepository, times(1)).findByUserNoAndBookId(request.userNo(), request.bookId());
+        verify(orderRepository, times(1)).findByUserNoAndBookId(userNo, bookId);
     }
 }

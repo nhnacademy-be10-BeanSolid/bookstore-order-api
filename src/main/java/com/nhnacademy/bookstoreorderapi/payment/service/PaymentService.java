@@ -5,8 +5,6 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalReque
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 
-import java.util.Map;
-
 public interface PaymentService {
 
     PaymentResDto requestTossPayment(String orderNumber, PaymentReqDto dto);
@@ -17,7 +15,9 @@ public interface PaymentService {
 
     PaymentResDto getPaymentInfo(String paymentKey);
 
-    PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request);
+    PaymentResDto refundCardPayment(String paymentKey, CancelPaymentRequest  request); // 사용하지 않을 예정
+    
+    PaymentResDto refundCardPaymentByOrderNumber(String orderNumber, String cancelReason);
 
 
 

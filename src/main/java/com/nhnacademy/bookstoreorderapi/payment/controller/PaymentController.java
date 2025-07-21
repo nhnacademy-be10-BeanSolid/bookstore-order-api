@@ -26,6 +26,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PaymentController {
 
+    private static final String PAYMENT_KEY = "paymentKey";
+
     private final PaymentService paymentService;
 
 
@@ -70,45 +72,10 @@ public class PaymentController {
         return ResponseEntity.ok(paymentService.getPaymentInfo(paymentKey));
     }
 
-
-//    @GetMapping("/success")
-//    public RedirectView tossSuccess(@RequestParam Map<String, String> p) {
-//        String pk  = p.get("paymentKey");
-//        String oid = p.get("orderId");
-//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
-//
-//        if (pk != null && oid != null && amt != null) {
-//            paymentService.markSuccess(pk, oid, amt);
-//        } else {
-//            log.warn("필수 파라미터 누락 {}", p);
-//        }
-//
-//        String target = UriComponentsBuilder
-//                .fromUriString(frontBase + "/payments/success")
-//                .queryParams(CollectionUtils.toMultiValueMap(Map.of(
-//                        "paymentKey", List.of(pk),
-//                        "orderId",    List.of(oid),
-//                        "amount",     List.of(String.valueOf(amt))
-//                )))
-//                .build()
-//                .toUriString();
-//
-//        return new RedirectView(target, false);
-//    }
-
     @GetMapping("/success")
     public ResponseEntity<PaymentApprovalRequestDto> tossSuccess(@RequestParam("paymentKey") String paymentKey,
                                                                  @RequestParam("orderId") String orderId,
                                                                  @RequestParam("amount") long amount){
-//        String oid = d.get("orderId");
-//        Long   amt = p.containsKey("amount") ? Long.valueOf(p.get("amount")) : null;
-
-//        if (pk != null && oid != null && amt != null) {
-//            paymentService.markSuccess(dto);
-//        } else {
-//            log.warn("필수 파라미터 누락 {}", p);
-//        }
-
         PaymentApprovalRequestDto dto = new PaymentApprovalRequestDto(paymentKey, orderId, amount);
 
         PaymentApprovalRequestDto requestDto = paymentService.markSuccess(dto);
@@ -118,11 +85,11 @@ public class PaymentController {
 
     @GetMapping("/fail")
     public RedirectView tossFail(@RequestParam Map<String, String> p) {
-        paymentService.markFail(p.get("paymentKey"), p.get("message"));
+        paymentService.markFail(p.get(PAYMENT_KEY), p.get("message"));
 
         String target = UriComponentsBuilder
                 .fromUriString(frontBase + "/payments/fail")
-                .queryParam("paymentKey", p.get("paymentKey"))
+                .queryParam(PAYMENT_KEY, p.get(PAYMENT_KEY))
                 .queryParam("orderId",    p.get("orderId"))
                 .build()
                 .toUriString();
@@ -130,7 +97,7 @@ public class PaymentController {
         return new RedirectView(target, false);
     }
 
-
+    // 사용하지 않을 예정
     @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> cancelPayment(
             @PathVariable String paymentKey,

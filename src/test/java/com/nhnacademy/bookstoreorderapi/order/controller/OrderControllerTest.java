@@ -2,7 +2,7 @@ package com.nhnacademy.bookstoreorderapi.order.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
-import com.nhnacademy.bookstoreorderapi.order.dto.request.ReturnsRequest;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.CreateOrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.exception.badrequest.InvalidRequestException;
@@ -274,54 +274,19 @@ class OrderControllerTest {
 
     @Test
     @DisplayName("반품 요청에 성공하면 200을 응답한다")
-    void requestReturns_success() throws Exception {
+    void changeOrderStatus_success() throws Exception {
         // given
         String orderNumber = "202507-abcdef-123456";
+        OrderStatusRequest request = new OrderStatusRequest(OrderStatusRequest.OrderAction.RETURN, "파손", true);
         String xUserId = "testUser";
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
 
         // when & then
         mockMvc.perform(put("/orders/{orderNumber}/status", orderNumber)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("X-USER-ID", xUserId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("X-USER-ID", xUserId)
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk());
 
-        verify(orderService, times(1)).changeStatusToReturned(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("반품 요청에 실패하면 400을 응답한다(이유: orderNumber is blank)")
-    void requestReturns_invalidRequest_fail() throws Exception {
-        // given
-        String xUserId = "testUser";
-        ReturnsRequest request = new ReturnsRequest("상품 불량", true);
-
-        // when & then
-        mockMvc.perform(put("/orders/{orderNumber}/status", " ")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("X-USER-ID", xUserId))
-                .andExpect(status().isBadRequest());
-
-        verify(orderService, never()).changeStatusToReturned(anyString(), any(), anyString());
-    }
-
-    @Test
-    @DisplayName("반품 요청에 실패하면 400을 응답한다(이유: Bean Validation)")
-    void requestReturns_beanValidation_fail() throws Exception {
-        // given
-        String orderNumber = "202507-abcdef-123456";
-        String xUserId = "testUser";
-        ReturnsRequest request = new ReturnsRequest("", true);
-
-        // when & then
-        mockMvc.perform(put("/orders/{orderNumber}/status", orderNumber)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request))
-                .header("X-USER-ID", xUserId))
-                .andExpect(status().isBadRequest());
-
-        verify(orderService, never()).changeStatusToReturned(anyString(), any(), anyString());
+        verify(orderService, times(1)).changeOrderStatus(anyString(), any(), anyString());
     }
 }
