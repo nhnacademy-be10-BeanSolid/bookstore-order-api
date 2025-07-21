@@ -73,7 +73,7 @@ class PaymentReqDtoTest {
         PaymentReqDto dto = new PaymentReqDto();
         dto.setOrderId("order");
         
-        assertNotEquals(dto, null);
+        assertNotEquals(null, dto);
         assertNotEquals(null, dto);
     }
 

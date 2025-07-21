@@ -146,7 +146,7 @@ class PaymentResDtoTest {
         PaymentResDto dto = new PaymentResDto();
         dto.setPaymentId(1L);
 
-        assertNotEquals(dto, null);
+        assertNotEquals(null, dto);
     }
 
     @Test

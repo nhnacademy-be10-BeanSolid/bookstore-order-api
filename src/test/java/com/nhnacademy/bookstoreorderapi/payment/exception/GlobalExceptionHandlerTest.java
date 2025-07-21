@@ -166,7 +166,7 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleAlreadyPaid(exception);
         
         assertTrue(response.getStatusCode().is4xxClientError());
-        assertEquals(409, response.getStatusCodeValue());
+        assertEquals(409, response.getStatusCode().value());
     }
 
     @Test

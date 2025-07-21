@@ -24,7 +24,7 @@ class PaymentApprovalRequestDtoTest {
     void testEqualsWithNull() {
         PaymentApprovalRequestDto dto = new PaymentApprovalRequestDto("key", "order", 1000L);
         
-        assertNotEquals(dto, null);
+        assertNotEquals(null, dto);
         assertNotEquals(null, dto);
     }
 

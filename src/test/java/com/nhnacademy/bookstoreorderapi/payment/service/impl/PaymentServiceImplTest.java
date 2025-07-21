@@ -295,10 +295,10 @@ class PaymentServiceImplTest {
         PaymentResDto result = paymentService.getPaymentInfo(paymentKey);
 
         // then
-        assertThat(result.getOrderId()).isEqualTo("");
-        assertThat(result.getPayType()).isEqualTo("");
-        assertThat(result.getPayName()).isEqualTo("");
-        assertThat(result.getPayAmount()).isEqualTo(0L);
+        assertThat(result.getOrderId()).isEmpty();
+        assertThat(result.getPayType()).isEmpty();
+        assertThat(result.getPayName()).isEmpty();
+        assertThat(result.getPayAmount()).isZero();
     }
 
     @Test
