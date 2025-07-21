@@ -109,7 +109,7 @@ public class CustomOrderRepositoryImpl implements CustomOrderRepository {
                 .join(orderItem.order, order)
                 .where(order.userNo.eq(userNo)
                         .and(orderItem.bookId.eq(bookId))
-                        .and(order.status.in(OrderStatus.PENDING_PAY, OrderStatus.SHIPPING, OrderStatus.COMPLETED)))
+                        .and(order.status.eq(OrderStatus.COMPLETED)))
                 .fetchFirst() != null;
     }
 
