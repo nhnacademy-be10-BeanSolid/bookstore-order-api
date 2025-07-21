@@ -91,7 +91,7 @@ class ResponsePointTypeTest {
                 1L, "적립", 100, 5, "VIP", true
         );
 
-        assertNotEquals(responsePointType, null);
+        assertNotEquals(null, responsePointType);
     }
 
     @Test

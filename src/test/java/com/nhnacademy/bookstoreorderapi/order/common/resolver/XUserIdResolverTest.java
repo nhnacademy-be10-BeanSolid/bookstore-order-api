@@ -6,6 +6,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullAndEmptySource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -55,40 +58,11 @@ class XUserIdResolverTest {
         verify(userService).getUserInfo(xUserId);
     }
 
-    @Test
-    @DisplayName("비회원(null) 유저 번호 조회 - null 반환")
-    void resolveUserNo_NullXUserId_ReturnsNull() {
-        // given
-        String xUserId = null;
-
-        // when
-        Long result = xUserIdResolver.resolveUserNo(xUserId);
-
-        // then
-        assertNull(result);
-        verify(userService, never()).getUserInfo(anyString());
-    }
-
-    @Test
-    @DisplayName("비회원(빈 문자열) 유저 번호 조회 - null 반환")
-    void resolveUserNo_EmptyXUserId_ReturnsNull() {
-        // given
-        String xUserId = "";
-
-        // when
-        Long result = xUserIdResolver.resolveUserNo(xUserId);
-
-        // then
-        assertNull(result);
-        verify(userService, never()).getUserInfo(anyString());
-    }
-
-    @Test
-    @DisplayName("비회원(공백) 유저 번호 조회 - null 반환")
-    void resolveUserNo_BlankXUserId_ReturnsNull() {
-        // given
-        String xUserId = "   ";
-
+    @ParameterizedTest
+    @DisplayName("비회원 유저 번호 조회 - null 반환")
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "\t", "\n"})
+    void resolveUserNo_GuestUser_ReturnsNull(String xUserId) {
         // when
         Long result = xUserIdResolver.resolveUserNo(xUserId);
 
@@ -127,40 +101,11 @@ class XUserIdResolverTest {
         verify(userService).getUserInfo(xUserId);
     }
 
-    @Test
-    @DisplayName("관리자 권한 확인 - 비회원(null)인 경우 false 반환")
-    void isAdmin_NullXUserId_ReturnsFalse() {
-        // given
-        String xUserId = null;
-
-        // when
-        boolean result = xUserIdResolver.isAdmin(xUserId);
-
-        // then
-        assertFalse(result);
-        verify(userService, never()).getUserInfo(anyString());
-    }
-
-    @Test
-    @DisplayName("관리자 권한 확인 - 비회원(빈 문자열)인 경우 false 반환")
-    void isAdmin_EmptyXUserId_ReturnsFalse() {
-        // given
-        String xUserId = "";
-
-        // when
-        boolean result = xUserIdResolver.isAdmin(xUserId);
-
-        // then
-        assertFalse(result);
-        verify(userService, never()).getUserInfo(anyString());
-    }
-
-    @Test
-    @DisplayName("관리자 권한 확인 - 비회원(공백)인 경우 false 반환")
-    void isAdmin_BlankXUserId_ReturnsFalse() {
-        // given
-        String xUserId = "   ";
-
+    @ParameterizedTest
+    @DisplayName("관리자 권한 확인 - 비회원인 경우 false 반환")
+    @NullAndEmptySource
+    @ValueSource(strings = {"   ", "\t", "\n"})
+    void isAdmin_GuestUser_ReturnsFalse(String xUserId) {
         // when
         boolean result = xUserIdResolver.isAdmin(xUserId);
 
@@ -194,11 +139,6 @@ class XUserIdResolverTest {
     @DisplayName("다양한 관리자 권한 확인 테스트")
     void isAdmin_VariousUsers() {
         // given
-//        String adminId = "admin";
-//        String userId = "user";
-//        UserResponse adminResponse = new UserResponse(1L, "admin", true);
-//        UserResponse userResponse = new UserResponse(2L, "user", false);
-
         given(userService.getUserInfo(adminResponse.userId())).willReturn(adminResponse);
         given(userService.getUserInfo(userResponse.userId())).willReturn(userResponse);
 
