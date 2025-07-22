@@ -33,7 +33,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void testHandleAlreadyPaid() {
-        AlreadyPaidException exception = new AlreadyPaidException("order123");
+        String orderNumber = "order123";
+        String expectedMessage = "이미 결제 완료된 주문입니다: orderNumber=" + orderNumber;
+        AlreadyPaidException exception = new AlreadyPaidException(expectedMessage);
         
         ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleAlreadyPaid(exception);
         
@@ -41,7 +43,7 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(409, response.getBody().getStatus());
         assertEquals("ALREADY_PAID", response.getBody().getCode());
-        assertEquals("이미 결제 완료된 주문입니다.", response.getBody().getMessage());
+        assertEquals(expectedMessage, response.getBody().getMessage());
     }
 
     @Test
@@ -161,7 +163,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void testResponseEntityStatusCode() {
-        AlreadyPaidException exception = new AlreadyPaidException("order123");
+        String orderNumber = "order123";
+        String expectedMessage = "이미 결제 완료된 주문입니다: orderNumber=" + orderNumber;
+        AlreadyPaidException exception = new AlreadyPaidException(expectedMessage);
         
         ResponseEntity<ErrorResponse> response = globalExceptionHandler.handleAlreadyPaid(exception);
         
