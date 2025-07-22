@@ -68,7 +68,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         payRepo.findByOrder(order)
                 .filter(p -> p.getPaymentStatus() == PaymentStatus.SUCCESS)
-                .ifPresent(p -> { throw new AlreadyPaidException(orderNumber); });
+                .ifPresent(p -> { throw new AlreadyPaidException("이미 결제 완료된 주문입니다: orderNumber=" + orderNumber); });
 
         pointService.validatePointUsage(order.getUserNo(), dto.getUsedPoint());
 

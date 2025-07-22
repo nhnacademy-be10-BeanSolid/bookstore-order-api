@@ -1,30 +1,29 @@
 package com.nhnacademy.bookstoreorderapi.payment.controller;
 
+import com.nhnacademy.bookstoreorderapi.payment.controller.swagger.PaymentControllerDocs;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.service.PaymentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.Map;
 
 @Slf4j
 @RestController
 @RequestMapping(path = "/api/v1/payments", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
-public class PaymentController {
+public class PaymentController implements PaymentControllerDocs {
 
     private static final String PAYMENT_KEY = "paymentKey";
 
@@ -38,7 +37,7 @@ public class PaymentController {
     @PostMapping(path = "/toss/{orderId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<PaymentResDto> requestPayment(
             @PathVariable String orderId,
-            @RequestBody PaymentReqDto dto) {
+            @Valid @RequestBody PaymentReqDto dto) {
 
         PaymentResDto res = paymentService.requestTossPayment(orderId, dto);
         return ResponseEntity
@@ -95,15 +94,6 @@ public class PaymentController {
                 .toUriString();
 
         return new RedirectView(target, false);
-    }
-
-    // 사용하지 않을 예정
-    @PostMapping(path = "/{paymentKey}/cancel", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<PaymentResDto> cancelPayment(
-            @PathVariable String paymentKey,
-            @RequestBody CancelPaymentRequest req) {
-
-        return ResponseEntity.ok(paymentService.refundCardPayment(paymentKey, req));
     }
 
     @ExceptionHandler(Exception.class)

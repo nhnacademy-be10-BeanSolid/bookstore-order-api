@@ -86,6 +86,10 @@ public class OrderServiceImpl implements OrderService {
     @Transactional(readOnly = true)
     public Page<OrderSummaryResponse> findAllByUserId(String xUserId, Pageable pageable) {
         Long userNo = xUserIdResolver.resolveUserNo(xUserId);
+        if (userNo == null) {
+            throw new NotMemberException("주문 전체 조회 기능은 회원에게만 제공합니다");
+        }
+
         return orderRepository.findOrderSummary(userNo, pageable);
     }
 

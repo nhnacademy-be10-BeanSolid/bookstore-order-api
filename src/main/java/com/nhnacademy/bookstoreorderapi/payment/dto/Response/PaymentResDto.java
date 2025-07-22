@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.payment.dto.Response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,18 +10,36 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Schema(description = "결제 응답 DTO")
 public class PaymentResDto {
 
-    private Long paymentId;        // DB PK
-    private String orderId;        // 연결된 주문의 비즈니스 ID
-    private String payType;        // 결제 수단
+    @Schema(description = "결제 ID (DB PK)", example = "1")
+    private Long paymentId;        
+    
+    @Schema(description = "주문 ID", example = "202507-abcdef-123456")
+    private String orderId;        
+    
+    @Schema(description = "결제 수단", example = "CARD")
+    private String payType;        
 
-    private Long payAmount;        // 결제 금액
-    private String payName;        // 주문 & 결제 제목
-    private String paymentStatus;  // 결제 상태
-    private String paymentKey;     // Toss API 가 내려준 키
+    @Schema(description = "결제 금액", example = "15000")
+    private Long payAmount;        
+    
+    @Schema(description = "주문 및 결제 제목", example = "도서 주문")
+    private String payName;        
+    
+    @Schema(description = "결제 상태", example = "SUCCESS")
+    private String paymentStatus;  
+    
+    @Schema(description = "토스 결제 키", example = "toss-payment-key-123")
+    private String paymentKey;     
 
-    private String successUrl;     // 콜백 URL
+    @Schema(description = "성공 콜백 URL", example = "https://example.com/success")
+    private String successUrl;     
+    
+    @Schema(description = "실패 콜백 URL", example = "https://example.com/fail")
     private String failUrl;
-    private String redirectUrl;    // 최종 리다이렉트할 페이지 URL
+    
+    @Schema(description = "리다이렉트 URL", example = "https://example.com/redirect")
+    private String redirectUrl;    
 }

@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.controller.swagger.OrderInternalControllerDocs;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.UserOrderAmountResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderInternalService;
 import lombok.RequiredArgsConstructor;
@@ -13,7 +14,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/internal/orders")
 @RequiredArgsConstructor
-public class OrderInternalController {
+public class OrderInternalController implements OrderInternalControllerDocs {
 
     private final OrderInternalService orderInternalService;
 
