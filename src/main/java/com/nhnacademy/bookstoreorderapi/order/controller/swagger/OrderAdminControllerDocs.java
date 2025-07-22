@@ -24,23 +24,21 @@ public interface OrderAdminControllerDocs {
             summary = "모든 주문 조회",
             description = "모든 회원의 모든 주문을 페이징하여 조회합니다. (관리자 전용)"
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "조회 성공",
-                    content = @Content(schema = @Schema(implementation = Page.class))
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "관리자 권한 필요",
-                    content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    value = "{\"errorCode\": \"FORBIDDEN\", \"errorMessage\": \"관리자 권한이 필요합니다\"}"
-                            )
+    @ApiResponse(
+            responseCode = "200",
+            description = "조회 성공",
+            content = @Content(schema = @Schema(implementation = Page.class))
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "관리자 권한 필요",
+            content = @Content(
+                    schema = @Schema(implementation = ErrorResponse.class),
+                    examples = @ExampleObject(
+                            value = "{\"errorCode\": \"FORBIDDEN\", \"errorMessage\": \"관리자 권한이 필요합니다\"}"
                     )
             )
-    })
+    )
     ResponseEntity<Page<OrderSummaryResponse>> getAllOrders(
             @Parameter(description = "관리자 사용자 ID", required = true)
             @RequestHeader("X-USER-ID") String xUserId,
@@ -53,33 +51,31 @@ public interface OrderAdminControllerDocs {
             summary = "주문 상태를 배송중으로 변경",
             description = "주문 상태를 'PENDING'에서 'SHIPPING'으로 변경합니다. (관리자 전용)"
     )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "상태 변경 성공",
-                    content = @Content(schema = @Schema(implementation = OrderResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "403",
-                    description = "관리자 권한 필요",
-                    content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    value = "{\"errorCode\": \"FORBIDDEN\", \"errorMessage\": \"관리자 권한이 필요합니다\"}"
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "주문을 찾을 수 없음",
-                    content = @Content(
-                            schema = @Schema(implementation = ErrorResponse.class),
-                            examples = @ExampleObject(
-                                    value = "{\"errorCode\": \"NOT_FOUND\", \"errorMessage\": \"주문을 찾을 수 없습니다: orderNumber=202507-abcdef-123456\"}"
-                            )
+    @ApiResponse(
+            responseCode = "200",
+            description = "상태 변경 성공",
+            content = @Content(schema = @Schema(implementation = OrderResponse.class))
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "관리자 권한 필요",
+            content = @Content(
+                    schema = @Schema(implementation = ErrorResponse.class),
+                    examples = @ExampleObject(
+                            value = "{\"errorCode\": \"FORBIDDEN\", \"errorMessage\": \"관리자 권한이 필요합니다\"}"
                     )
             )
-    })
+    )
+    @ApiResponse(
+            responseCode = "404",
+            description = "주문을 찾을 수 없음",
+            content = @Content(
+                    schema = @Schema(implementation = ErrorResponse.class),
+                    examples = @ExampleObject(
+                            value = "{\"errorCode\": \"NOT_FOUND\", \"errorMessage\": \"주문을 찾을 수 없습니다: orderNumber=202507-abcdef-123456\"}"
+                    )
+            )
+    )
     ResponseEntity<OrderResponse> changeStatusToShipping(
             @Parameter(description = "주문 번호", required = true)
             @PathVariable String orderNumber,

@@ -33,28 +33,25 @@ public class SwaggerConfig {
     @Bean
     @ConditionalOnMissingBean(ModelConverter.class)
     public ModelConverter modelConverter() {
-        return new ModelConverter() {
-            @Override
-            public Schema<?> resolve(AnnotatedType type, ModelConverterContext context, Iterator<ModelConverter> chain) {
-                if (type.getType() instanceof Class) {
-                    Class<?> cls = (Class<?>) type.getType();
-                    
-                    // Spring 관련 클래스들을 제외
-                    if (cls.getName().startsWith("org.springframework")) {
-                        return null;
-                    }
-                    
-                    // ApplicationContext, BeanFactory 등 Spring 컨테이너 관련 클래스 제외
-                    if (cls.getName().contains("ApplicationContext") ||
-                        cls.getName().contains("BeanFactory") ||
-                        cls.getName().contains("ConfigurableApplicationContext") ||
-                        cls.getName().contains("WebApplicationContext")) {
-                        return null;
-                    }
+        return (type, context, chain) -> {
+            if (type.getType() instanceof Class) {
+                Class<?> cls = (Class<?>) type.getType();
+                
+                // Spring 관련 클래스들을 제외
+                if (cls.getName().startsWith("org.springframework")) {
+                    return null;
                 }
                 
-                return chain.hasNext() ? chain.next().resolve(type, context, chain) : null;
+                // ApplicationContext, BeanFactory 등 Spring 컨테이너 관련 클래스 제외
+                if (cls.getName().contains("ApplicationContext") ||
+                    cls.getName().contains("BeanFactory") ||
+                    cls.getName().contains("ConfigurableApplicationContext") ||
+                    cls.getName().contains("WebApplicationContext")) {
+                    return null;
+                }
             }
+            
+            return chain.hasNext() ? chain.next().resolve(type, context, chain) : null;
         };
     }
 }
