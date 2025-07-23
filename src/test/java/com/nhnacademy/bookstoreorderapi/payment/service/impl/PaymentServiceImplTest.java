@@ -3,6 +3,8 @@ package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
@@ -17,6 +19,7 @@ import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
 import com.nhnacademy.bookstoreorderapi.payment.exception.AlreadyPaidException;
 import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentCreationException;
 import com.nhnacademy.bookstoreorderapi.payment.exception.PaymentNotFoundException;
+import com.nhnacademy.bookstoreorderapi.payment.exception.RedirectUrlNotFoundException;
 import com.nhnacademy.bookstoreorderapi.payment.repository.PaymentRepository;
 import feign.FeignException;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,16 +32,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.argThat;
+import static org.mockito.Mockito.eq;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -70,6 +74,14 @@ class PaymentServiceImplTest {
     void setUp() {
         order = mock(Order.class);
         given(order.getOrderNumber()).willReturn("testOrderNumber");
+        given(order.getUserNo()).willReturn(1L);
+        
+        // Mock ShippingInfo for order
+        ShippingInfo shippingInfo = new ShippingInfo(
+                new UpdateOrderRequest(null, "받는 사람", "010-1234-5678", "주소", LocalDate.now().plusDays(1)),
+                ShippingInfo.DEFAULT_SHIPPING_FEE
+        );
+        given(order.getShippingInfo()).willReturn(shippingInfo);
 
         payment = new Payment();
         payment.setPaymentKey("testPaymentKey");
@@ -111,9 +123,7 @@ class PaymentServiceImplTest {
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.empty());
 
         // when & then
-        assertThrows(OrderNotFoundException.class, () -> {
-            paymentService.requestTossPayment("nonExistentOrder", paymentReqDto);
-        });
+        assertThrows(OrderNotFoundException.class, () -> paymentService.requestTossPayment("nonExistentOrder", paymentReqDto));
     }
 
     @Test
@@ -125,9 +135,7 @@ class PaymentServiceImplTest {
         given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.of(payment));
 
         // when & then
-        assertThrows(AlreadyPaidException.class, () -> {
-            paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
-        });
+        assertThrows(AlreadyPaidException.class, () -> paymentService.requestTossPayment("testOrderNumber", paymentReqDto));
     }
 
     @Test
@@ -141,9 +149,7 @@ class PaymentServiceImplTest {
         given(tossPaymentClient.createPayment(anyMap())).willReturn(Map.of()); // Empty map simulates failure
 
         // when & then
-        assertThrows(PaymentCreationException.class, () -> {
-            paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
-        });
+        assertThrows(PaymentCreationException.class, () -> paymentService.requestTossPayment("testOrderNumber", paymentReqDto));
     }
 
     @Test
@@ -153,6 +159,7 @@ class PaymentServiceImplTest {
         PaymentApprovalRequestDto approvalDto = new PaymentApprovalRequestDto("testPaymentKey", "testOrderNumber", 15000L);
         given(paymentRepository.findByPaymentKey(anyString())).willReturn(Optional.of(payment));
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(orderRepository.save(any(Order.class))).willReturn(order);
         given(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).willReturn(approvalDto);
 
         // when
@@ -162,6 +169,9 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
         verify(order).setStatus(OrderStatus.PENDING_PAY);
         verify(paymentRepository).save(payment);
+        verify(orderRepository).save(order);
+        verify(pointService).processEarnedPoints(order, payment);
+        verify(pointService).processUsedPoints(order, payment);
     }
 
     @Test
@@ -185,9 +195,7 @@ class PaymentServiceImplTest {
         given(paymentRepository.findByPaymentKey(anyString())).willReturn(Optional.empty());
 
         // when & then
-        assertThrows(PaymentNotFoundException.class, () -> {
-            paymentService.markFail("nonExistentKey", "Test failure reason");
-        });
+        assertThrows(PaymentNotFoundException.class, () -> paymentService.markFail("nonExistentKey", "Test failure reason"));
     }
 
     @Test
@@ -215,9 +223,7 @@ class PaymentServiceImplTest {
         CancelPaymentRequest cancelRequest = new CancelPaymentRequest("testOrderNumber", 15000L, "Customer request");
 
         // when & then
-        assertThrows(FeignException.class, () -> {
-            paymentService.refundCardPayment("testPaymentKey", cancelRequest);
-        });
+        assertThrows(FeignException.class, () -> paymentService.refundCardPayment("testPaymentKey", cancelRequest));
     }
 
     @Test
@@ -261,7 +267,7 @@ class PaymentServiceImplTest {
                 "orderId", "testOrderNumber",
                 "method", "CARD",
                 "orderName", "Test Order",
-                "amount", Integer.valueOf(25000),
+                "amount", 25000,
                 "nextRedirectPcUrl", "http://redirect.url"
         );
         given(tossPaymentClient.getPaymentInfo(paymentKey)).willReturn(tossApiResponse);
@@ -334,9 +340,7 @@ class PaymentServiceImplTest {
         given(orderRepository.findByOrderNumber(orderNumber)).willReturn(Optional.empty());
 
         // when & then
-        assertThrows(OrderNotFoundException.class, () -> {
-            paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
-        });
+        assertThrows(OrderNotFoundException.class, () -> paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason));
     }
 
     @Test
@@ -349,9 +353,7 @@ class PaymentServiceImplTest {
         given(paymentRepository.findByOrder(order)).willReturn(Optional.empty());
 
         // when & then
-        assertThrows(PaymentNotFoundException.class, () -> {
-            paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason);
-        });
+        assertThrows(PaymentNotFoundException.class, () -> paymentService.refundCardPaymentByOrderNumber(orderNumber, cancelReason));
     }
 
     @Test
@@ -372,6 +374,130 @@ class PaymentServiceImplTest {
                 "cancelAmount", 15000L
         );
         verify(tossPaymentClient).cancelPayment("testPaymentKey", expectedCancelRequest);
+    }
+
+    @Test
+    @DisplayName("Toss 결제 요청 - PayType이 ACCOUNT인 경우")
+    void requestTossPayment_PayTypeAccount_MapsToVirtualAccount() {
+        // given
+        paymentReqDto.setPayType(PayType.ACCOUNT);
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of("paymentKey", "newPaymentKey", "nextRedirectPcUrl", "http://redirect.url");
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when
+        paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
+
+        // then
+        verify(tossPaymentClient).createPayment(argThat(body -> 
+            "VIRTUAL_ACCOUNT".equals(body.get("method"))
+        ));
+    }
+
+    @Test
+    @DisplayName("Toss 결제 요청 - PayType이 CARD인 경우")
+    void requestTossPayment_PayTypeCard_MapsToCard() {
+        // given
+        paymentReqDto.setPayType(PayType.CARD);
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of("paymentKey", "newPaymentKey", "nextRedirectPcUrl", "http://redirect.url");
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when
+        paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
+
+        // then
+        verify(tossPaymentClient).createPayment(argThat(body -> 
+            "CARD".equals(body.get("method"))
+        ));
+    }
+
+    @Test
+    @DisplayName("extractRedirectUrl - checkout이 Map이 아닌 경우")
+    void requestTossPayment_CheckoutNotMap_SkipsCheckoutUrl() {
+        // given
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of(
+                "paymentKey", "newPaymentKey", 
+                "checkout", "not-a-map", // String instead of Map
+                "nextRedirectPcUrl", "http://redirect.url"
+        );
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when
+        PaymentResDto result = paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
+
+        // then
+        assertThat(result.getRedirectUrl()).isEqualTo("http://redirect.url");
+    }
+
+    @Test
+    @DisplayName("extractRedirectUrl - checkout이 Map이지만 url 키가 없는 경우")
+    void requestTossPayment_CheckoutMapWithoutUrl_SkipsCheckoutUrl() {
+        // given
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of(
+                "paymentKey", "newPaymentKey", 
+                "checkout", Map.of("other", "value"), // Map without "url" key
+                "nextRedirectPcUrl", "http://redirect.url"
+        );
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when
+        PaymentResDto result = paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
+
+        // then
+        assertThat(result.getRedirectUrl()).isEqualTo("http://redirect.url");
+    }
+
+    @Test
+    @DisplayName("extractRedirectUrl - 모든 URL 필드가 null인 경우 RedirectUrlNotFoundException 발생")
+    void requestTossPayment_AllUrlFieldsNull_ThrowsRedirectUrlNotFoundException() {
+        // given
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of("paymentKey", "newPaymentKey"); // No redirect URLs
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when & then
+        assertThrows(RedirectUrlNotFoundException.class, () -> paymentService.requestTossPayment("testOrderNumber", paymentReqDto));
+    }
+
+    @Test
+    @DisplayName("extractRedirectUrl - URL 우선순위 테스트")
+    void requestTossPayment_MultipleUrls_UsesPriorityOrder() {
+        // given
+        given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(paymentRepository.findByOrder(any(Order.class))).willReturn(Optional.empty());
+        given(tossPaymentConfig.getSuccessUrl()).willReturn("http://localhost/success");
+        given(tossPaymentConfig.getFailUrl()).willReturn("http://localhost/fail");
+        Map<String, Object> tossApiResponse = Map.of(
+                "paymentKey", "newPaymentKey",
+                "nextRedirectPcUrl", "http://pc.url",
+                "nextRedirectMobileUrl", "http://mobile.url",
+                "hostedCheckoutUrl", "http://hosted.url"
+        );
+        given(tossPaymentClient.createPayment(anyMap())).willReturn(tossApiResponse);
+
+        // when
+        PaymentResDto result = paymentService.requestTossPayment("testOrderNumber", paymentReqDto);
+
+        // then
+        assertThat(result.getRedirectUrl()).isEqualTo("http://pc.url"); // Should use first non-null URL
     }
 }
 

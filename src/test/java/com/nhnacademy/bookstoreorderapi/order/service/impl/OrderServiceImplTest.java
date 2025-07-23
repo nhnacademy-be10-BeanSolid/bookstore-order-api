@@ -562,4 +562,138 @@ class OrderServiceImplTest {
         verify(pointService, never()).processPointRefund(any(), anyLong());
         verify(statusLogRepository, never()).save(any());
     }
+
+    @Test
+    @DisplayName("주문 업데이트 - 게스트 사용자는 가격 상관없이 배송비 지불")
+    void updateOrder_guestUser_alwaysPayShippingFee() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(
+                        new UpdateOrderRequest.WrappingRequest(1L, 1L),
+                        new UpdateOrderRequest.WrappingRequest(2L, null)
+                ),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(null); // Guest user
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "고가책", 50000, 1, order)); // 임계값 이상
+        Wrapping wrapping = new Wrapping(1L, "포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(any())).willReturn(null);
+        given(orderRepository.findByOrderNumberAndUserNo(anyString(), any())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any(Order.class))).willReturn(orderItems);
+        given(wrappingRepository.findById(1L)).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, null);
+
+        // then
+        assertThat(result.getShippingFee()).isEqualTo(ShippingInfo.DEFAULT_SHIPPING_FEE); // 게스트는 항상 배송비 지불
+    }
+
+    @Test
+    @DisplayName("주문 업데이트 - 회원 사용자, 가격이 임계값 미만일 때 배송비 지불")
+    void updateOrder_memberUser_belowThreshold_payShippingFee() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(
+                        new UpdateOrderRequest.WrappingRequest(1L, 1L),
+                        new UpdateOrderRequest.WrappingRequest(2L, null)
+                ),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(userNo);
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "저가책", 20000, 1, order)); // 임계값 미만
+        Wrapping wrapping = new Wrapping(1L, "포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(order)).willReturn(orderItems);
+        given(wrappingRepository.findById(1L)).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result.getShippingFee()).isEqualTo(ShippingInfo.DEFAULT_SHIPPING_FEE);
+    }
+
+    @Test
+    @DisplayName("주문 업데이트 - 회원 사용자, 가격이 정확히 임계값일 때 배송비 무료")
+    void updateOrder_memberUser_exactThreshold_freeShipping() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(
+                        new UpdateOrderRequest.WrappingRequest(1L, 1L),
+                        new UpdateOrderRequest.WrappingRequest(2L, null)
+                ),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(userNo);
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "임계값책", 50000, 1, order)); // 정확히 임계값
+        Wrapping wrapping = new Wrapping(1L, "포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(order)).willReturn(orderItems);
+        given(wrappingRepository.findById(1L)).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result.getShippingFee()).isZero(); // 임계값 이상이므로 무료배송
+    }
+
+    @Test
+    @DisplayName("주문 업데이트 - 회원 사용자, 가격이 임계값 초과일 때 배송비 무료")
+    void updateOrder_memberUser_aboveThreshold_freeShipping() {
+        // given
+        String orderNumber = "202507-abcdef-123456";
+        String xUserId = "testUser";
+        Long userNo = 1L;
+        UpdateOrderRequest request = new UpdateOrderRequest(
+                List.of(
+                        new UpdateOrderRequest.WrappingRequest(1L, 1L),
+                        new UpdateOrderRequest.WrappingRequest(2L, null)
+                ),
+                "받는 사람",
+                "010-1234-5678",
+                "우주",
+                LocalDate.now().plusDays(3)
+        );
+
+        Order order = new Order(userNo);
+        List<OrderItem> orderItems = List.of(new OrderItem(1L, "고가책", 80000, 1, order)); // 임계값 초과
+        Wrapping wrapping = new Wrapping(1L, "포장지", 50, true);
+
+        given(xUserIdResolver.resolveUserNo(xUserId)).willReturn(userNo);
+        given(orderRepository.findByOrderNumberAndUserNo(orderNumber, userNo)).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(order)).willReturn(orderItems);
+        given(wrappingRepository.findById(1L)).willReturn(Optional.of(wrapping));
+
+        // when
+        OrderResponse result = orderService.updateOrder(orderNumber, request, xUserId);
+
+        // then
+        assertThat(result.getShippingFee()).isZero(); // 임계값 초과이므로 무료배송
+    }
 }

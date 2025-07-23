@@ -9,24 +9,24 @@ class AlreadyPaidExceptionTest {
     @Test
     void testConstructorWithOrderId() {
         String orderId = "order123";
-        AlreadyPaidException exception = new AlreadyPaidException(orderId);
+        AlreadyPaidException exception = new AlreadyPaidException("이미 결제 완료된 주문입니다: orderNumber=" + orderId);
 
-        assertEquals("이미 결제 완료된 주문입니다.", exception.getMessage());
+        assertEquals("이미 결제 완료된 주문입니다: orderNumber=" + orderId, exception.getMessage());
         assertInstanceOf(RuntimeException.class, exception);
     }
 
     @Test
     void testConstructorWithNullOrderId() {
-        AlreadyPaidException exception = new AlreadyPaidException(null);
+        AlreadyPaidException exception = new AlreadyPaidException("이미 결제 완료된 주문입니다: orderNumber=null");
 
-        assertEquals("이미 결제 완료된 주문입니다.", exception.getMessage());
+        assertEquals("이미 결제 완료된 주문입니다: orderNumber=null", exception.getMessage());
     }
 
     @Test
     void testConstructorWithEmptyOrderId() {
-        AlreadyPaidException exception = new AlreadyPaidException("");
+        AlreadyPaidException exception = new AlreadyPaidException("이미 결제 완료된 주문입니다: orderNumber=");
 
-        assertEquals("이미 결제 완료된 주문입니다.", exception.getMessage());
+        assertEquals("이미 결제 완료된 주문입니다: orderNumber=", exception.getMessage());
     }
 
     @Test
@@ -47,11 +47,12 @@ class AlreadyPaidExceptionTest {
     @Test
     void testExceptionMessage() {
         String orderId = "test-order-id";
+        String expectedMessage = "이미 결제 완료된 주문입니다: orderNumber=" + orderId;
         
         try {
-            throw new AlreadyPaidException(orderId);
+            throw new AlreadyPaidException(expectedMessage);
         } catch (AlreadyPaidException e) {
-            assertEquals("이미 결제 완료된 주문입니다.", e.getMessage());
+            assertEquals(expectedMessage, e.getMessage());
         }
     }
 }

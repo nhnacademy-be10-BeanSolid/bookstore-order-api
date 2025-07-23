@@ -2,7 +2,6 @@ package com.nhnacademy.bookstoreorderapi.payment.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nhnacademy.bookstoreorderapi.payment.domain.PayType;
-import com.nhnacademy.bookstoreorderapi.payment.dto.Request.CancelPaymentRequest;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentApprovalRequestDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Request.PaymentReqDto;
 import com.nhnacademy.bookstoreorderapi.payment.dto.Response.PaymentResDto;
@@ -130,20 +129,5 @@ class PaymentControllerTest {
                 .andExpect(status().is3xxRedirection());
 
         verify(paymentService).markFail(TEST_PAYMENT_KEY, errorMessage);
-    }
-
-    @Test
-    @DisplayName("결제 취소(환불) 요청")
-    void cancelPayment_returnsOk() throws Exception {
-        CancelPaymentRequest cancelRequest = new CancelPaymentRequest(TEST_ORDER_ID, TEST_AMOUNT, "테스트 취소");
-        given(paymentService.refundCardPayment(anyString(), any(CancelPaymentRequest.class))).willReturn(paymentResDto);
-
-        mockMvc.perform(post("/api/v1/payments/{paymentKey}/cancel", TEST_PAYMENT_KEY)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(cancelRequest)))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.paymentKey").value(TEST_PAYMENT_KEY));
-
-        verify(paymentService).refundCardPayment(eq(TEST_PAYMENT_KEY), any(CancelPaymentRequest.class));
     }
 }

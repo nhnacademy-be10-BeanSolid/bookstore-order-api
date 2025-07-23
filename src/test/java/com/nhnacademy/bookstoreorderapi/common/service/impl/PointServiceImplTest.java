@@ -146,6 +146,25 @@ class PointServiceImplTest {
     }
 
     @Test
+    @DisplayName("포인트가 사용 포인트와 정확히 같을 때 유효성 검사를 통과해야 한다")
+    void validatePointUsage_shouldPassWhenPointEqualsUsedPoint() {
+        when(userServiceClient.getUserPointByUserNo(anyLong())).thenReturn(100);
+
+        assertDoesNotThrow(() -> pointService.validatePointUsage(1L, 100));
+        verify(userServiceClient, times(1)).getUserPointByUserNo(1L);
+    }
+
+    @Test
+    @DisplayName("현재 보유 포인트가 null일 때 NotEnoughPointException을 던져야 한다")
+    void validatePointUsage_shouldThrowNotEnoughPointExceptionWhenCurrentPointIsNull() {
+        when(userServiceClient.getUserPointByUserNo(anyLong())).thenReturn(null);
+
+        assertThrows(NotEnoughPointException.class, () ->
+                pointService.validatePointUsage(1L, 100));
+        verify(userServiceClient, times(1)).getUserPointByUserNo(1L);
+    }
+
+    @Test
     @DisplayName("사용자가 존재하고 환불 금액이 양수일 때 포인트가 환불되어야 한다")
     void processPointRefund_shouldRefundPointsWhenUserExistsAndRefundAmountIsPositive() {
         Order order = mock(Order.class);

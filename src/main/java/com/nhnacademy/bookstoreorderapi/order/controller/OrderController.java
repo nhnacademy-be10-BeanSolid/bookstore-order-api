@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.controller.swagger.OrderControllerDocs;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.CreateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.OrderStatusRequest;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
-public class OrderController {
+public class OrderController implements OrderControllerDocs {
 
     private final OrderService orderService;
 

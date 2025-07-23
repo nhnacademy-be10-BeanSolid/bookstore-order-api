@@ -1,5 +1,6 @@
 package com.nhnacademy.bookstoreorderapi.order.controller;
 
+import com.nhnacademy.bookstoreorderapi.order.controller.swagger.OrderAdminControllerDocs;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderResponse;
 import com.nhnacademy.bookstoreorderapi.order.dto.response.OrderSummaryResponse;
 import com.nhnacademy.bookstoreorderapi.order.service.OrderAdminService;
@@ -14,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/admin/orders")
 @RequiredArgsConstructor
-public class OrderAdminController {
+public class OrderAdminController implements OrderAdminControllerDocs {
 
     private final OrderAdminService orderAdminService;
 

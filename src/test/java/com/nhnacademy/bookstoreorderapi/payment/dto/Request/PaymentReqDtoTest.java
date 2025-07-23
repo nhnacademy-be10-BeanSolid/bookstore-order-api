@@ -84,4 +84,63 @@ class PaymentReqDtoTest {
         
         assertNotEquals(dto, differentObject);
     }
+
+    @Test
+    void testEqualsWithSameInstance() {
+        PaymentReqDto dto = new PaymentReqDto();
+        dto.setOrderId("order123");
+        dto.setPayAmount(1000L);
+        
+        assertEquals(dto, dto);
+        assertEquals(dto.hashCode(), dto.hashCode());
+    }
+
+    @Test
+    void testEqualsWithNullFields() {
+        PaymentReqDto dto1 = new PaymentReqDto();
+        PaymentReqDto dto2 = new PaymentReqDto();
+        
+        assertEquals(dto1, dto2);
+        assertEquals(dto1.hashCode(), dto2.hashCode());
+    }
+
+    @Test
+    void testEqualsWithDifferentFields() {
+        PaymentReqDto dto1 = new PaymentReqDto();
+        dto1.setOrderId("order1");
+        dto1.setPayAmount(1000L);
+        dto1.setPayType(PayType.CARD);
+        dto1.setUsedPoint(100);
+        
+        PaymentReqDto dto2 = new PaymentReqDto();
+        dto2.setOrderId("order2");
+        dto2.setPayAmount(1000L);
+        dto2.setPayType(PayType.CARD);
+        dto2.setUsedPoint(100);
+        
+        assertNotEquals(dto1, dto2);
+        
+        dto2.setOrderId("order1");
+        dto2.setPayAmount(2000L);
+        assertNotEquals(dto1, dto2);
+        
+        dto2.setPayAmount(1000L);
+        dto2.setPayType(PayType.ACCOUNT);
+        assertNotEquals(dto1, dto2);
+        
+        dto2.setPayType(PayType.CARD);
+        dto2.setUsedPoint(200);
+        assertNotEquals(dto1, dto2);
+    }
+
+    @Test
+    void testCanEqual() {
+        PaymentReqDto dto1 = new PaymentReqDto();
+        PaymentReqDto dto2 = new PaymentReqDto();
+        Object differentType = new Object();
+        
+        assertTrue(dto1.canEqual(dto2));
+        assertFalse(dto1.canEqual(differentType));
+        assertFalse(dto1.canEqual(null));
+    }
 }
