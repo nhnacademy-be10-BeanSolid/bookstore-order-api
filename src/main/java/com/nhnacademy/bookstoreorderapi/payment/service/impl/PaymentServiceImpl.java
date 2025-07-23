@@ -76,7 +76,7 @@ public class PaymentServiceImpl implements PaymentService {
                 "method", dto.getPayType() == PayType.ACCOUNT ? "VIRTUAL_ACCOUNT" : dto.getPayType().name(),
                 "orderId", orderNumber,
                 "orderName", dto.getPayName(),
-                "amount", dto.getPayAmount() + order.getShippingInfo().getShippingFee(),
+                "amount", dto.getPayAmount(),
                 "successUrl", tossProps.getSuccessUrl(),
                 "failUrl", tossProps.getFailUrl()
         );
