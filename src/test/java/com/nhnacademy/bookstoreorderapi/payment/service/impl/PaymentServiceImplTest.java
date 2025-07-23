@@ -3,6 +3,8 @@ package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 import com.nhnacademy.bookstoreorderapi.common.service.PointService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
+import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
+import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
@@ -30,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
@@ -71,6 +74,14 @@ class PaymentServiceImplTest {
     void setUp() {
         order = mock(Order.class);
         given(order.getOrderNumber()).willReturn("testOrderNumber");
+        given(order.getUserNo()).willReturn(1L);
+        
+        // Mock ShippingInfo for order
+        ShippingInfo shippingInfo = new ShippingInfo(
+                new UpdateOrderRequest(null, "받는 사람", "010-1234-5678", "주소", LocalDate.now().plusDays(1)),
+                ShippingInfo.DEFAULT_SHIPPING_FEE
+        );
+        given(order.getShippingInfo()).willReturn(shippingInfo);
 
         payment = new Payment();
         payment.setPaymentKey("testPaymentKey");
@@ -148,6 +159,7 @@ class PaymentServiceImplTest {
         PaymentApprovalRequestDto approvalDto = new PaymentApprovalRequestDto("testPaymentKey", "testOrderNumber", 15000L);
         given(paymentRepository.findByPaymentKey(anyString())).willReturn(Optional.of(payment));
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(orderRepository.save(any(Order.class))).willReturn(order);
         given(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).willReturn(approvalDto);
 
         // when
@@ -157,6 +169,9 @@ class PaymentServiceImplTest {
         assertThat(payment.getPaymentStatus()).isEqualTo(PaymentStatus.SUCCESS);
         verify(order).setStatus(OrderStatus.PENDING_PAY);
         verify(paymentRepository).save(payment);
+        verify(orderRepository).save(order);
+        verify(pointService).processEarnedPoints(order, payment);
+        verify(pointService).processUsedPoints(order, payment);
     }
 
     @Test

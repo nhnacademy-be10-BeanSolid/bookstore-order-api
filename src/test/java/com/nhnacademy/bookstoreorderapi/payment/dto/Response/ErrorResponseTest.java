@@ -42,4 +42,93 @@ class ErrorResponseTest {
         assertTrue(toString.contains("code=CODE1"));
         assertTrue(toString.contains("message=Message1"));
     }
+
+    @Test
+    void testEqualsWithNull() {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        
+        assertNotEquals(null, errorResponse);
+    }
+
+    @Test
+    void testEqualsWithDifferentClass() {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        String differentObject = "not an error response";
+        
+        assertNotEquals(errorResponse, differentObject);
+    }
+
+    @Test
+    void testEqualsWithSameInstance() {
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        
+        assertEquals(errorResponse, errorResponse);
+        assertEquals(errorResponse.hashCode(), errorResponse.hashCode());
+    }
+
+    @Test
+    void testEqualsWithDifferentFields() {
+        ErrorResponse response1 = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        
+        ErrorResponse response2 = ErrorResponse.builder()
+                .status(500)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        
+        assertNotEquals(response1, response2);
+        
+        response2 = ErrorResponse.builder()
+                .status(400)
+                .code("CODE2")
+                .message("Message1")
+                .build();
+        
+        assertNotEquals(response1, response2);
+        
+        response2 = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message2")
+                .build();
+        
+        assertNotEquals(response1, response2);
+    }
+
+    @Test
+    void testCanEqual() {
+        ErrorResponse response1 = ErrorResponse.builder()
+                .status(400)
+                .code("CODE1")
+                .message("Message1")
+                .build();
+        
+        ErrorResponse response2 = ErrorResponse.builder()
+                .status(500)
+                .code("CODE2")
+                .message("Message2")
+                .build();
+        
+        Object differentType = new Object();
+        
+        assertTrue(response1.canEqual(response2));
+        assertFalse(response1.canEqual(differentType));
+        assertFalse(response1.canEqual(null));
+    }
 }
