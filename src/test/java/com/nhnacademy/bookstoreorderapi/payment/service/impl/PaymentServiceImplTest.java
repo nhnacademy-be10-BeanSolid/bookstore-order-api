@@ -1,11 +1,14 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.common.service.PointService;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.domain.ShippingInfo;
 import com.nhnacademy.bookstoreorderapi.order.dto.request.UpdateOrderRequest;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
@@ -33,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -40,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.eq;
@@ -50,6 +55,12 @@ class PaymentServiceImplTest {
 
     @Mock
     private OrderRepository orderRepository;
+
+    @Mock
+    private OrderItemRepository orderItemRepository;
+
+    @Mock
+    private BookService bookService;
 
     @Mock
     private PaymentRepository paymentRepository;
@@ -159,6 +170,8 @@ class PaymentServiceImplTest {
         PaymentApprovalRequestDto approvalDto = new PaymentApprovalRequestDto("testPaymentKey", "testOrderNumber", 15000L);
         given(paymentRepository.findByPaymentKey(anyString())).willReturn(Optional.of(payment));
         given(orderRepository.findByOrderNumber(anyString())).willReturn(Optional.of(order));
+        given(orderItemRepository.findAllByOrder(any())).willReturn(List.of(new OrderItem(1L, "책제목", 100, 1, order)));
+        willDoNothing().given(bookService).stockUpdate(anyList());
         given(orderRepository.save(any(Order.class))).willReturn(order);
         given(tossPaymentClient.confirmPayment(any(PaymentApprovalRequestDto.class))).willReturn(approvalDto);
 

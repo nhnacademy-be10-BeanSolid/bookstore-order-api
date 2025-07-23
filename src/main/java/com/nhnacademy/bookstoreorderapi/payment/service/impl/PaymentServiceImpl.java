@@ -1,9 +1,13 @@
 package com.nhnacademy.bookstoreorderapi.payment.service.impl;
 
 import com.nhnacademy.bookstoreorderapi.common.service.PointService;
+import com.nhnacademy.bookstoreorderapi.order.client.book.dto.BookStockReduceRequest;
+import com.nhnacademy.bookstoreorderapi.order.client.book.service.BookService;
 import com.nhnacademy.bookstoreorderapi.order.domain.Order;
+import com.nhnacademy.bookstoreorderapi.order.domain.OrderItem;
 import com.nhnacademy.bookstoreorderapi.order.domain.OrderStatus;
 import com.nhnacademy.bookstoreorderapi.order.exception.notfound.OrderNotFoundException;
+import com.nhnacademy.bookstoreorderapi.order.repository.OrderItemRepository;
 import com.nhnacademy.bookstoreorderapi.order.repository.OrderRepository;
 import com.nhnacademy.bookstoreorderapi.payment.client.TossPaymentClient;
 import com.nhnacademy.bookstoreorderapi.payment.config.TossPaymentConfig;
@@ -23,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,10 +41,12 @@ import static com.nhnacademy.bookstoreorderapi.order.service.impl.OrderServiceIm
 public class PaymentServiceImpl implements PaymentService {
 
     private final OrderRepository orderRepo;
+    private final OrderItemRepository orderItemRepo;
     private final PaymentRepository payRepo;
     private final TossPaymentConfig tossProps;
     private final TossPaymentClient tossClient;
     private final PointService pointService;
+    private final BookService bookService;
 
     private String extractRedirectUrl(Map<String, Object> resp) {
         return Stream.of(
@@ -131,6 +138,12 @@ public class PaymentServiceImpl implements PaymentService {
 
         pointService.processEarnedPoints(order, payment);
         pointService.processUsedPoints(order, payment);
+
+        List<OrderItem> orderItems = orderItemRepo.findAllByOrder(order);
+        List<BookStockReduceRequest> stockRequests = orderItems.stream()
+                .map(item -> new BookStockReduceRequest(item.getBookId(), item.getQuantity()))
+                .toList();
+        bookService.stockUpdate(stockRequests);
 
         return confirmResp;
     }
